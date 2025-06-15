@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload } from 'lucide-react';
 import { useProducts } from '@/hooks/useDatabase';
 import ProductImport from './ProductImport';
+import ProductStockEditor from './products/ProductStockEditor';
 
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,9 +167,11 @@ const ProductsManager = () => {
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Остаток:</span>
-                  <span className={`font-medium ${product.stock < 10 ? 'text-red-600' : 'text-green-600'}`}>
-                    {product.stock} шт.
-                  </span>
+                  <ProductStockEditor
+                    productId={product.id}
+                    currentStock={product.stock}
+                    minStock={product.minStock}
+                  />
                 </div>
 
                 <div className="flex justify-between items-center">
