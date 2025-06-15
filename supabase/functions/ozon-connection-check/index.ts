@@ -27,14 +27,15 @@ serve(async (req) => {
 
     console.log('Checking Ozon connection with clientId:', clientId);
 
-    // Используем endpoint для получения информации о продавце - самый базовый endpoint
-    const response = await fetch('https://api-seller.ozon.ru/v1/seller/info', {
-      method: 'GET',
+    // Используем endpoint для получения складов - базовый endpoint для всех продавцов
+    const response = await fetch('https://api-seller.ozon.ru/v1/warehouse/list', {
+      method: 'POST',
       headers: {
         'Client-Id': clientId,
         'Api-Key': apiKey,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({})
     });
 
     console.log('Ozon API response status:', response.status);
@@ -69,7 +70,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'API endpoint не найден. Проверьте корректность Client ID.' 
+            error: 'API endpoint не найден. Возможно, API ключ не активен или Client ID неверный.' 
           }),
           { 
             status: 200, 
@@ -91,13 +92,13 @@ serve(async (req) => {
     }
 
     const responseData = await response.json();
-    console.log('Ozon connection successful, seller info:', responseData);
+    console.log('Ozon connection successful, warehouse data:', responseData);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Подключение к Ozon успешно установлено',
-        sellerInfo: responseData
+        warehouseData: responseData
       }),
       { 
         status: 200, 
