@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Edit } from 'lucide-react';
-import { useInventory, useProducts } from '@/hooks/useDatabase';
+import { useProducts } from '@/hooks/useDatabase';
 
 interface ProductStockEditorProps {
   productId: string;
@@ -14,11 +14,25 @@ interface ProductStockEditorProps {
 const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockEditorProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newStock, setNewStock] = useState(currentStock);
-  const { updateStock } = useInventory();
-  const { refreshProducts } = useProducts();
+  const { updateProduct, refreshProducts } = useProducts();
 
   const handleSave = () => {
-    updateStock(productId, newStock, 'manual', 'Ручное изменение остатка из карточки товара');
+    console.log('Обновляем остаток для продукта:', productId, 'новый остаток:', newStock);
+    
+    // Определяем новый статус на основе остатка
+    let newStatus: 'active' | 'low_stock' | 'out_of_stock' = 'active';
+    if (newStock <= 0) {
+      newStatus = 'out_of_stock';
+    } else if (newStock <= minStock) {
+      newStatus = 'low_stock';
+    }
+
+    // Обновляем продукт с новым остатком и статусом
+    updateProduct(productId, { 
+      stock: newStock,
+      status: newStatus
+    });
+    
     refreshProducts();
     setIsEditing(false);
   };
