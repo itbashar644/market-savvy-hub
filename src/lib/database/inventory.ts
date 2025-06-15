@@ -32,7 +32,7 @@ export class InventoryDatabase extends BaseDatabase {
 
     item.currentStock = newStock;
     item.status = newStock <= 0 ? 'out_of_stock' 
-                : newStock <= 10 ? 'low_stock' 
+                : newStock <= item.minStock ? 'low_stock' 
                 : 'in_stock';
     item.lastRestocked = new Date().toISOString();
     
