@@ -19,38 +19,7 @@ interface Order {
 }
 
 const OrdersManager = () => {
-  const [orders] = useState<Order[]>([
-    {
-      id: '1',
-      customerName: 'Анна Петрова',
-      customerEmail: 'anna@example.com',
-      products: ['iPhone 14', 'AirPods'],
-      total: 85000,
-      status: 'processing',
-      createdAt: '2024-01-15',
-      orderNumber: 'ORD-001'
-    },
-    {
-      id: '2',
-      customerName: 'Михаил Сидоров',
-      customerEmail: 'mikhail@example.com',
-      products: ['MacBook Pro'],
-      total: 150000,
-      status: 'shipped',
-      createdAt: '2024-01-14',
-      orderNumber: 'ORD-002'
-    },
-    {
-      id: '3',
-      customerName: 'Елена Козлова',
-      customerEmail: 'elena@example.com',
-      products: ['iPad', 'Apple Pencil'],
-      total: 55000,
-      status: 'delivered',
-      createdAt: '2024-01-13',
-      orderNumber: 'ORD-003'
-    }
-  ]);
+  const [orders] = useState<Order[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -102,7 +71,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Всего заказов</p>
-                <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -114,9 +83,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-yellow-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">В обработке</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {orders.filter(o => o.status === 'processing').length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -128,9 +95,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Доставлено</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {orders.filter(o => o.status === 'delivered').length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -142,9 +107,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Общая сумма</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₽{orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">₽0</p>
               </div>
             </div>
           </CardContent>
@@ -167,54 +130,66 @@ const OrdersManager = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Номер заказа</TableHead>
-                <TableHead>Клиент</TableHead>
-                <TableHead>Товары</TableHead>
-                <TableHead>Сумма</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead>Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{order.customerName}</p>
-                      <p className="text-sm text-gray-500">{order.customerEmail}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="max-w-xs">
-                      {order.products.join(', ')}
-                    </div>
-                  </TableCell>
-                  <TableCell>₽{order.total.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(order.status)}>
-                      {getStatusText(order.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{order.createdAt}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Нет заказов</h3>
+              <p className="text-gray-500 mb-4">Заказы появятся здесь после их создания</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Создать первый заказ
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Номер заказа</TableHead>
+                  <TableHead>Клиент</TableHead>
+                  <TableHead>Товары</TableHead>
+                  <TableHead>Сумма</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Дата</TableHead>
+                  <TableHead>Действия</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{order.customerName}</p>
+                        <p className="text-sm text-gray-500">{order.customerEmail}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-xs">
+                        {order.products.join(', ')}
+                      </div>
+                    </TableCell>
+                    <TableCell>₽{order.total.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(order.status)}>
+                        {getStatusText(order.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{order.createdAt}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

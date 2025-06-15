@@ -20,52 +20,7 @@ interface Customer {
 }
 
 const CustomersManager = () => {
-  const [customers] = useState<Customer[]>([
-    {
-      id: '1',
-      name: 'Анна Петрова',
-      email: 'anna@example.com',
-      phone: '+7 (999) 123-45-67',
-      totalOrders: 5,
-      totalSpent: 125000,
-      status: 'active',
-      registrationDate: '2023-12-01',
-      lastOrderDate: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Михаил Сидоров',
-      email: 'mikhail@example.com',
-      phone: '+7 (999) 234-56-78',
-      totalOrders: 3,
-      totalSpent: 85000,
-      status: 'active',
-      registrationDate: '2023-11-15',
-      lastOrderDate: '2024-01-14'
-    },
-    {
-      id: '3',
-      name: 'Елена Козлова',
-      email: 'elena@example.com',
-      phone: '+7 (999) 345-67-89',
-      totalOrders: 8,
-      totalSpent: 200000,
-      status: 'active',
-      registrationDate: '2023-10-20',
-      lastOrderDate: '2024-01-13'
-    },
-    {
-      id: '4',
-      name: 'Дмитрий Волков',
-      email: 'dmitry@example.com',
-      phone: '+7 (999) 456-78-90',
-      totalOrders: 1,
-      totalSpent: 15000,
-      status: 'inactive',
-      registrationDate: '2023-09-10',
-      lastOrderDate: '2023-12-01'
-    }
-  ]);
+  const [customers] = useState<Customer[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -74,10 +29,6 @@ const CustomersManager = () => {
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.phone.includes(searchTerm)
   );
-
-  const activeCustomers = customers.filter(c => c.status === 'active').length;
-  const totalRevenue = customers.reduce((sum, customer) => sum + customer.totalSpent, 0);
-  const avgOrderValue = customers.reduce((sum, customer) => sum + customer.totalOrders, 0) / customers.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -99,7 +50,7 @@ const CustomersManager = () => {
               <Users className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Всего клиентов</p>
-                <p className="text-2xl font-bold text-gray-900">{customers.length}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -111,7 +62,7 @@ const CustomersManager = () => {
               <Users className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Активные</p>
-                <p className="text-2xl font-bold text-gray-900">{activeCustomers}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -123,7 +74,7 @@ const CustomersManager = () => {
               <Users className="w-8 h-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Общий доход</p>
-                <p className="text-2xl font-bold text-gray-900">₽{totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₽0</p>
               </div>
             </div>
           </CardContent>
@@ -135,7 +86,7 @@ const CustomersManager = () => {
               <Users className="w-8 h-8 text-orange-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Ср. заказов</p>
-                <p className="text-2xl font-bold text-gray-900">{avgOrderValue.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -158,64 +109,76 @@ const CustomersManager = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Клиент</TableHead>
-                <TableHead>Контакты</TableHead>
-                <TableHead>Заказов</TableHead>
-                <TableHead>Потрачено</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Последний заказ</TableHead>
-                <TableHead>Действия</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{customer.name}</p>
-                      <p className="text-sm text-gray-500">Регистрация: {customer.registrationDate}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center text-sm">
-                        <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                        {customer.phone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{customer.totalOrders}</TableCell>
-                  <TableCell>₽{customer.totalSpent.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={customer.status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                    }>
-                      {customer.status === 'active' ? 'Активный' : 'Неактивный'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{customer.lastOrderDate}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Mail className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {filteredCustomers.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Нет клиентов</h3>
+              <p className="text-gray-500 mb-4">Клиенты появятся здесь после регистрации</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Добавить первого клиента
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Клиент</TableHead>
+                  <TableHead>Контакты</TableHead>
+                  <TableHead>Заказов</TableHead>
+                  <TableHead>Потрачено</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Последний заказ</TableHead>
+                  <TableHead>Действия</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{customer.name}</p>
+                        <p className="text-sm text-gray-500">Регистрация: {customer.registrationDate}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                          {customer.email}
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                          {customer.phone}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{customer.totalOrders}</TableCell>
+                    <TableCell>₽{customer.totalSpent.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={customer.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                      }>
+                        {customer.status === 'active' ? 'Активный' : 'Неактивный'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{customer.lastOrderDate}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

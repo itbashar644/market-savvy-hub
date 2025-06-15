@@ -22,60 +22,7 @@ interface InventoryItem {
 }
 
 const InventoryManager = () => {
-  const [inventory] = useState<InventoryItem[]>([
-    {
-      id: '1',
-      name: 'iPhone 14',
-      sku: 'IP14-128',
-      category: 'Смартфоны',
-      currentStock: 25,
-      minStock: 10,
-      maxStock: 100,
-      price: 70000,
-      supplier: 'Apple Inc.',
-      lastRestocked: '2024-01-10',
-      status: 'in_stock'
-    },
-    {
-      id: '2',
-      name: 'MacBook Pro 14"',
-      sku: 'MBP14-512',
-      category: 'Ноутбуки',
-      currentStock: 5,
-      minStock: 8,
-      maxStock: 50,
-      price: 150000,
-      supplier: 'Apple Inc.',
-      lastRestocked: '2024-01-05',
-      status: 'low_stock'
-    },
-    {
-      id: '3',
-      name: 'AirPods Pro',
-      sku: 'APP-2ND',
-      category: 'Аксессуары',
-      currentStock: 0,
-      minStock: 15,
-      maxStock: 80,
-      price: 25000,
-      supplier: 'Apple Inc.',
-      lastRestocked: '2023-12-20',
-      status: 'out_of_stock'
-    },
-    {
-      id: '4',
-      name: 'iPad Air',
-      sku: 'IPA-256',
-      category: 'Планшеты',
-      currentStock: 18,
-      minStock: 12,
-      maxStock: 60,
-      price: 55000,
-      supplier: 'Apple Inc.',
-      lastRestocked: '2024-01-08',
-      status: 'in_stock'
-    }
-  ]);
+  const [inventory] = useState<InventoryItem[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -103,11 +50,6 @@ const InventoryManager = () => {
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalItems = inventory.length;
-  const lowStockItems = inventory.filter(item => item.status === 'low_stock').length;
-  const outOfStockItems = inventory.filter(item => item.status === 'out_of_stock').length;
-  const totalValue = inventory.reduce((sum, item) => sum + (item.currentStock * item.price), 0);
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -134,7 +76,7 @@ const InventoryManager = () => {
               <Package className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Всего позиций</p>
-                <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -146,7 +88,7 @@ const InventoryManager = () => {
               <AlertTriangle className="w-8 h-8 text-yellow-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Мало товара</p>
-                <p className="text-2xl font-bold text-gray-900">{lowStockItems}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -158,7 +100,7 @@ const InventoryManager = () => {
               <AlertTriangle className="w-8 h-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Нет в наличии</p>
-                <p className="text-2xl font-bold text-gray-900">{outOfStockItems}</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
           </CardContent>
@@ -170,7 +112,7 @@ const InventoryManager = () => {
               <Warehouse className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Стоимость запасов</p>
-                <p className="text-2xl font-bold text-gray-900">₽{totalValue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">₽0</p>
               </div>
             </div>
           </CardContent>
@@ -193,51 +135,63 @@ const InventoryManager = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Товар</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Категория</TableHead>
-                <TableHead>Текущий остаток</TableHead>
-                <TableHead>Мин./Макс.</TableHead>
-                <TableHead>Цена</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Последнее пополнение</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInventory.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-gray-500">{item.supplier}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>
-                    <span className={`font-medium ${
-                      item.currentStock <= item.minStock ? 'text-red-600' : 'text-gray-900'
-                    }`}>
-                      {item.currentStock}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {item.minStock} / {item.maxStock}
-                  </TableCell>
-                  <TableCell>₽{item.price.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(item.status)}>
-                      {getStatusText(item.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{item.lastRestocked}</TableCell>
+          {filteredInventory.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Нет товаров</h3>
+              <p className="text-gray-500 mb-4">Товары появятся здесь после добавления</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Добавить первый товар
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Товар</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Категория</TableHead>
+                  <TableHead>Текущий остаток</TableHead>
+                  <TableHead>Мин./Макс.</TableHead>
+                  <TableHead>Цена</TableHead>
+                  <TableHead>Статус</TableHead>
+                  <TableHead>Последнее пополнение</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredInventory.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-gray-500">{item.supplier}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      <span className={`font-medium ${
+                        item.currentStock <= item.minStock ? 'text-red-600' : 'text-gray-900'
+                      }`}>
+                        {item.currentStock}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {item.minStock} / {item.maxStock}
+                    </TableCell>
+                    <TableCell>₽{item.price.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(item.status)}>
+                        {getStatusText(item.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.lastRestocked}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
