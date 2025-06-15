@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Dashboard from '@/components/Dashboard';
@@ -11,6 +12,9 @@ import ReportsManager from '@/components/ReportsManager';
 import AnalyticsManager from '@/components/AnalyticsManager';
 import SettingsManager from '@/components/SettingsManager';
 import { MarketplaceCredentialsProvider } from '@/hooks/useDatabase';
+import { SyncLogsProvider } from '@/hooks/database/useSyncLogs';
+import { LastSyncTimesProvider } from '@/hooks/database/useLastSyncTimes';
+import { AutoSyncProvider } from '@/hooks/database/useAutoSync';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -44,12 +48,18 @@ const Index = () => {
 
   return (
     <MarketplaceCredentialsProvider>
-      <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-        <main className="flex-1 overflow-auto">
-          {renderContent()}
-        </main>
-      </div>
+      <SyncLogsProvider>
+        <LastSyncTimesProvider>
+          <AutoSyncProvider>
+            <div className="min-h-screen bg-gray-50 flex">
+              <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+              <main className="flex-1 overflow-auto">
+                {renderContent()}
+              </main>
+            </div>
+          </AutoSyncProvider>
+        </LastSyncTimesProvider>
+      </SyncLogsProvider>
     </MarketplaceCredentialsProvider>
   );
 };

@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory, useMarketplaceCredentials } from '@/hooks/useDatabase';
+import { useSyncLogs } from '@/hooks/database/useSyncLogs';
+import { useLastSyncTimes } from '@/hooks/database/useLastSyncTimes';
+import { useAutoSync } from '@/hooks/database/useAutoSync';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
@@ -12,17 +15,26 @@ import SyncLogs from './marketplace/SyncLogs';
 import UpdateRules from './marketplace/UpdateRules';
 import ProductsListModal from './marketplace/ProductsListModal';
 import SyncResultModal from './marketplace/SyncResultModal';
-import { Marketplace, SyncLog } from '@/types/marketplace';
+import { Marketplace } from '@/types/marketplace';
 
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
   const { credentials } = useMarketplaceCredentials();
+  const { logs, addLog } = useSyncLogs();
+  const { lastSyncTimes, updateLastSync } = useLastSyncTimes();
+  const { 
+    autoSyncEnabled, 
+    setAutoSyncEnabled, 
+    syncInterval, 
+    setSyncInterval, 
+    lastAutoSync,
+    setOnSyncFunction 
+  } = useAutoSync();
   
   const ozonCreds = credentials['Ozon'] || {};
   const wbCreds = credentials['Wildberries'] || {};
 
-  const [autoSync, setAutoSync] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
@@ -35,7 +47,7 @@ const MarketplaceIntegration = () => {
     {
       name: 'Ozon',
       status: ozonCreds.api_key && ozonCreds.client_id ? 'connected' : 'not-configured',
-      lastSync: '2024-01-15 14:30',
+      lastSync: lastSyncTimes['Ozon'] || 'Никогда',
       products: 156,
       orders: 23,
       color: 'bg-blue-600',
@@ -44,7 +56,7 @@ const MarketplaceIntegration = () => {
     {
       name: 'Wildberries',
       status: wbCreds.api_key ? 'connected' : 'not-configured',
-      lastSync: '2024-01-15 14:25',
+      lastSync: lastSyncTimes['Wildberries'] || 'Никогда',
       products: 142,
       orders: 18,
       color: 'bg-purple-600',
@@ -61,41 +73,10 @@ const MarketplaceIntegration = () => {
     }
   ];
 
-  const syncLogs: SyncLog[] = [
-    {
-      id: 1,
-      marketplace: 'Ozon',
-      action: 'Обновление остатков',
-      status: 'success',
-      timestamp: '2024-01-15 14:30:15',
-      details: 'Обновлено 45 товаров'
-    },
-    {
-      id: 2,
-      marketplace: 'Wildberries',
-      action: 'Загрузка заказов',
-      status: 'success',
-      timestamp: '2024-01-15 14:25:32',
-      details: 'Загружено 12 новых заказов'
-    },
-    {
-      id: 3,
-      marketplace: 'Ozon',
-      action: 'Обновление цен',
-      status: 'error',
-      timestamp: '2024-01-15 14:20:45',
-      details: 'Ошибка API: недействительный ключ'
-    }
-  ];
-
   const handleSync = async (marketplace: string) => {
     console.log(`Starting sync with ${marketplace}`);
-    console.log('Current inventory:', inventory);
-    console.log('Credentials:', marketplace === 'Ozon' ? ozonCreds : wbCreds);
 
     if (marketplace === 'Wildberries') {
-      console.log('Wildberries credentials check:', wbCreds);
-
       if (!wbCreds.api_key) {
         toast({
           title: "Не указан API ключ",
@@ -113,8 +94,6 @@ const MarketplaceIntegration = () => {
         stock: item.currentStock,
       }));
 
-      console.log('Sending Wildberries request with stocks:', stocks);
-
       try {
         const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
           body: { 
@@ -123,24 +102,43 @@ const MarketplaceIntegration = () => {
           },
         });
 
-        console.log('Wildberries function response:', { data, error });
-
         if (error) throw error;
         
         const wbResult = data.result;
+        const successUpdates = wbResult.filter((r: { updated: boolean; }) => r.updated);
         const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
 
+        updateLastSync(marketplace);
+
         if (failedUpdates.length > 0) {
-          console.error('Failed Wildberries updates:', failedUpdates);
           setSyncResults(wbResult);
           setSelectedMarketplace(marketplace);
           setShowSyncResultModal(true);
+          
+          addLog({
+            marketplace,
+            action: 'Обновление остатков',
+            status: 'error',
+            details: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками`,
+            successCount: successUpdates.length,
+            errorCount: failedUpdates.length
+          });
+          
           toast({
             title: "Ошибка синхронизации с Wildberries",
             description: `Не удалось обновить ${failedUpdates.length} товаров. Нажмите для подробностей.`,
             variant: "destructive"
           });
         } else {
+          addLog({
+            marketplace,
+            action: 'Обновление остатков',
+            status: 'success',
+            details: `Остатки для ${stocks.length} товаров успешно обновлены`,
+            successCount: successUpdates.length,
+            errorCount: 0
+          });
+          
           toast({
             title: "Синхронизация с Wildberries завершена",
             description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
@@ -162,6 +160,15 @@ const MarketplaceIntegration = () => {
           description = error.message;
         }
 
+        addLog({
+          marketplace,
+          action: 'Обновление остатков',
+          status: 'error',
+          details: `Ошибка синхронизации: ${description}`,
+          successCount: 0,
+          errorCount: inventory.length
+        });
+
         toast({
           title: "Ошибка синхронизации с Wildberries",
           description,
@@ -182,8 +189,6 @@ const MarketplaceIntegration = () => {
       });
       return;
     }
-
-    console.log('Ozon credentials check:', ozonCreds);
 
     if (!ozonCreds.api_key || !ozonCreds.client_id) {
       toast({
@@ -220,15 +225,6 @@ const MarketplaceIntegration = () => {
       stock: item.currentStock,
     }));
 
-    console.log('Sending Ozon request with:', {
-      hasApiKey: !!ozonCreds.api_key,
-      hasClientId: !!ozonCreds.client_id,
-      hasWarehouseId: !!ozonCreds.warehouse_id,
-      warehouseId: ozonCreds.warehouse_id,
-      stocksCount: stocks.length,
-      stocksSample: stocks.slice(0, 3)
-    });
-
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
         body: { 
@@ -239,25 +235,29 @@ const MarketplaceIntegration = () => {
         },
       });
 
-      console.log('Supabase function response:', { data, error });
-
       if (error) throw error;
       
       const ozonResult = data.result;
       const successUpdates = ozonResult.filter((r: { updated: boolean; }) => r.updated);
       const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => !r.updated);
 
-      console.log('Sync results:', {
-        total: ozonResult.length,
-        success: successUpdates.length,
-        failed: failedUpdates.length
-      });
+      updateLastSync(marketplace);
 
       if (failedUpdates.length > 0) {
-        console.error('Failed Ozon updates:', failedUpdates);
         setSyncResults(ozonResult);
         setSelectedMarketplace(marketplace);
         setShowSyncResultModal(true);
+        
+        addLog({
+          marketplace,
+          action: 'Обновление остатков',
+          status: failedUpdates.length === ozonResult.length ? 'error' : 'success',
+          details: successUpdates.length > 0 
+            ? `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками`
+            : `Не удалось обновить ${failedUpdates.length} товаров`,
+          successCount: successUpdates.length,
+          errorCount: failedUpdates.length
+        });
         
         if (successUpdates.length > 0) {
           toast({
@@ -273,6 +273,15 @@ const MarketplaceIntegration = () => {
           });
         }
       } else {
+        addLog({
+          marketplace,
+          action: 'Обновление остатков',
+          status: 'success',
+          details: `Остатки для ${successUpdates.length} товаров успешно обновлены`,
+          successCount: successUpdates.length,
+          errorCount: 0
+        });
+        
         toast({
           title: "Синхронизация с Ozon завершена",
           description: `Остатки для ${successUpdates.length} товаров успешно обновлены.`,
@@ -294,6 +303,15 @@ const MarketplaceIntegration = () => {
         description = error.message;
       }
 
+      addLog({
+        marketplace,
+        action: 'Обновление остатков',
+        status: 'error',
+        details: `Ошибка синхронизации: ${description}`,
+        successCount: 0,
+        errorCount: inventory.length
+      });
+
       toast({
         title: "Ошибка синхронизации с Ozon",
         description,
@@ -304,6 +322,11 @@ const MarketplaceIntegration = () => {
       setSyncingMarketplace(null);
     }
   };
+
+  // Регистрируем функцию синхронизации для автосинхронизации
+  useEffect(() => {
+    setOnSyncFunction(() => handleSync);
+  }, [handleSync]);
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
@@ -407,12 +430,19 @@ const MarketplaceIntegration = () => {
           <h1 className="text-3xl font-bold text-gray-900">Интеграция с маркетплейсами</h1>
           <p className="text-gray-600 mt-1">Управление подключениями и синхронизацией данных</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">Автосинхронизация:</span>
-          <Switch
-            checked={autoSync}
-            onCheckedChange={setAutoSync}
-          />
+        <div className="flex flex-col items-end space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Автосинхронизация:</span>
+            <Switch
+              checked={autoSyncEnabled}
+              onCheckedChange={setAutoSyncEnabled}
+            />
+          </div>
+          {lastAutoSync && (
+            <span className="text-xs text-gray-500">
+              Последняя автосинхронизация: {lastAutoSync}
+            </span>
+          )}
         </div>
       </div>
 
@@ -444,11 +474,15 @@ const MarketplaceIntegration = () => {
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
-          <SyncLogs logs={syncLogs} />
+          <SyncLogs logs={logs} />
         </TabsContent>
 
         <TabsContent value="rules" className="space-y-6">
-          <UpdateRules />
+          <UpdateRules 
+            syncInterval={syncInterval}
+            setSyncInterval={setSyncInterval}
+            autoSyncEnabled={autoSyncEnabled}
+          />
         </TabsContent>
       </Tabs>
 
