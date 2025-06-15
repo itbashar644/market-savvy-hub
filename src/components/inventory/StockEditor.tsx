@@ -6,16 +6,16 @@ import { Edit } from 'lucide-react';
 import { InventoryItem } from '@/types/database';
 
 interface StockEditorProps {
-  itemId: string;
+  productId: string;
   currentStock: number;
   status: InventoryItem['status'];
-  editingStock: { id: string; newStock: number } | null;
-  setEditingStock: (editing: { id: string; newStock: number } | null) => void;
+  editingStock: { productId: string; newStock: number } | null;
+  setEditingStock: (editing: { productId: string; newStock: number } | null) => void;
   onStockUpdate: (productId: string, newStock: number) => void;
 }
 
 const StockEditor = ({ 
-  itemId, 
+  productId, 
   currentStock, 
   status,
   editingStock, 
@@ -24,7 +24,7 @@ const StockEditor = ({
 }: StockEditorProps) => {
   const handleSave = () => {
     if (editingStock) {
-      onStockUpdate(itemId, editingStock.newStock);
+      onStockUpdate(productId, editingStock.newStock);
     }
   };
 
@@ -33,18 +33,18 @@ const StockEditor = ({
   };
 
   const handleEdit = () => {
-    console.log('Нажата кнопка редактирования для товара:', itemId);
-    setEditingStock({ id: itemId, newStock: currentStock });
+    console.log('Нажата кнопка редактирования для товара:', productId);
+    setEditingStock({ productId: productId, newStock: currentStock });
   };
 
-  if (editingStock?.id === itemId) {
+  if (editingStock?.productId === productId) {
     return (
       <div className="flex items-center gap-2">
         <Input
           type="number"
           value={editingStock.newStock}
           onChange={(e) => setEditingStock({ 
-            id: itemId, 
+            productId: productId, 
             newStock: parseInt(e.target.value) || 0 
           })}
           className="w-20"

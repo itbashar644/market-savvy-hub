@@ -15,8 +15,8 @@ interface InventoryTableProps {
   history: InventoryHistory[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  editingStock: { id: string; newStock: number } | null;
-  setEditingStock: (editing: { id: string; newStock: number } | null) => void;
+  editingStock: { productId: string; newStock: number } | null;
+  setEditingStock: (editing: { productId: string; newStock: number } | null) => void;
   onStockUpdate: (productId: string, newStock: number) => void;
 }
 
@@ -126,7 +126,7 @@ const InventoryTable = ({
                   <TableCell>{item.category}</TableCell>
                   <TableCell>
                     <StockEditor
-                      itemId={item.id}
+                      productId={item.productId}
                       currentStock={item.currentStock}
                       status={item.status}
                       editingStock={editingStock}
@@ -158,7 +158,7 @@ const InventoryTable = ({
                         </DialogHeader>
                         <InventoryHistoryComponent 
                           history={history} 
-                          productFilter={item.id}
+                          productFilter={item.productId}
                         />
                       </DialogContent>
                     </Dialog>

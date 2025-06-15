@@ -11,7 +11,7 @@ const InventoryManager = () => {
   const { history } = useInventoryHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [editingStock, setEditingStock] = useState<{ id: string; newStock: number } | null>(null);
+  const [editingStock, setEditingStock] = useState<{ productId: string; newStock: number } | null>(null);
 
   const handleStockUpdate = (productId: string, newStock: number) => {
     updateStock(productId, newStock, 'manual', 'Ручное изменение остатка');
