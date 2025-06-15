@@ -1,3 +1,4 @@
+
 import { InventoryItem, InventoryHistory, Product } from '@/types/database';
 import { BaseDatabase } from './base';
 
@@ -36,12 +37,25 @@ export class InventoryDatabase extends BaseDatabase {
     item.lastRestocked = new Date().toISOString();
     
     this.saveToStorage('inventory', inventory);
+
+    // Sync with product
+    const products = this.getFromStorage<Product>('products');
+    const productIndex = products.findIndex(p => p.id === productId);
+    if (productIndex !== -1) {
+      const product = products[productIndex];
+      product.stock = newStock;
+      product.status = newStock <= 0 ? 'out_of_stock'
+                                    : newStock <= product.minStock ? 'low_stock'
+                                    : 'active';
+      this.saveToStorage('products', products);
+    }
+
     return item;
   }
 
   bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): InventoryItem[] {
     const inventory = this.getInventory();
-    const history = this.getInventoryHistory();
+    const products = this.getFromStorage<Product>('products');
     const updatedItems: InventoryItem[] = [];
 
     updates.forEach(({ sku, newStock }) => {
@@ -71,11 +85,21 @@ export class InventoryDatabase extends BaseDatabase {
                             : 'in_stock';
                 item.lastRestocked = new Date().toISOString();
                 updatedItems.push(item);
+
+                // Sync with product
+                const productIndex = products.findIndex(p => p.id === item.productId);
+                if (productIndex !== -1) {
+                    products[productIndex].stock = newStock;
+                    products[productIndex].status = newStock <= 0 ? 'out_of_stock'
+                                                  : newStock <= products[productIndex].minStock ? 'low_stock'
+                                                  : 'active';
+                }
             }
         }
     });
 
     this.saveToStorage('inventory', inventory);
+    this.saveToStorage('products', products);
     // History is saved inside addInventoryHistory
     return updatedItems;
   }

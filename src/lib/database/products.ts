@@ -1,5 +1,5 @@
 
-import { Product } from '@/types/database';
+import { Product, InventoryItem } from '@/types/database';
 import { BaseDatabase } from './base';
 
 export class ProductDatabase extends BaseDatabase {
@@ -26,13 +26,56 @@ export class ProductDatabase extends BaseDatabase {
     const index = products.findIndex(p => p.id === id);
     if (index === -1) return null;
     
-    products[index] = { 
+    const updatedProduct = { 
       ...products[index], 
       ...updates, 
       updatedAt: new Date().toISOString() 
     };
+    products[index] = updatedProduct;
     this.saveToStorage('products', products);
-    return products[index];
+
+    // Sync with inventory
+    const inventory = this.getFromStorage<InventoryItem>('inventory');
+    const invIndex = inventory.findIndex(i => i.productId === updatedProduct.id);
+
+    let inventoryStatus: InventoryItem['status'];
+    switch (updatedProduct.status) {
+      case 'active':
+        inventoryStatus = 'in_stock';
+        break;
+      case 'low_stock':
+        inventoryStatus = 'low_stock';
+        break;
+      case 'out_of_stock':
+        inventoryStatus = 'out_of_stock';
+        break;
+      default:
+        inventoryStatus = updatedProduct.stock > 0 ? 'in_stock' : 'out_of_stock';
+    }
+
+    const inventoryItem: InventoryItem = {
+      id: invIndex >= 0 ? inventory[invIndex].id : this.generateId(),
+      productId: updatedProduct.id,
+      name: updatedProduct.name,
+      sku: updatedProduct.sku,
+      category: updatedProduct.category,
+      currentStock: updatedProduct.stock,
+      minStock: updatedProduct.minStock,
+      maxStock: updatedProduct.maxStock,
+      price: updatedProduct.price,
+      supplier: updatedProduct.supplier,
+      lastRestocked: invIndex >= 0 ? inventory[invIndex].lastRestocked : new Date().toISOString(),
+      status: inventoryStatus,
+    };
+
+    if (invIndex >= 0) {
+      inventory[invIndex] = inventoryItem;
+    } else {
+      inventory.push(inventoryItem);
+    }
+    this.saveToStorage('inventory', inventory);
+    
+    return updatedProduct;
   }
 
   deleteProduct(id: string): boolean {
