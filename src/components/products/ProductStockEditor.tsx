@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,6 @@ import { useProducts } from '@/hooks/useDatabase';
 interface ProductStockEditorProps {
   productId: string;
   currentStock: number;
-  minStock: number;
 }
 
 const ProductStockEditor = ({ productId, currentStock }: ProductStockEditorProps) => {
