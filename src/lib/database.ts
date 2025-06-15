@@ -1,438 +1,121 @@
 
 import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData } from '@/types/database';
+import { CustomerDatabase } from './database/customers';
+import { ProductDatabase } from './database/products';
+import { OrderDatabase } from './database/orders';
+import { InventoryDatabase } from './database/inventory';
+import { AnalyticsDatabase } from './database/analytics';
+import { SeedDatabase } from './database/seed';
 
-// Утилиты для работы с LocalStorage
 class LocalDatabase {
-  private getStorageKey(table: string): string {
-    return `crm_store_${table}`;
+  private customerDb: CustomerDatabase;
+  private productDb: ProductDatabase;
+  private orderDb: OrderDatabase;
+  private inventoryDb: InventoryDatabase;
+  private analyticsDb: AnalyticsDatabase;
+  private seedDb: SeedDatabase;
+
+  constructor() {
+    this.customerDb = new CustomerDatabase();
+    this.productDb = new ProductDatabase();
+    this.orderDb = new OrderDatabase();
+    this.inventoryDb = new InventoryDatabase();
+    this.analyticsDb = new AnalyticsDatabase();
+    this.seedDb = new SeedDatabase(this.customerDb, this.productDb, this.inventoryDb);
   }
 
-  private getFromStorage<T>(table: string): T[] {
-    try {
-      const data = localStorage.getItem(this.getStorageKey(table));
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error(`Ошибка при чтении ${table}:`, error);
-      return [];
-    }
-  }
-
-  private saveToStorage<T>(table: string, data: T[]): void {
-    try {
-      localStorage.setItem(this.getStorageKey(table), JSON.stringify(data));
-    } catch (error) {
-      console.error(`Ошибка при сохранении ${table}:`, error);
-    }
-  }
-
-  private generateId(): string {
-    return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
-  }
-
-  // Работа с клиентами
+  // Customer methods
   getCustomers(): Customer[] {
-    return this.getFromStorage<Customer>('customers');
+    return this.customerDb.getCustomers();
   }
 
   addCustomer(customer: Omit<Customer, 'id'>): Customer {
-    const customers = this.getCustomers();
-    const newCustomer: Customer = {
-      ...customer,
-      id: this.generateId(),
-    };
-    customers.push(newCustomer);
-    this.saveToStorage('customers', customers);
-    return newCustomer;
+    return this.customerDb.addCustomer(customer);
   }
 
   updateCustomer(id: string, updates: Partial<Customer>): Customer | null {
-    const customers = this.getCustomers();
-    const index = customers.findIndex(c => c.id === id);
-    if (index === -1) return null;
-    
-    customers[index] = { ...customers[index], ...updates };
-    this.saveToStorage('customers', customers);
-    return customers[index];
+    return this.customerDb.updateCustomer(id, updates);
   }
 
   deleteCustomer(id: string): boolean {
-    const customers = this.getCustomers();
-    const filtered = customers.filter(c => c.id !== id);
-    if (filtered.length === customers.length) return false;
-    
-    this.saveToStorage('customers', filtered);
-    return true;
+    return this.customerDb.deleteCustomer(id);
   }
 
-  // Работа с товарами
+  // Product methods
   getProducts(): Product[] {
-    return this.getFromStorage<Product>('products');
+    return this.productDb.getProducts();
   }
 
   addProduct(product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Product {
-    const products = this.getProducts();
-    const now = new Date().toISOString();
-    const newProduct: Product = {
-      ...product,
-      id: this.generateId(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    products.push(newProduct);
-    this.saveToStorage('products', products);
-    this.updateInventoryFromProduct(newProduct);
+    const newProduct = this.productDb.addProduct(product);
+    this.inventoryDb.updateInventoryFromProduct(newProduct);
     return newProduct;
   }
 
   updateProduct(id: string, updates: Partial<Product>): Product | null {
-    const products = this.getProducts();
-    const index = products.findIndex(p => p.id === id);
-    if (index === -1) return null;
-    
-    products[index] = { 
-      ...products[index], 
-      ...updates, 
-      updatedAt: new Date().toISOString() 
-    };
-    this.saveToStorage('products', products);
-    this.updateInventoryFromProduct(products[index]);
-    return products[index];
+    const updatedProduct = this.productDb.updateProduct(id, updates);
+    if (updatedProduct) {
+      this.inventoryDb.updateInventoryFromProduct(updatedProduct);
+    }
+    return updatedProduct;
   }
 
   deleteProduct(id: string): boolean {
-    const products = this.getProducts();
-    const filtered = products.filter(p => p.id !== id);
-    if (filtered.length === products.length) return false;
-    
-    this.saveToStorage('products', filtered);
-    this.deleteInventoryItem(id);
-    return true;
+    const success = this.productDb.deleteProduct(id);
+    if (success) {
+      this.inventoryDb.deleteInventoryItem(id);
+    }
+    return success;
   }
 
-  // Работа с заказами
+  // Order methods
   getOrders(): Order[] {
-    return this.getFromStorage<Order>('orders');
+    return this.orderDb.getOrders();
   }
 
   addOrder(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Order {
-    const orders = this.getOrders();
-    const now = new Date().toISOString();
-    const newOrder: Order = {
-      ...order,
-      id: this.generateId(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    orders.push(newOrder);
-    this.saveToStorage('orders', orders);
-    this.updateCustomerStats(order.customerId);
+    const newOrder = this.orderDb.addOrder(order);
+    this.customerDb.updateCustomerStats(order.customerId, this.orderDb.getOrders());
     return newOrder;
   }
 
   updateOrder(id: string, updates: Partial<Order>): Order | null {
-    const orders = this.getOrders();
-    const index = orders.findIndex(o => o.id === id);
-    if (index === -1) return null;
-    
-    orders[index] = { 
-      ...orders[index], 
-      ...updates, 
-      updatedAt: new Date().toISOString() 
-    };
-    this.saveToStorage('orders', orders);
-    return orders[index];
+    return this.orderDb.updateOrder(id, updates);
   }
 
   deleteOrder(id: string): boolean {
-    const orders = this.getOrders();
-    const filtered = orders.filter(o => o.id !== id);
-    if (filtered.length === orders.length) return false;
-    
-    this.saveToStorage('orders', filtered);
-    return true;
+    return this.orderDb.deleteOrder(id);
   }
 
-  // Работа с остатками
+  // Inventory methods
   getInventory(): InventoryItem[] {
-    return this.getFromStorage<InventoryItem>('inventory');
+    return this.inventoryDb.getInventory();
   }
 
   updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
-    const inventory = this.getInventory();
-    const index = inventory.findIndex(i => i.productId === productId);
-    if (index === -1) return null;
-
-    const item = inventory[index];
-    const previousStock = item.currentStock;
-    const changeAmount = newStock - previousStock;
-
-    // Записываем историю изменения
-    this.addInventoryHistory({
-      productId: item.productId,
-      productName: item.name,
-      sku: item.sku,
-      previousStock,
-      newStock,
-      changeAmount,
-      changeType,
-      reason,
-      userName: 'Администратор', // В реальном приложении здесь будет имя текущего пользователя
-      timestamp: new Date().toISOString(),
-    });
-
-    item.currentStock = newStock;
-    item.status = newStock <= 0 ? 'out_of_stock' 
-                : newStock <= item.minStock ? 'low_stock' 
-                : 'in_stock';
-    item.lastRestocked = new Date().toISOString();
-    
-    this.saveToStorage('inventory', inventory);
-    return item;
+    return this.inventoryDb.updateInventoryStock(productId, newStock, changeType, reason);
   }
 
-  // Работа с историей остатков
   getInventoryHistory(): InventoryHistory[] {
-    return this.getFromStorage<InventoryHistory>('inventory_history').sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
+    return this.inventoryDb.getInventoryHistory();
   }
 
   addInventoryHistory(historyRecord: Omit<InventoryHistory, 'id'>): InventoryHistory {
-    const history = this.getInventoryHistory();
-    const newRecord: InventoryHistory = {
-      ...historyRecord,
-      id: this.generateId(),
-    };
-    history.push(newRecord);
-    this.saveToStorage('inventory_history', history);
-    return newRecord;
+    return this.inventoryDb.addInventoryHistory(historyRecord);
   }
 
-  private updateInventoryFromProduct(product: Product): void {
-    const inventory = this.getInventory();
-    const index = inventory.findIndex(i => i.productId === product.id);
-    
-    const inventoryItem: InventoryItem = {
-      id: index >= 0 ? inventory[index].id : this.generateId(),
-      productId: product.id,
-      name: product.name,
-      sku: product.sku,
-      category: product.category,
-      currentStock: product.stock,
-      minStock: product.minStock,
-      maxStock: product.maxStock,
-      price: product.price,
-      supplier: product.supplier,
-      lastRestocked: new Date().toISOString(),
-      status: product.status as any,
-    };
-
-    if (index >= 0) {
-      inventory[index] = inventoryItem;
-    } else {
-      inventory.push(inventoryItem);
-    }
-    
-    this.saveToStorage('inventory', inventory);
-  }
-
-  private deleteInventoryItem(productId: string): void {
-    const inventory = this.getInventory();
-    const filtered = inventory.filter(i => i.productId !== productId);
-    this.saveToStorage('inventory', filtered);
-  }
-
-  private updateCustomerStats(customerId: string): void {
-    const orders = this.getOrders().filter(o => o.customerId === customerId);
-    const totalOrders = orders.length;
-    const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
-    const lastOrderDate = orders.length > 0 
-      ? Math.max(...orders.map(o => new Date(o.createdAt).getTime()))
-      : 0;
-
-    this.updateCustomer(customerId, {
-      totalOrders,
-      totalSpent,
-      lastOrderDate: lastOrderDate > 0 ? new Date(lastOrderDate).toISOString().split('T')[0] : '',
-    });
-  }
-
-  // Аналитика и отчеты
+  // Analytics methods
   getSalesData(period: 'week' | 'month' | 'year' = 'month'): SalesData[] {
-    const orders = this.getOrders().filter(o => o.status !== 'cancelled');
-    const customers = this.getCustomers();
-    
-    // Группировка по периодам
-    const groupedData: { [key: string]: { sales: number; orders: number; customers: Set<string> } } = {};
-    
-    orders.forEach(order => {
-      const date = new Date(order.createdAt);
-      let key: string;
-      
-      if (period === 'week') {
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        key = weekStart.toISOString().split('T')[0];
-      } else if (period === 'month') {
-        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      } else {
-        key = String(date.getFullYear());
-      }
-      
-      if (!groupedData[key]) {
-        groupedData[key] = { sales: 0, orders: 0, customers: new Set() };
-      }
-      
-      groupedData[key].sales += order.total;
-      groupedData[key].orders += 1;
-      groupedData[key].customers.add(order.customerId);
-    });
-    
-    return Object.entries(groupedData).map(([date, data]) => ({
-      date,
-      sales: data.sales,
-      orders: data.orders,
-      customers: data.customers.size,
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    return this.analyticsDb.getSalesData(period, this.orderDb.getOrders());
   }
 
   getCategoryData(): CategoryData[] {
-    const products = this.getProducts();
-    const orders = this.getOrders().filter(o => o.status !== 'cancelled');
-    
-    const categoryStats: { [key: string]: { value: number; sales: number } } = {};
-    
-    products.forEach(product => {
-      if (!categoryStats[product.category]) {
-        categoryStats[product.category] = { value: 0, sales: 0 };
-      }
-      categoryStats[product.category].value += product.stock;
-    });
-    
-    orders.forEach(order => {
-      order.products.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          categoryStats[product.category].sales += item.total;
-        }
-      });
-    });
-    
-    return Object.entries(categoryStats).map(([name, data]) => ({
-      name,
-      value: data.value,
-      sales: data.sales,
-    }));
+    return this.analyticsDb.getCategoryData(this.productDb.getProducts(), this.orderDb.getOrders());
   }
 
-  // Инициализация тестовых данных
+  // Seed method
   seedDatabase(): void {
-    if (this.getCustomers().length === 0) {
-      this.addCustomer({
-        name: 'Иван Петров',
-        email: 'ivan@example.com',
-        phone: '+7 900 123-45-67',
-        totalOrders: 0,
-        totalSpent: 0,
-        status: 'active',
-        registrationDate: '2024-01-15',
-        lastOrderDate: '',
-        address: 'ул. Ленина, 10',
-        city: 'Москва',
-        country: 'Россия',
-      });
-
-      this.addCustomer({
-        name: 'Мария Сидорова',
-        email: 'maria@example.com',
-        phone: '+7 900 987-65-43',
-        totalOrders: 0,
-        totalSpent: 0,
-        status: 'active',
-        registrationDate: '2024-02-20',
-        lastOrderDate: '',
-        address: 'пр. Мира, 25',
-        city: 'Санкт-Петербург',
-        country: 'Россия',
-      });
-    }
-
-    if (this.getProducts().length === 0) {
-      this.addProduct({
-        name: 'Смартфон iPhone 15',
-        sku: 'IP15-128GB-BLK',
-        category: 'Электроника',
-        price: 89990,
-        description: 'Новейший смартфон Apple iPhone 15 с камерой 48 МП',
-        image: '/placeholder.svg',
-        status: 'active',
-        stock: 50,
-        minStock: 10,
-        maxStock: 100,
-        supplier: 'Apple Official',
-        ozonSynced: true,
-        wbSynced: false,
-      });
-
-      this.addProduct({
-        name: 'Ноутбук MacBook Air M2',
-        sku: 'MBA-M2-256GB',
-        category: 'Компьютеры',
-        price: 119990,
-        description: 'Ноутбук Apple MacBook Air на чипе M2',
-        image: '/placeholder.svg',
-        status: 'active',
-        stock: 25,
-        minStock: 5,
-        maxStock: 50,
-        supplier: 'Apple Official',
-        ozonSynced: false,
-        wbSynced: true,
-      });
-
-      this.addProduct({
-        name: 'Беспроводные наушники AirPods Pro',
-        sku: 'APP-2ND-GEN',
-        category: 'Аксессуары',
-        price: 24990,
-        description: 'Беспроводные наушники с активным шумоподавлением',
-        image: '/placeholder.svg',
-        status: 'low_stock',
-        stock: 3,
-        minStock: 5,
-        maxStock: 30,
-        supplier: 'Apple Official',
-        ozonSynced: true,
-        wbSynced: true,
-      });
-
-      // Добавляем тестовую историю изменений
-      this.addInventoryHistory({
-        productId: 'test-product-1',
-        productName: 'Смартфон iPhone 15',
-        sku: 'IP15-128GB-BLK',
-        previousStock: 60,
-        newStock: 50,
-        changeAmount: -10,
-        changeType: 'sale',
-        reason: 'Продажа через интернет-магазин',
-        userName: 'Система',
-        timestamp: new Date(Date.now() - 86400000).toISOString(), // вчера
-      });
-
-      this.addInventoryHistory({
-        productId: 'test-product-2',
-        productName: 'Ноутбук MacBook Air M2',
-        sku: 'MBA-M2-256GB',
-        previousStock: 20,
-        newStock: 25,
-        changeAmount: 5,
-        changeType: 'restock',
-        reason: 'Поступление от поставщика',
-        userName: 'Администратор',
-        timestamp: new Date(Date.now() - 43200000).toISOString(), // 12 часов назад
-      });
-    }
+    this.seedDb.seedDatabase();
   }
 }
 
