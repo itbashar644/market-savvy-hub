@@ -9,44 +9,7 @@ import { Plus, Search, Edit, Trash2, Package, ExternalLink } from 'lucide-react'
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const products = [
-    {
-      id: 1,
-      name: 'Смартфон iPhone 15',
-      sku: 'IP15-128-BLK',
-      price: 89990,
-      stock: 45,
-      category: 'Электроника',
-      status: 'active',
-      ozonSynced: true,
-      wbSynced: true,
-      image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop'
-    },
-    {
-      id: 2,
-      name: 'Наушники AirPods Pro',
-      sku: 'APR-PRO-WHT',
-      price: 24990,
-      stock: 23,
-      category: 'Аксессуары',
-      status: 'active',
-      ozonSynced: true,
-      wbSynced: false,
-      image: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=100&h=100&fit=crop'
-    },
-    {
-      id: 3,
-      name: 'Ноутбук MacBook Air',
-      sku: 'MBA-M2-SLV',
-      price: 129990,
-      stock: 8,
-      category: 'Компьютеры',
-      status: 'low_stock',
-      ozonSynced: true,
-      wbSynced: true,
-      image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop'
-    },
-  ];
+  const products = [];
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,6 +64,32 @@ const ProductsManager = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Empty State */}
+      {filteredProducts.length === 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ? 'Товары не найдены' : 'Нет товаров'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {searchTerm 
+                  ? 'Попробуйте изменить критерии поиска'
+                  : 'Начните с добавления первого товара в каталог'
+                }
+              </p>
+              {!searchTerm && (
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Добавить первый товар
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
