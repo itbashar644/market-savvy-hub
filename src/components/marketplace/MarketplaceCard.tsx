@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ interface MarketplaceCardProps {
   marketplace: Marketplace;
   onSync: (name: string) => void;
   onShowProducts: (name: string) => void;
+  onSettingsClick: (name: string) => void;
   syncInProgress: boolean;
   syncingMarketplace: string | null;
 }
@@ -36,9 +38,28 @@ const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   marketplace, 
   onSync, 
   onShowProducts, 
+  onSettingsClick,
   syncInProgress, 
   syncingMarketplace 
 }) => {
+  const handleSyncClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSync(marketplace.name);
+  };
+
+  const handleSettingsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSettingsClick(marketplace.name);
+  };
+
+  const handleShowProductsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onShowProducts(marketplace.name);
+  };
+
   return (
     <Card className="hover:shadow-lg transition-shadow duration-300">
       <CardHeader>
@@ -57,7 +78,12 @@ const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
               </div>
             </div>
           </div>
-          <Button size="sm" variant="outline">
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={handleSettingsClick}
+            className="hover:bg-gray-50"
+          >
             <Settings className="w-4 h-4" />
           </Button>
         </div>
@@ -81,7 +107,7 @@ const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             <Button 
               size="sm" 
               className="flex-1"
-              onClick={() => onSync(marketplace.name)}
+              onClick={handleSyncClick}
               disabled={syncInProgress || marketplace.status === 'disconnected' || marketplace.status === 'not-configured'}
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${syncInProgress && syncingMarketplace === marketplace.name ? 'animate-spin' : ''}`} />
@@ -93,7 +119,7 @@ const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
             size="sm" 
             variant="outline"
             className="w-full"
-            onClick={() => onShowProducts(marketplace.name)}
+            onClick={handleShowProductsClick}
           >
             Показать товары
           </Button>

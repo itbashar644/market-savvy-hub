@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,14 +49,26 @@ const MarketplaceIntegration = () => {
   const [syncResults, setSyncResults] = useState<any[]>([]);
   const [lastError, setLastError] = useState<string>('');
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState('settings'); // Добавляем состояние для вкладки
 
   // Получаем актуальные данные о товарах и заказах по маркетплейсам
   const getMarketplaceStats = () => {
-    const ozonProducts = products.filter(p => p.status === 'active').length;
-    const wbProducts = products.filter(p => p.status === 'active').length;
+    // Фильтруем товары по маркетплейсам на основе данных о продуктах
+    const ozonProducts = products.filter(p => p.marketplace === 'Ozon' && p.status === 'active').length;
+    const wbProducts = products.filter(p => p.marketplace === 'Wildberries' && p.status === 'active').length;
     
-    const ozonOrders = orders.filter(o => o.source === 'Ozon' || o.source === 'ozon').length;
-    const wbOrders = orders.filter(o => o.source === 'Wildberries' || o.source === 'wb').length;
+    // Фильтруем заказы по маркетплейсам
+    const ozonOrders = orders.filter(o => 
+      o.source === 'Ozon' || 
+      o.source === 'ozon' || 
+      o.marketplace === 'Ozon'
+    ).length;
+    
+    const wbOrders = orders.filter(o => 
+      o.source === 'Wildberries' || 
+      o.source === 'wb' || 
+      o.marketplace === 'Wildberries'
+    ).length;
     
     return {
       ozon: { products: ozonProducts, orders: ozonOrders },
@@ -108,18 +121,19 @@ const MarketplaceIntegration = () => {
       title,
       description,
       variant: "destructive",
-      duration: 10000, // Показываем 10 секунд
+      duration: 15000, // Увеличиваем до 15 секунд
     });
     
     // Устанавливаем новый таймаут для очистки ошибки
     const newTimeout = setTimeout(() => {
       setLastError('');
-    }, 15000); // Очищаем через 15 секунд
+    }, 30000); // Очищаем через 30 секунд
     
     setErrorTimeout(newTimeout);
   };
 
   const handleSync = async (marketplace: string) => {
+    // Предотвращаем перезагрузку страницы
     console.log(`Starting sync with ${marketplace}`);
     setLastError(''); // Очищаем предыдущие ошибки
 
@@ -157,45 +171,49 @@ const MarketplaceIntegration = () => {
 
         console.log('Wildberries sync response:', data);
         
-        const wbResult = data.result;
-        const successUpdates = wbResult.filter((r: { updated: boolean; }) => r.updated);
-        const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
+        if (data && data.result) {
+          const wbResult = data.result;
+          const successUpdates = wbResult.filter((r: { updated: boolean; }) => r.updated);
+          const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
 
-        updateLastSync(marketplace);
+          updateLastSync(marketplace);
 
-        if (failedUpdates.length > 0) {
-          setSyncResults(wbResult);
-          setSelectedMarketplace(marketplace);
-          setShowSyncResultModal(true);
-          
-          addLog({
-            marketplace,
-            action: 'Обновление остатков',
-            status: 'error',
-            details: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками`,
-            successCount: successUpdates.length,
-            errorCount: failedUpdates.length
-          });
-          
-          showPersistentError(
-            "Ошибка синхронизации с Wildberries",
-            `Не удалось обновить ${failedUpdates.length} товаров. Проверьте детали в модальном окне.`
-          );
+          if (failedUpdates.length > 0) {
+            setSyncResults(wbResult);
+            setSelectedMarketplace(marketplace);
+            setShowSyncResultModal(true);
+            
+            addLog({
+              marketplace,
+              action: 'Обновление остатков',
+              status: 'error',
+              details: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками`,
+              successCount: successUpdates.length,
+              errorCount: failedUpdates.length
+            });
+            
+            showPersistentError(
+              "Ошибка синхронизации с Wildberries",
+              `Не удалось обновить ${failedUpdates.length} товаров. Проверьте детали в модальном окне.`
+            );
+          } else {
+            addLog({
+              marketplace,
+              action: 'Обновление остатков',
+              status: 'success',
+              details: `Остатки для ${stocks.length} товаров успешно обновлены`,
+              successCount: successUpdates.length,
+              errorCount: 0
+            });
+            
+            toast({
+              title: "Синхронизация с Wildberries завершена",
+              description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
+              duration: 5000,
+            });
+          }
         } else {
-          addLog({
-            marketplace,
-            action: 'Обновление остатков',
-            status: 'success',
-            details: `Остатки для ${stocks.length} товаров успешно обновлены`,
-            successCount: successUpdates.length,
-            errorCount: 0
-          });
-          
-          toast({
-            title: "Синхронизация с Wildberries завершена",
-            description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
-            duration: 5000,
-          });
+          throw new Error('Получен некорректный ответ от сервера');
         }
 
       } catch (error: any) {
@@ -482,6 +500,12 @@ const MarketplaceIntegration = () => {
     setShowProductsModal(true);
   };
 
+  const handleSettingsClick = (marketplace: string) => {
+    // Переключаемся на вкладку настроек и фокусируемся на нужном маркетплейсе
+    setActiveTab('settings');
+    setSelectedMarketplace(marketplace);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -530,13 +554,14 @@ const MarketplaceIntegration = () => {
             marketplace={marketplace}
             onSync={handleSync}
             onShowProducts={handleShowProducts}
+            onSettingsClick={handleSettingsClick}
             syncInProgress={syncInProgress}
             syncingMarketplace={syncingMarketplace}
           />
         ))}
       </div>
 
-      <Tabs defaultValue="settings" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="settings">Настройки API</TabsTrigger>
           <TabsTrigger value="logs">Логи синхронизации</TabsTrigger>
