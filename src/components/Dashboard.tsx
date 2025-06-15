@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Package, ShoppingCart, Users, Ruble } from 'lucide-react';
+import { TrendingUp, TrendingDown, Package, ShoppingCart, Users, BadgeRussianRuble } from 'lucide-react';
 
 const Dashboard = () => {
   const salesData = [
@@ -27,7 +27,7 @@ const Dashboard = () => {
       value: '2,489,574 ₽',
       change: '+12.5%',
       trend: 'up',
-      icon: Ruble,
+      icon: BadgeRussianRuble,
       color: 'text-green-600'
     },
     {
