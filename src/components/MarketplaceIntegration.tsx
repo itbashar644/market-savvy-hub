@@ -325,8 +325,8 @@ const MarketplaceIntegration = () => {
 
   // Регистрируем функцию синхронизации для автосинхронизации
   useEffect(() => {
-    setOnSyncFunction(() => handleSync);
-  }, [handleSync]);
+    setOnSyncFunction(handleSync);
+  }, [handleSync, setOnSyncFunction]);
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
