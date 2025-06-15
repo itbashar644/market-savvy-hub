@@ -29,21 +29,41 @@ serve(async (req) => {
 
     console.log('Syncing stocks to Wildberries for', stocks.length, 'items');
 
-    // Получаем список складов с улучшенной обработкой ошибок
+    // Улучшенное получение списка складов
     let warehousesResponse;
     try {
+      // Добавляем больше заголовков для совместимости
+      const headers = {
+        'Authorization': apiKey,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'WB-Integration/2.0',
+        'Cache-Control': 'no-cache',
+      };
+
+      console.log('Fetching warehouses from Wildberries...');
+      
       warehousesResponse = await fetch(`${WB_API_URL}/api/v3/warehouses`, {
         method: 'GET',
-        headers: {
-          'Authorization': apiKey,
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; WB-Integration/1.0)',
-        },
-        signal: AbortSignal.timeout(10000), // 10 секунд таймаут
+        headers,
+        signal: AbortSignal.timeout(30000), // Увеличиваем таймаут до 30 секунд
       });
+
+      console.log('Warehouses response status:', warehousesResponse.status);
+      
     } catch (fetchError) {
       console.error('Network error when fetching warehouses:', fetchError);
-      throw new Error(`Ошибка сети при получении складов: ${fetchError.message}`);
+      
+      // Более детальная диагностика ошибки
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Превышено время ожидания ответа от Wildberries API (30 сек). Попробуйте позже.');
+      }
+      
+      if (fetchError.message.includes('network')) {
+        throw new Error('Ошибка сети при подключении к Wildberries. Проверьте интернет-соединение.');
+      }
+      
+      throw new Error(`Ошибка подключения к Wildberries API: ${fetchError.message}`);
     }
 
     if (!warehousesResponse.ok) {
@@ -56,17 +76,19 @@ serve(async (req) => {
       } else if (warehousesResponse.status === 403) {
         errorMessage = 'Недостаточно прав доступа к API Wildberries';
       } else if (warehousesResponse.status === 429) {
-        errorMessage = 'Превышен лимит запросов к API Wildberries';
+        errorMessage = 'Превышен лимит запросов к API Wildberries. Повторите через несколько минут.';
+      } else if (warehousesResponse.status >= 500) {
+        errorMessage = 'Временные проблемы на сервере Wildberries. Повторите попытку через несколько минут.';
       }
       
-      throw new Error(`${errorMessage}: ${warehousesResponse.status} ${errorText}`);
+      throw new Error(`${errorMessage} (Код: ${warehousesResponse.status})`);
     }
 
     const warehousesData = await warehousesResponse.json();
     console.log('Wildberries warehouses response:', warehousesData);
 
     if (!warehousesData || warehousesData.length === 0) {
-      throw new Error('В аккаунте Wildberries не найдены склады');
+      throw new Error('В аккаунте Wildberries не найдены склады. Убедитесь, что у вас есть активные склады.');
     }
 
     const warehouseId = warehousesData[0].id;
@@ -85,22 +107,32 @@ serve(async (req) => {
 
     let stockResponse;
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': apiKey,
+        'User-Agent': 'WB-Integration/2.0',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+      };
+
       stockResponse = await fetch(`${WB_API_URL}/api/v3/stocks/${warehouseId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiKey,
-          'User-Agent': 'Mozilla/5.0 (compatible; WB-Integration/1.0)',
-        },
+        headers,
         body: JSON.stringify(wbPayload),
-        signal: AbortSignal.timeout(15000), // 15 секунд таймаут
+        signal: AbortSignal.timeout(45000), // 45 секунд для обновления остатков
       });
+
+      console.log('Stock update response status:', stockResponse.status);
+      
     } catch (fetchError) {
       console.error('Network error when updating stocks:', fetchError);
+      
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Превышено время ожидания при обновлении остатков (45 сек). Попробуйте с меньшим количеством товаров.');
+      }
+      
       throw new Error(`Ошибка сети при обновлении остатков: ${fetchError.message}`);
     }
-
-    console.log('Stock update response status:', stockResponse.status);
 
     if (!stockResponse.ok) {
       const errorText = await stockResponse.text();
@@ -113,13 +145,14 @@ serve(async (req) => {
         errorData = { errorText };
       }
 
+      // Возвращаем детализированные ошибки для каждого товара
       const allErrors = stocks.map(item => ({
         offer_id: item.offer_id,
         updated: false,
         errors: [
           {
-            code: errorData.errorText || 'API_ERROR',
-            message: errorData.errorText || `Ошибка API Wildberries: ${stockResponse.status}`,
+            code: `HTTP_${stockResponse.status}`,
+            message: errorData.errorText || `Ошибка API Wildberries (${stockResponse.status}): ${errorText}`,
           },
         ],
       }));
@@ -153,7 +186,8 @@ serve(async (req) => {
     // Возвращаем детальную информацию об ошибке
     return new Response(JSON.stringify({ 
       error: error.message,
-      details: error.stack || 'No stack trace available'
+      details: error.stack || 'No stack trace available',
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
