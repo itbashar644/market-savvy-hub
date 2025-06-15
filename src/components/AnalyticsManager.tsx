@@ -350,7 +350,7 @@ const AnalyticsManager = () => {
                 <Users className="w-12 h-12 text-purple-500 mx-auto mb-4" />
                 <p className="text-3xl font-bold text-purple-600">{customerAnalysis.vip}</p>
                 <p className="text-gray-600">VIP клиенты</p>
-                <p className="text-sm text-purple-600 mt-2">Покупки > 50к ₽</p>
+                <p className="text-sm text-purple-600 mt-2">Покупки &gt; 50к ₽</p>
               </CardContent>
             </Card>
           </div>
