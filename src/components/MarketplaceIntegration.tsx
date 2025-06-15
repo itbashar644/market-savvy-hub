@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useInventory } from '@/hooks/useDatabase';
 import { supabase } from '@/integrations/supabase/client';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
@@ -129,9 +130,22 @@ const MarketplaceIntegration = () => {
 
     } catch (error: any) {
       console.error('Error syncing with Ozon:', error);
+      let description = "Произошла неизвестная ошибка.";
+
+      if (error instanceof FunctionsHttpError) {
+        try {
+          const errorJson = await error.context.json();
+          description = errorJson.error || JSON.stringify(errorJson);
+        } catch {
+          description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
+        }
+      } else {
+        description = error.message;
+      }
+
       toast({
-        title: "Ошибка при вызове функции синхронизации",
-        description: error.message,
+        title: "Ошибка синхронизации с Ozon",
+        description,
         variant: "destructive"
       });
     } finally {
