@@ -114,6 +114,14 @@ const ProductImport = () => {
 
     for (const item of importedData) {
       try {
+        // Определяем правильный статус товара
+        let productStatus: 'active' | 'low_stock' | 'out_of_stock' = 'active';
+        if (!item.inStock || item.stockQuantity === 0) {
+          productStatus = 'out_of_stock';
+        } else if (item.stockQuantity < 10) {
+          productStatus = 'low_stock';
+        }
+
         // Маппинг данных в формат CRM
         const productData = {
           name: item.title,
@@ -122,7 +130,7 @@ const ProductImport = () => {
           price: item.discountPrice || item.price,
           description: item.description,
           image: item.imageUrl || '/placeholder.svg',
-          status: item.inStock ? 'active' : 'out_of_stock',
+          status: productStatus,
           stock: item.stockQuantity || 0,
           minStock: 5,
           maxStock: 100,
