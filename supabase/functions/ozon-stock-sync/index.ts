@@ -1,6 +1,6 @@
 
-// v1.2 - Add warehouse_id support
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+// v1.3 - Use passed credentials
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const OZON_API_URL = 'https://api-seller.ozon.ru';
@@ -17,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { stocks, warehouseId } = await req.json();
+    const { stocks, warehouseId, apiKey, clientId } = await req.json();
 
     if (!stocks || !Array.isArray(stocks)) {
       throw new Error('"stocks" array is required in the request body.');
@@ -26,19 +26,16 @@ serve(async (req) => {
     if (!warehouseId) {
       throw new Error('"warehouseId" is required in the request body.');
     }
+    
+    if (!apiKey || !clientId) {
+      throw new Error('Ozon API credentials (apiKey, clientId) are required in the request body.');
+    }
 
     if (stocks.length === 0) {
       return new Response(JSON.stringify({ result: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
-    }
-
-    const ozonClientId = Deno.env.get('OZON_CLIENT_ID');
-    const ozonApiKey = Deno.env.get('OZON_API_KEY');
-
-    if (!ozonClientId || !ozonApiKey) {
-      throw new Error('Ozon API credentials are not set in environment variables.');
     }
 
     const parsedWarehouseId = parseInt(warehouseId, 10);
@@ -63,8 +60,8 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Client-Id': ozonClientId,
-            'Api-Key': ozonApiKey,
+            'Client-Id': clientId,
+            'Api-Key': apiKey,
           },
           body: JSON.stringify(ozonPayload),
         });

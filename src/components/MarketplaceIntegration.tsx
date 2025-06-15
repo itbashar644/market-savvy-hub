@@ -101,12 +101,16 @@ const MarketplaceIntegration = () => {
       return;
     }
 
-    if (!ozonCreds.warehouse_id) {
+    if (!ozonCreds.api_key || !ozonCreds.client_id) {
       toast({
-        title: "Не указан Warehouse ID",
-        description: "Пожалуйста, укажите и сохраните Warehouse ID в настройках Ozon.",
+        title: "Не указаны API ключ или Client ID",
+        description: "Пожалуйста, укажите и сохраните API ключ и Client ID в настройках Ozon.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!ozonCreds.warehouse_id) {
       return;
     }
 
@@ -120,7 +124,12 @@ const MarketplaceIntegration = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
-        body: { stocks, warehouseId: ozonCreds.warehouse_id },
+        body: { 
+          stocks, 
+          warehouseId: ozonCreds.warehouse_id,
+          apiKey: ozonCreds.api_key,
+          clientId: ozonCreds.client_id,
+        },
       });
 
       if (error) throw error;
