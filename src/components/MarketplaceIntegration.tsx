@@ -95,6 +95,8 @@ const MarketplaceIntegration = () => {
       }));
 
       try {
+        console.log('Sending stocks to Wildberries:', stocks);
+        
         const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
           body: { 
             stocks, 
@@ -102,7 +104,12 @@ const MarketplaceIntegration = () => {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw error;
+        }
+
+        console.log('Wildberries sync response:', data);
         
         const wbResult = data.result;
         const successUpdates = wbResult.filter((r: { updated: boolean; }) => r.updated);
@@ -152,11 +159,12 @@ const MarketplaceIntegration = () => {
         if (error instanceof FunctionsHttpError) {
           try {
             const errorJson = await error.context.json();
+            console.error('Function error details:', errorJson);
             description = errorJson.error || JSON.stringify(errorJson);
           } catch {
             description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
           }
-        } else {
+        } else if (error.message) {
           description = error.message;
         }
 
@@ -295,6 +303,7 @@ const MarketplaceIntegration = () => {
       if (error instanceof FunctionsHttpError) {
         try {
           const errorJson = await error.context.json();
+          console.error('Function error details:', errorJson);
           description = errorJson.error || JSON.stringify(errorJson);
         } catch {
           description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
