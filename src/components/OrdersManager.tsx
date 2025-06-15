@@ -5,23 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Eye, Edit, Package } from 'lucide-react';
-
-interface Order {
-  id: string;
-  customerName: string;
-  customerEmail: string;
-  products: string[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  createdAt: string;
-  orderNumber: string;
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Plus, Search, Eye, Edit, Package, Clock } from 'lucide-react';
+import { useOrders } from '@/hooks/useDatabase';
+import { Order } from '@/types/database';
+import OrderStatusHistory from '@/components/orders/OrderStatusHistory';
 
 const OrdersManager = () => {
-  const [orders] = useState<Order[]>([]);
-
+  const { orders, loading, updateOrder, getOrderWithHistory } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showStatusHistory, setShowStatusHistory] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [newStatus, setNewStatus] = useState<Order['status']>('pending');
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -51,6 +48,32 @@ const OrdersManager = () => {
     order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleStatusUpdate = (orderId: string, status: Order['status']) => {
+    updateOrder(orderId, { status });
+    setEditingOrderId(null);
+  };
+
+  const handleShowHistory = (order: Order) => {
+    const orderWithHistory = getOrderWithHistory(order.id);
+    setSelectedOrder(orderWithHistory);
+    setShowStatusHistory(true);
+  };
+
+  const getTotalsByStatus = () => {
+    return {
+      total: orders.length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+      totalAmount: orders.reduce((sum, order) => sum + order.total, 0)
+    };
+  };
+
+  const stats = getTotalsByStatus();
+
+  if (loading) {
+    return <div className="p-6">Загрузка...</div>;
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -71,7 +94,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Всего заказов</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
           </CardContent>
@@ -83,7 +106,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-yellow-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">В обработке</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.processing}</p>
               </div>
             </div>
           </CardContent>
@@ -95,7 +118,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Доставлено</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
               </div>
             </div>
           </CardContent>
@@ -107,7 +130,7 @@ const OrdersManager = () => {
               <Package className="w-8 h-8 text-purple-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Общая сумма</p>
-                <p className="text-2xl font-bold text-gray-900">₽0</p>
+                <p className="text-2xl font-bold text-gray-900">₽{stats.totalAmount.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -165,22 +188,69 @@ const OrdersManager = () => {
                     </TableCell>
                     <TableCell>
                       <div className="max-w-xs">
-                        {order.products.join(', ')}
+                        {order.products.map(p => p.productName).join(', ')}
                       </div>
                     </TableCell>
                     <TableCell>₽{order.total.toLocaleString()}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(order.status)}>
-                        {getStatusText(order.status)}
-                      </Badge>
+                      {editingOrderId === order.id ? (
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={newStatus}
+                            onValueChange={(value) => setNewStatus(value as Order['status'])}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Ожидает</SelectItem>
+                              <SelectItem value="processing">Обработка</SelectItem>
+                              <SelectItem value="shipped">Отправлен</SelectItem>
+                              <SelectItem value="delivered">Доставлен</SelectItem>
+                              <SelectItem value="cancelled">Отменен</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleStatusUpdate(order.id, newStatus)}
+                          >
+                            ✓
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setEditingOrderId(null)}
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusText(order.status)}
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell>{order.createdAt}</TableCell>
+                    <TableCell>{new Date(order.createdAt).toLocaleDateString('ru-RU')}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleShowHistory(order)}
+                        >
+                          <Clock className="w-4 h-4" />
+                        </Button>
                         <Button variant="outline" size="sm">
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setEditingOrderId(order.id);
+                            setNewStatus(order.status);
+                          }}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                       </div>
@@ -192,6 +262,19 @@ const OrdersManager = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showStatusHistory} onOpenChange={setShowStatusHistory}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              История статусов заказа {selectedOrder?.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <OrderStatusHistory history={selectedOrder.statusHistory || []} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

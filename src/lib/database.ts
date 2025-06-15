@@ -1,5 +1,4 @@
-
-import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData } from '@/types/database';
+import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData, OrderStatusHistory } from '@/types/database';
 import { CustomerDatabase } from './database/customers';
 import { ProductDatabase } from './database/products';
 import { OrderDatabase } from './database/orders';
@@ -68,7 +67,7 @@ class LocalDatabase {
     return success;
   }
 
-  // Order methods
+  // Order methods with status history
   getOrders(): Order[] {
     return this.orderDb.getOrders();
   }
@@ -80,11 +79,23 @@ class LocalDatabase {
   }
 
   updateOrder(id: string, updates: Partial<Order>): Order | null {
-    return this.orderDb.updateOrder(id, updates);
+    const updatedOrder = this.orderDb.updateOrder(id, updates);
+    if (updatedOrder) {
+      this.customerDb.updateCustomerStats(updatedOrder.customerId, this.orderDb.getOrders());
+    }
+    return updatedOrder;
   }
 
   deleteOrder(id: string): boolean {
     return this.orderDb.deleteOrder(id);
+  }
+
+  getOrderWithHistory(orderId: string): Order | null {
+    return this.orderDb.getOrderWithHistory(orderId);
+  }
+
+  getOrderStatusHistory(): OrderStatusHistory[] {
+    return this.orderDb.getOrderStatusHistory();
   }
 
   // Inventory methods

@@ -1,4 +1,3 @@
-
 // Интерфейсы для базы данных
 
 export interface Customer {
@@ -35,6 +34,16 @@ export interface Product {
   wbSynced: boolean;
 }
 
+export interface OrderStatusHistory {
+  id: string;
+  orderId: string;
+  fromStatus?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  toStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  changedAt: string;
+  changedBy?: string;
+  notes?: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -48,6 +57,7 @@ export interface Order {
   updatedAt: string;
   shippingAddress?: string;
   paymentMethod?: string;
+  statusHistory?: OrderStatusHistory[];
 }
 
 export interface OrderItem {

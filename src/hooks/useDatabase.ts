@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/database';
-import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData } from '@/types/database';
+import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData, OrderStatusHistory } from '@/types/database';
 
 export const useCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -116,6 +115,10 @@ export const useOrders = () => {
     return success;
   };
 
+  const getOrderWithHistory = (orderId: string) => {
+    return db.getOrderWithHistory(orderId);
+  };
+
   return {
     orders,
     loading,
@@ -123,6 +126,7 @@ export const useOrders = () => {
     updateOrder,
     deleteOrder,
     refreshOrders,
+    getOrderWithHistory,
   };
 };
 
@@ -159,6 +163,26 @@ export const useInventoryHistory = () => {
 
   const refreshHistory = () => {
     setHistory(db.getInventoryHistory());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshHistory();
+  }, []);
+
+  return {
+    history,
+    loading,
+    refreshHistory,
+  };
+};
+
+export const useOrderStatusHistory = () => {
+  const [history, setHistory] = useState<OrderStatusHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshHistory = () => {
+    setHistory(db.getOrderStatusHistory());
     setLoading(false);
   };
 
