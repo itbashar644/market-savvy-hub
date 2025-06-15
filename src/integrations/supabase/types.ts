@@ -291,6 +291,7 @@ export type Database = {
           phone: string | null
           preferredcontactmethod: string | null
           savedaddresses: Json | null
+          status: Database["public"]["Enums"]["user_status"]
           telegramnickname: string | null
           updated_at: string | null
         }
@@ -304,6 +305,7 @@ export type Database = {
           phone?: string | null
           preferredcontactmethod?: string | null
           savedaddresses?: Json | null
+          status?: Database["public"]["Enums"]["user_status"]
           telegramnickname?: string | null
           updated_at?: string | null
         }
@@ -317,6 +319,7 @@ export type Database = {
           phone?: string | null
           preferredcontactmethod?: string | null
           savedaddresses?: Json | null
+          status?: Database["public"]["Enums"]["user_status"]
           telegramnickname?: string | null
           updated_at?: string | null
         }
@@ -365,6 +368,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "editor" | "user"
+      user_status: "pending" | "approved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -481,6 +485,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "editor", "user"],
+      user_status: ["pending", "approved"],
     },
   },
 } as const

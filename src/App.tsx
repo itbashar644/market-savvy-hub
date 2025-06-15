@@ -9,11 +9,12 @@ import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import { useAuth } from "./hooks/useAuth";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
 
   if (loading) {
     return (
@@ -32,9 +33,22 @@ const App = () => {
           <Routes>
             <Route path="/update-password" element={<UpdatePasswordPage />} />
             <Route path="/auth" element={!session ? <AuthPage /> : <Navigate to="/" />} />
-            <Route path="/" element={session ? <Index /> : <Navigate to="/auth" />} />
+            
+            <Route 
+              path="/" 
+              element={
+                !session ? (
+                  <Navigate to="/auth" />
+                ) : profile?.status === 'approved' ? (
+                  <Index />
+                ) : (
+                  <PendingApprovalPage />
+                )
+              } 
+            />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={session ? <Navigate to="/" /> : <NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

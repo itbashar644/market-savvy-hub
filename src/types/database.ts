@@ -70,6 +70,15 @@ export interface OrderItem {
   total: number;
 }
 
+export interface Profile {
+  id: string;
+  status: 'pending' | 'approved';
+  name?: string | null;
+  email?: string | null;
+  avatar_url?: string | null;
+  updated_at?: string | null;
+}
+
 export interface InventoryItem {
   id: string;
   productId: string;
