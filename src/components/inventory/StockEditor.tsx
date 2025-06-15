@@ -32,10 +32,12 @@ const StockEditor = ({
             newStock: parseInt(e.target.value) || 0 
           })}
           className="w-20"
+          min="0"
         />
         <Button 
           size="sm" 
           onClick={() => onStockUpdate(itemId, editingStock.newStock)}
+          className="px-2"
         >
           ✓
         </Button>
@@ -43,6 +45,7 @@ const StockEditor = ({
           size="sm" 
           variant="outline" 
           onClick={() => setEditingStock(null)}
+          className="px-2"
         >
           ✕
         </Button>
@@ -61,8 +64,10 @@ const StockEditor = ({
         size="sm"
         variant="ghost"
         onClick={() => setEditingStock({ id: itemId, newStock: currentStock })}
+        className="h-8 w-8 p-0 hover:bg-gray-100"
+        title="Редактировать остаток"
       >
-        <Edit className="w-3 h-3" />
+        <Edit className="w-4 h-4" />
       </Button>
     </div>
   );
