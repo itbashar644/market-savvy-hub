@@ -89,6 +89,10 @@ const MarketplaceIntegration = () => {
   ];
 
   const handleSync = async (marketplace: string) => {
+    console.log(`Starting sync with ${marketplace}`);
+    console.log('Current inventory:', inventory);
+    console.log('Credentials:', marketplace === 'Ozon' ? ozonCreds : wbCreds);
+
     if (marketplace === 'Wildberries') {
       console.log('Wildberries credentials check:', wbCreds);
 
@@ -109,10 +113,7 @@ const MarketplaceIntegration = () => {
         stock: item.currentStock,
       }));
 
-      console.log('Sending Wildberries request with credentials:', {
-        hasApiKey: !!wbCreds.api_key,
-        stocksCount: stocks.length
-      });
+      console.log('Sending Wildberries request with stocks:', stocks);
 
       try {
         const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
@@ -202,6 +203,15 @@ const MarketplaceIntegration = () => {
         return;
     }
 
+    if (!inventory || inventory.length === 0) {
+      toast({
+        title: "Нет товаров для синхронизации",
+        description: "В инвентаре нет товаров для отправки на Ozon.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSyncInProgress(true);
     setSyncingMarketplace(marketplace);
 
@@ -210,11 +220,13 @@ const MarketplaceIntegration = () => {
       stock: item.currentStock,
     }));
 
-    console.log('Sending request with credentials:', {
+    console.log('Sending Ozon request with:', {
       hasApiKey: !!ozonCreds.api_key,
       hasClientId: !!ozonCreds.client_id,
       hasWarehouseId: !!ozonCreds.warehouse_id,
-      stocksCount: stocks.length
+      warehouseId: ozonCreds.warehouse_id,
+      stocksCount: stocks.length,
+      stocksSample: stocks.slice(0, 3)
     });
 
     try {
@@ -232,22 +244,38 @@ const MarketplaceIntegration = () => {
       if (error) throw error;
       
       const ozonResult = data.result;
+      const successUpdates = ozonResult.filter((r: { updated: boolean; }) => r.updated);
       const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => !r.updated);
+
+      console.log('Sync results:', {
+        total: ozonResult.length,
+        success: successUpdates.length,
+        failed: failedUpdates.length
+      });
 
       if (failedUpdates.length > 0) {
         console.error('Failed Ozon updates:', failedUpdates);
         setSyncResults(ozonResult);
         setSelectedMarketplace(marketplace);
         setShowSyncResultModal(true);
-        toast({
-          title: "Ошибка синхронизации с Ozon",
-          description: `Не удалось обновить ${failedUpdates.length} товаров. Нажмите для подробностей.`,
-          variant: "destructive"
-        });
+        
+        if (successUpdates.length > 0) {
+          toast({
+            title: "Частичная синхронизация с Ozon",
+            description: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками. Смотрите детали.`,
+            variant: "default"
+          });
+        } else {
+          toast({
+            title: "Ошибка синхронизации с Ozon",
+            description: `Не удалось обновить ${failedUpdates.length} товаров. Смотрите детали.`,
+            variant: "destructive"
+          });
+        }
       } else {
         toast({
           title: "Синхронизация с Ozon завершена",
-          description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
+          description: `Остатки для ${successUpdates.length} товаров успешно обновлены.`,
         });
       }
 
