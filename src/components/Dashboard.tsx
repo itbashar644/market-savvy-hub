@@ -6,50 +6,50 @@ import { TrendingUp, TrendingDown, Package, ShoppingCart, Users, BadgeRussianRub
 
 const Dashboard = () => {
   const salesData = [
-    { name: 'Пн', sales: 4000, orders: 24 },
-    { name: 'Вт', sales: 3000, orders: 18 },
-    { name: 'Ср', sales: 5000, orders: 32 },
-    { name: 'Чт', sales: 4500, orders: 28 },
-    { name: 'Пт', sales: 6000, orders: 38 },
-    { name: 'Сб', sales: 7500, orders: 45 },
-    { name: 'Вс', sales: 6800, orders: 42 },
+    { name: 'Пн', sales: 0, orders: 0 },
+    { name: 'Вт', sales: 0, orders: 0 },
+    { name: 'Ср', sales: 0, orders: 0 },
+    { name: 'Чт', sales: 0, orders: 0 },
+    { name: 'Пт', sales: 0, orders: 0 },
+    { name: 'Сб', sales: 0, orders: 0 },
+    { name: 'Вс', sales: 0, orders: 0 },
   ];
 
   const marketplaceData = [
-    { name: 'Ozon', value: 45, color: '#0ea5e9' },
-    { name: 'Wildberries', value: 35, color: '#8b5cf6' },
-    { name: 'Яндекс.Маркет', value: 20, color: '#f59e0b' },
+    { name: 'Ozon', value: 0, color: '#0ea5e9' },
+    { name: 'Wildberries', value: 0, color: '#8b5cf6' },
+    { name: 'Яндекс.Маркет', value: 0, color: '#f59e0b' },
   ];
 
   const stats = [
     {
       title: 'Общий доход',
-      value: '2,489,574 ₽',
-      change: '+12.5%',
+      value: '0 ₽',
+      change: '0%',
       trend: 'up',
       icon: BadgeRussianRuble,
       color: 'text-green-600'
     },
     {
       title: 'Заказы',
-      value: '1,247',
-      change: '+8.2%',
+      value: '0',
+      change: '0%',
       trend: 'up',
       icon: ShoppingCart,
       color: 'text-blue-600'
     },
     {
       title: 'Товары',
-      value: '856',
-      change: '+3.1%',
+      value: '0',
+      change: '0%',
       trend: 'up',
       icon: Package,
       color: 'text-purple-600'
     },
     {
       title: 'Клиенты',
-      value: '2,104',
-      change: '+15.3%',
+      value: '0',
+      change: '0%',
       trend: 'up',
       icon: Users,
       color: 'text-orange-600'
