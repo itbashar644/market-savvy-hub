@@ -1,24 +1,25 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload, Filter, X } from 'lucide-react';
 import { useProducts } from '@/hooks/useDatabase';
 import ProductImport from './ProductImport';
 import ProductStockEditor from './products/ProductStockEditor';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
   const { products, loading } = useProducts();
-
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [filters, setFilters] = useState<{ status: string[]; category: string[] }>({
+    status: [],
+    category: [],
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -37,6 +38,43 @@ const ProductsManager = () => {
       default: return 'Неизвестно';
     }
   };
+
+  // Filter logic
+  const categories = [...new Set(products.map(p => p.category))];
+  
+  const handleStatusChange = (status: string) => {
+    setFilters(prev => {
+        const newStatus = prev.status.includes(status)
+            ? prev.status.filter(s => s !== status)
+            : [...prev.status, status];
+        return { ...prev, status: newStatus };
+    });
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setFilters(prev => {
+        const newCategory = prev.category.includes(category)
+            ? prev.category.filter(c => c !== category)
+            : [...prev.category, category];
+        return { ...prev, category: newCategory };
+    });
+  };
+
+  const resetFilters = () => {
+    setFilters({ status: [], category: [] });
+  };
+  
+  const activeFilterCount = filters.status.length + filters.category.length;
+
+  const filteredProducts = products.filter(product => {
+    const searchTermMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const statusMatch = filters.status.length === 0 || filters.status.includes(product.status);
+    const categoryMatch = filters.category.length === 0 || filters.category.includes(product.category);
+
+    return searchTermMatch && statusMatch && categoryMatch;
+  });
 
   if (loading) {
     return (
@@ -95,7 +133,68 @@ const ProductsManager = () => {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">Фильтры</Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant={activeFilterCount > 0 ? "secondary" : "outline"}>
+                  <Filter className="mr-2 h-4 w-4" />
+                  Фильтры {activeFilterCount > 0 && `(${activeFilterCount})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="grid gap-4 p-4">
+                  <div className="space-y-1">
+                    <h4 className="font-medium leading-none">Фильтры</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Настройте отображение товаров.
+                    </p>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Статус</Label>
+                      <div className="grid gap-1 mt-2">
+                        {['active', 'low_stock', 'out_of_stock'].map((status) => (
+                            <div key={status} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`status-${status}`}
+                                    checked={filters.status.includes(status)}
+                                    onCheckedChange={() => handleStatusChange(status)}
+                                />
+                                <label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {getStatusText(status)}
+                                </label>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                    {categories.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium">Категория</Label>
+                        <div className="grid gap-1 mt-2 max-h-48 overflow-y-auto">
+                          {categories.map((category) => (
+                              <div key={category} className="flex items-center space-x-2">
+                                  <Checkbox
+                                      id={`category-${category}`}
+                                      checked={filters.category.includes(category)}
+                                      onCheckedChange={() => handleCategoryChange(category)}
+                                  />
+                                  <label htmlFor={`category-${category}`} className="text-sm font-normal cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                      {category}
+                                  </label>
+                              </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <Button onClick={resetFilters} variant="ghost" size="sm" className="w-full justify-center mt-2">
+                        <X className="mr-2 h-4 w-4" />
+                        Сбросить фильтры
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
