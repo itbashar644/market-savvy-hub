@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Package } from 'lucide-react';
 import { useInventory, useInventoryHistory } from '@/hooks/useDatabase';
 import InventoryStats from './inventory/InventoryStats';
 import InventoryActions from './inventory/InventoryActions';
 import InventoryTable from './inventory/InventoryTable';
+import { InventoryHistory } from '@/types/database';
 
 const InventoryManager = () => {
   const { inventory, loading, updateStock } = useInventory();
@@ -37,6 +37,8 @@ const InventoryManager = () => {
           <p className="text-gray-600 mt-1">Отслеживайте и управляйте складскими запасами</p>
         </div>
         <InventoryActions
+          inventory={inventory}
+          onStockUpdate={updateStock}
           history={history}
           showHistory={showHistory}
           setShowHistory={setShowHistory}
