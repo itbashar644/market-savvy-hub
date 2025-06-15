@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +24,7 @@ const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
   const [ozonApiKey, setOzonApiKey] = useState('');
+  const [ozonClientId, setOzonClientId] = useState('');
   const [ozonWarehouseId, setOzonWarehouseId] = useState('');
   const [wbApiKey, setWbApiKey] = useState('');
   const [autoSync, setAutoSync] = useState(true);
@@ -165,6 +165,14 @@ const MarketplaceIntegration = () => {
     }
   };
 
+  const handleCheckConnection = (marketplace: string) => {
+    toast({
+      title: "Функционал в разработке",
+      description: `Проверка подключения для ${marketplace} пока не доступна.`,
+      variant: "default",
+    });
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected': return <CheckCircle className="w-5 h-5 text-green-600" />;
@@ -286,7 +294,11 @@ const MarketplaceIntegration = () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Client ID</label>
-                  <Input placeholder="Введите Client ID" />
+                  <Input
+                    placeholder="Введите Client ID"
+                    value={ozonClientId}
+                    onChange={(e) => setOzonClientId(e.target.value)}
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Warehouse ID</label>
@@ -296,7 +308,11 @@ const MarketplaceIntegration = () => {
                     onChange={(e) => setOzonWarehouseId(e.target.value)}
                   />
                 </div>
-                <Button className="w-full">
+                <Button
+                  className="w-full"
+                  onClick={() => handleCheckConnection('Ozon')}
+                  disabled={!ozonApiKey || !ozonClientId}
+                >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Проверить подключение
                 </Button>
@@ -326,7 +342,11 @@ const MarketplaceIntegration = () => {
                   <label className="text-sm font-medium text-gray-700">Поставщик ID</label>
                   <Input placeholder="Введите ID поставщика" />
                 </div>
-                <Button className="w-full">
+                <Button
+                  className="w-full"
+                  onClick={() => handleCheckConnection('Wildberries')}
+                  disabled={!wbApiKey}
+                >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Проверить подключение
                 </Button>
