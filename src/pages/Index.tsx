@@ -10,6 +10,7 @@ import CustomersManager from '@/components/CustomersManager';
 import InventoryManager from '@/components/InventoryManager';
 import ReportsManager from '@/components/ReportsManager';
 import AnalyticsManager from '@/components/AnalyticsManager';
+import SettingsManager from '@/components/SettingsManager';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -35,7 +36,7 @@ const Index = () => {
       case 'analytics':
         return <AnalyticsManager />;
       case 'settings':
-        return <div className="p-6"><h1 className="text-3xl font-bold">Настройки</h1><p className="text-gray-600 mt-2">Настройки системы в разработке...</p></div>;
+        return <SettingsManager />;
       default:
         return <Dashboard />;
     }
@@ -44,7 +45,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-auto">
         {renderContent()}
       </main>
     </div>
