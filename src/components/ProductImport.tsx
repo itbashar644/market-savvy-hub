@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileText, Check, X, Download } from 'lucide-react';
+import { Upload, FileText, Check, X, Download, FileSpreadsheet } from 'lucide-react';
 import { useProducts } from '@/hooks/useDatabase';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 interface ImportedProduct {
   id: string;
@@ -32,22 +32,31 @@ interface ImportedProduct {
 }
 
 const ProductImport = () => {
-  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [importedData, setImportedData] = useState<ImportedProduct[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [previewMode, setPreviewMode] = useState(true);
+  const [fileType, setFileType] = useState<'csv' | 'xlsx' | null>(null);
   const { addProduct } = useProducts();
   const { toast } = useToast();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'text/csv') {
-      setCsvFile(file);
+    if (!file) return;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (fileExtension === 'csv') {
+      setImportFile(file);
+      setFileType('csv');
       parseCSV(file);
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      setImportFile(file);
+      setFileType('xlsx');
+      parseExcel(file);
     } else {
       toast({
         title: "Ошибка",
-        description: "Пожалуйста, выберите CSV файл",
+        description: "Пожалуйста, выберите CSV или Excel (xlsx) файл",
         variant: "destructive",
       });
     }
@@ -107,6 +116,87 @@ const ProductImport = () => {
     reader.readAsText(file);
   };
 
+  const parseExcel = (file: File) => {
+    setIsProcessing(true);
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Берем первый лист
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Конвертируем в JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length < 2) {
+          toast({
+            title: "Ошибка",
+            description: "Файл должен содержать заголовки и хотя бы одну строку данных",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
+        
+        const headers = jsonData[0] as string[];
+        const products: ImportedProduct[] = [];
+        
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i] as any[];
+          if (!row || row.length === 0) continue;
+          
+          const product: any = {};
+          headers.forEach((header, index) => {
+            let value = row[index];
+            
+            // Преобразование типов данных
+            switch (header) {
+              case 'price':
+              case 'discountPrice':
+              case 'rating':
+              case 'stockQuantity':
+                product[header] = value ? parseFloat(value) : undefined;
+                break;
+              case 'inStock':
+              case 'isNew':
+              case 'isBestseller':
+                product[header] = Boolean(value);
+                break;
+              default:
+                product[header] = value ? String(value) : '';
+            }
+          });
+          
+          if (product.title && product.price) {
+            products.push(product);
+          }
+        }
+        
+        setImportedData(products);
+        setIsProcessing(false);
+        
+        toast({
+          title: "Excel файл обработан",
+          description: `Найдено ${products.length} товаров для импорта`,
+        });
+      } catch (error) {
+        console.error('Ошибка обработки Excel файла:', error);
+        toast({
+          title: "Ошибка",
+          description: "Не удалось обработать Excel файл",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+      }
+    };
+    
+    reader.readAsArrayBuffer(file);
+  };
+
   const handleImport = async () => {
     setIsProcessing(true);
     let successCount = 0;
@@ -156,12 +246,12 @@ const ProductImport = () => {
 
     if (successCount > 0) {
       setImportedData([]);
-      setCsvFile(null);
-      setPreviewMode(true);
+      setImportFile(null);
+      setFileType(null);
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = (format: 'csv' | 'xlsx') => {
     const headers = [
       'id', 'title', 'description', 'price', 'discountPrice', 'category',
       'imageUrl', 'rating', 'inStock', 'colors', 'sizes', 'countryOfOrigin',
@@ -169,14 +259,22 @@ const ProductImport = () => {
       'ozonUrl', 'avitoUrl', 'stockQuantity'
     ];
     
-    const csvContent = headers.join(',') + '\n';
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'products_template.csv';
-    link.click();
-    window.URL.revokeObjectURL(url);
+    if (format === 'csv') {
+      const csvContent = headers.join(',') + '\n';
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'products_template.csv';
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } else {
+      // Создаем Excel файл
+      const ws = XLSX.utils.aoa_to_sheet([headers]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Products');
+      XLSX.writeFile(wb, 'products_template.xlsx');
+    }
   };
 
   return (
@@ -185,37 +283,54 @@ const ProductImport = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Upload className="w-5 h-5" />
-            <span>Импорт товаров из CSV</span>
+            <span>Импорт товаров</span>
           </CardTitle>
           <CardDescription>
-            Загрузите CSV файл с товарами для массового импорта в систему
+            Загрузите CSV или Excel файл с товарами для массового импорта в систему
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              onClick={downloadTemplate}
-              className="flex items-center space-x-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Скачать шаблон</span>
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => downloadTemplate('csv')}
+                className="flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Шаблон CSV</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => downloadTemplate('xlsx')}
+                className="flex items-center space-x-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Шаблон Excel</span>
+              </Button>
+            </div>
             
             <div className="flex-1">
               <Input
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={handleFileUpload}
                 className="cursor-pointer"
               />
             </div>
           </div>
 
-          {csvFile && (
+          {importFile && (
             <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg">
-              <FileText className="w-5 h-5 text-green-600" />
-              <span className="text-green-800">Файл загружен: {csvFile.name}</span>
+              {fileType === 'xlsx' ? (
+                <FileSpreadsheet className="w-5 h-5 text-green-600" />
+              ) : (
+                <FileText className="w-5 h-5 text-green-600" />
+              )}
+              <span className="text-green-800">
+                Файл загружен: {importFile.name} ({fileType?.toUpperCase()})
+              </span>
               <Badge variant="outline">{importedData.length} товаров</Badge>
             </div>
           )}
@@ -276,7 +391,8 @@ const ProductImport = () => {
                     variant="outline"
                     onClick={() => {
                       setImportedData([]);
-                      setCsvFile(null);
+                      setImportFile(null);
+                      setFileType(null);
                     }}
                   >
                     <X className="w-4 h-4 mr-2" />
