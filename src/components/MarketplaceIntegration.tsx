@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -132,8 +133,11 @@ const MarketplaceIntegration = () => {
   };
 
   const handleSync = async (marketplace: string) => {
-    // Предотвращаем перезагрузку страницы
+    // Предотвращаем любые действия по умолчанию
     console.log(`Starting sync with ${marketplace}`);
+    console.log('Current inventory:', inventory);
+    console.log('Inventory length:', inventory?.length || 0);
+    
     setLastError(''); // Очищаем предыдущие ошибки
 
     if (marketplace === 'Wildberries') {
@@ -145,6 +149,15 @@ const MarketplaceIntegration = () => {
         return;
       }
 
+      if (!inventory || inventory.length === 0) {
+        showPersistentError(
+          "Нет товаров для синхронизации",
+          "В инвентаре нет товаров для отправки на Wildberries."
+        );
+        console.log('No inventory items found for Wildberries sync');
+        return;
+      }
+
       setSyncInProgress(true);
       setSyncingMarketplace(marketplace);
 
@@ -152,6 +165,8 @@ const MarketplaceIntegration = () => {
         offer_id: item.sku,
         stock: item.currentStock,
       }));
+
+      console.log('Stocks to sync with Wildberries:', stocks);
 
       try {
         console.log('Sending stocks to Wildberries:', stocks);
@@ -281,6 +296,7 @@ const MarketplaceIntegration = () => {
         "Нет товаров для синхронизации",
         "В инвентаре нет товаров для отправки на Ozon."
       );
+      console.log('No inventory items found for Ozon sync');
       return;
     }
 
@@ -292,6 +308,8 @@ const MarketplaceIntegration = () => {
       stock: item.currentStock,
     }));
 
+    console.log('Stocks to sync with Ozon:', stocks);
+
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
         body: { 
@@ -302,11 +320,26 @@ const MarketplaceIntegration = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Ozon function error:', error);
+        throw error;
+      }
+
+      console.log('Ozon sync response:', data);
+      
+      if (!data || !data.result) {
+        throw new Error('Получен некорректный ответ от сервера Ozon');
+      }
       
       const ozonResult = data.result;
       const successUpdates = ozonResult.filter((r: { updated: boolean; }) => r.updated);
       const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => !r.updated);
+
+      console.log('Ozon sync results:', {
+        total: ozonResult.length,
+        success: successUpdates.length,
+        failed: failedUpdates.length
+      });
 
       updateLastSync(marketplace);
 
@@ -376,7 +409,7 @@ const MarketplaceIntegration = () => {
         status: 'error',
         details: `Ошибка синхронизации: ${description}`,
         successCount: 0,
-        errorCount: inventory.length
+        errorCount: inventory?.length || 0
       });
 
       showPersistentError(
