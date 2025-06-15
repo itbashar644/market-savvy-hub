@@ -27,15 +27,17 @@ serve(async (req) => {
 
     console.log('Checking Ozon connection with clientId:', clientId);
 
-    // Используем endpoint для получения информации о продавце
-    const response = await fetch('https://api-seller.ozon.ru/v2/seller/warehouse/list', {
+    // Используем простой endpoint для получения списка категорий - он доступен с базовыми правами
+    const response = await fetch('https://api-seller.ozon.ru/v1/category/tree', {
       method: 'POST',
       headers: {
         'Client-Id': clientId,
         'Api-Key': apiKey,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        "category_id": 0
+      })
     });
 
     if (!response.ok) {
