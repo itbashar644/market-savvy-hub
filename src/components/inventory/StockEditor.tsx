@@ -21,6 +21,21 @@ const StockEditor = ({
   setEditingStock, 
   onStockUpdate 
 }: StockEditorProps) => {
+  const handleSave = () => {
+    if (editingStock) {
+      onStockUpdate(itemId, editingStock.newStock);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingStock(null);
+  };
+
+  const handleEdit = () => {
+    console.log('Нажата кнопка редактирования для товара:', itemId);
+    setEditingStock({ id: itemId, newStock: currentStock });
+  };
+
   if (editingStock?.id === itemId) {
     return (
       <div className="flex items-center gap-2">
@@ -33,18 +48,19 @@ const StockEditor = ({
           })}
           className="w-20"
           min="0"
+          autoFocus
         />
         <Button 
           size="sm" 
-          onClick={() => onStockUpdate(itemId, editingStock.newStock)}
-          className="px-2"
+          onClick={handleSave}
+          className="px-2 bg-green-600 hover:bg-green-700"
         >
           ✓
         </Button>
         <Button 
           size="sm" 
           variant="outline" 
-          onClick={() => setEditingStock(null)}
+          onClick={handleCancel}
           className="px-2"
         >
           ✕
@@ -62,12 +78,12 @@ const StockEditor = ({
       </span>
       <Button
         size="sm"
-        variant="ghost"
-        onClick={() => setEditingStock({ id: itemId, newStock: currentStock })}
-        className="h-8 w-8 p-0 hover:bg-gray-100"
+        variant="outline"
+        onClick={handleEdit}
+        className="h-8 w-8 p-1 border-gray-300 hover:bg-blue-50 hover:border-blue-300"
         title="Редактировать остаток"
       >
-        <Edit className="w-4 h-4" />
+        <Edit className="w-4 h-4 text-gray-600" />
       </Button>
     </div>
   );
