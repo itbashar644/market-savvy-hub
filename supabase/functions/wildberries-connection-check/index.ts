@@ -1,5 +1,5 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +32,8 @@ serve(async (req) => {
       method: 'GET',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
       }
     });
 
@@ -40,40 +41,23 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('Wildberries API error:', response.status, errorText);
       
+      let errorMessage = 'Ошибка подключения к Wildberries API';
       if (response.status === 401) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Неверный API ключ' 
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
+        errorMessage = 'Неверный API ключ';
       } else if (response.status === 403) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Недостаточно прав доступа' 
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      } else {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Ошибка подключения к Wildberries API' 
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
+        errorMessage = 'Недостаточно прав доступа';
       }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: errorMessage
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log('Wildberries connection successful');
@@ -94,7 +78,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Внутренняя ошибка сервера' 
+        error: 'Внутренняя ошибка сервера: ' + error.message 
       }),
       { 
         status: 200, 
@@ -103,3 +87,4 @@ serve(async (req) => {
     );
   }
 })
+
