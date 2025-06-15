@@ -1,4 +1,3 @@
-
 import { InventoryItem, InventoryHistory, Product } from '@/types/database';
 import { BaseDatabase } from './base';
 
@@ -32,7 +31,7 @@ export class InventoryDatabase extends BaseDatabase {
 
     item.currentStock = newStock;
     item.status = newStock <= 0 ? 'out_of_stock' 
-                : newStock <= item.minStock ? 'low_stock' 
+                : newStock <= 10 ? 'low_stock' 
                 : 'in_stock';
     item.lastRestocked = new Date().toISOString();
     

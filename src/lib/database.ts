@@ -104,7 +104,32 @@ class LocalDatabase {
   }
 
   updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
-    return this.inventoryDb.updateInventoryStock(productId, newStock, changeType, reason);
+    const updatedInventoryItem = this.inventoryDb.updateInventoryStock(productId, newStock, changeType, reason);
+
+    if (updatedInventoryItem) {
+      let productStatus: 'active' | 'low_stock' | 'out_of_stock';
+      switch (updatedInventoryItem.status) {
+        case 'in_stock':
+          productStatus = 'active';
+          break;
+        case 'low_stock':
+          productStatus = 'low_stock';
+          break;
+        case 'out_of_stock':
+          productStatus = 'out_of_stock';
+          break;
+        default:
+          productStatus = 'active';
+      }
+
+      // Синхронизируем остаток и статус с записью о товаре
+      this.productDb.updateProduct(productId, {
+        stock: newStock,
+        status: productStatus
+      });
+    }
+    
+    return updatedInventoryItem;
   }
 
   getInventoryHistory(): InventoryHistory[] {

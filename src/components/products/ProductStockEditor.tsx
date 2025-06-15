@@ -11,7 +11,7 @@ interface ProductStockEditorProps {
   minStock: number;
 }
 
-const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockEditorProps) => {
+const ProductStockEditor = ({ productId, currentStock }: ProductStockEditorProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newStock, setNewStock] = useState(currentStock);
   const { updateProduct, refreshProducts } = useProducts();
@@ -23,23 +23,18 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
     let newStatus: 'active' | 'low_stock' | 'out_of_stock' = 'active';
     if (newStock <= 0) {
       newStatus = 'out_of_stock';
-    } else if (newStock <= minStock) {
+    } else if (newStock <= 10) { // Используем фиксированный порог 10
       newStatus = 'low_stock';
     }
 
     try {
       // Обновляем продукт с новым остатком и статусом
-      const result = updateProduct(productId, { 
+      updateProduct(productId, { 
         stock: newStock,
         status: newStatus
       });
       
-      console.log('Результат обновления продукта:', result);
-      
-      // Обновляем состояние компонента
       setIsEditing(false);
-      
-      // Принудительно обновляем список продуктов
       refreshProducts();
       
     } catch (error) {
@@ -97,9 +92,15 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
     );
   }
 
+  const getStockColor = () => {
+    if (currentStock <= 0) return 'text-red-600';
+    if (currentStock <= 10) return 'text-yellow-600'; // Порог для "мало на складе"
+    return 'text-green-600';
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <span className={`font-medium ${currentStock < minStock ? 'text-red-600' : 'text-green-600'}`}>
+      <span className={`font-medium ${getStockColor()}`}>
         {currentStock} шт.
       </span>
       <Button
