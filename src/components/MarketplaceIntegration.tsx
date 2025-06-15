@@ -11,6 +11,7 @@ import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import UpdateRules from './marketplace/UpdateRules';
 import ProductsListModal from './marketplace/ProductsListModal';
+import SyncResultModal from './marketplace/SyncResultModal';
 import { Marketplace, SyncLog } from '@/types/marketplace';
 
 const MarketplaceIntegration = () => {
@@ -27,6 +28,8 @@ const MarketplaceIntegration = () => {
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
   const [showProductsModal, setShowProductsModal] = useState(false);
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>('');
+  const [showSyncResultModal, setShowSyncResultModal] = useState(false);
+  const [syncResults, setSyncResults] = useState<any[]>([]);
 
   const marketplaces: Marketplace[] = [
     {
@@ -128,9 +131,12 @@ const MarketplaceIntegration = () => {
 
         if (failedUpdates.length > 0) {
           console.error('Failed Wildberries updates:', failedUpdates);
+          setSyncResults(wbResult);
+          setSelectedMarketplace(marketplace);
+          setShowSyncResultModal(true);
           toast({
             title: "Ошибка синхронизации с Wildberries",
-            description: `Не удалось обновить ${failedUpdates.length} товаров. Подробности в консоли.`,
+            description: `Не удалось обновить ${failedUpdates.length} товаров. Нажмите для подробностей.`,
             variant: "destructive"
           });
         } else {
@@ -230,9 +236,12 @@ const MarketplaceIntegration = () => {
 
       if (failedUpdates.length > 0) {
         console.error('Failed Ozon updates:', failedUpdates);
+        setSyncResults(ozonResult);
+        setSelectedMarketplace(marketplace);
+        setShowSyncResultModal(true);
         toast({
           title: "Ошибка синхронизации с Ozon",
-          description: `Не удалось обновить ${failedUpdates.length} товаров. Подробности в консоли.`,
+          description: `Не удалось обновить ${failedUpdates.length} товаров. Нажмите для подробностей.`,
           variant: "destructive"
         });
       } else {
@@ -419,6 +428,13 @@ const MarketplaceIntegration = () => {
         isOpen={showProductsModal}
         onClose={() => setShowProductsModal(false)}
         marketplace={selectedMarketplace}
+      />
+
+      <SyncResultModal
+        isOpen={showSyncResultModal}
+        onClose={() => setShowSyncResultModal(false)}
+        marketplace={selectedMarketplace}
+        results={syncResults}
       />
     </div>
   );

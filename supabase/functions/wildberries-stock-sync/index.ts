@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const warehouseId = warehousesData[0].id; // Используем первый склад
 
-    // Обновляем остатки
+    // Обновляем остатки - исправляем URL
     const wbPayload = {
       stocks: stocks.map(item => ({
         sku: item.offer_id,
@@ -62,7 +62,9 @@ serve(async (req) => {
       }))
     };
 
-    const response = await fetch(`${WB_API_URL}/api/v3/stocks/{warehouseId}`, {
+    console.log('Sending stocks update to Wildberries:', wbPayload);
+
+    const response = await fetch(`${WB_API_URL}/api/v3/stocks/${warehouseId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +78,7 @@ serve(async (req) => {
     if (!response.ok) {
       console.error('Wildberries Stock Update Error:', responseData);
       const allErrors = stocks.map(item => ({
-        sku: item.offer_id,
+        offer_id: item.offer_id,
         updated: false,
         errors: [
           {
