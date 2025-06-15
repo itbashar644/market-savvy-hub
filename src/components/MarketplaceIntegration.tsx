@@ -30,6 +30,7 @@ const MarketplaceIntegration = () => {
   const [autoSync, setAutoSync] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
 
   const marketplaces = [
     {
@@ -165,12 +166,88 @@ const MarketplaceIntegration = () => {
     }
   };
 
-  const handleCheckConnection = (marketplace: string) => {
-    toast({
-      title: "Функционал в разработке",
-      description: `Проверка подключения для ${marketplace} пока не доступна.`,
-      variant: "default",
-    });
+  const handleCheckConnection = async (marketplace: string) => {
+    setCheckingConnection(marketplace);
+
+    try {
+      if (marketplace === 'Ozon') {
+        if (!ozonApiKey || !ozonClientId) {
+          toast({
+            title: "Не указаны обязательные поля",
+            description: "Пожалуйста, укажите API ключ и Client ID для Ozon.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
+          body: { 
+            apiKey: ozonApiKey, 
+            clientId: ozonClientId 
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.success) {
+          toast({
+            title: "Подключение к Ozon",
+            description: data.message,
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "Ошибка подключения к Ozon",
+            description: data.error,
+            variant: "destructive",
+          });
+        }
+      } else if (marketplace === 'Wildberries') {
+        if (!wbApiKey) {
+          toast({
+            title: "Не указан API ключ",
+            description: "Пожалуйста, укажите API ключ для Wildberries.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
+          body: { apiKey: wbApiKey },
+        });
+
+        if (error) throw error;
+
+        if (data.success) {
+          toast({
+            title: "Подключение к Wildberries",
+            description: data.message,
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: "Ошибка подключения к Wildberries",
+            description: data.error,
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Функционал в разработке",
+          description: `Проверка подключения для ${marketplace} пока не доступна.`,
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error checking connection:', error);
+      toast({
+        title: "Ошибка проверки подключения",
+        description: error.message || "Произошла неизвестная ошибка.",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingConnection(null);
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -311,10 +388,10 @@ const MarketplaceIntegration = () => {
                 <Button
                   className="w-full"
                   onClick={() => handleCheckConnection('Ozon')}
-                  disabled={!ozonApiKey || !ozonClientId}
+                  disabled={!ozonApiKey || !ozonClientId || checkingConnection === 'Ozon'}
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Проверить подключение
+                  <CheckCircle className={`w-4 h-4 mr-2 ${checkingConnection === 'Ozon' ? 'animate-spin' : ''}`} />
+                  {checkingConnection === 'Ozon' ? 'Проверяем...' : 'Проверить подключение'}
                 </Button>
               </CardContent>
             </Card>
@@ -345,10 +422,10 @@ const MarketplaceIntegration = () => {
                 <Button
                   className="w-full"
                   onClick={() => handleCheckConnection('Wildberries')}
-                  disabled={!wbApiKey}
+                  disabled={!wbApiKey || checkingConnection === 'Wildberries'}
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Проверить подключение
+                  <CheckCircle className={`w-4 h-4 mr-2 ${checkingConnection === 'Wildberries' ? 'animate-spin' : ''}`} />
+                  {checkingConnection === 'Wildberries' ? 'Проверяем...' : 'Проверить подключение'}
                 </Button>
               </CardContent>
             </Card>
