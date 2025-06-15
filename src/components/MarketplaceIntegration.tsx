@@ -11,22 +11,24 @@ import {
   XCircle, 
   AlertTriangle, 
   Settings,
+  Save,
   ExternalLink,
   Upload,
   Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useInventory } from '@/hooks/useDatabase';
+import { useInventory, useMarketplaceCredentials } from '@/hooks/useDatabase';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
-  const [ozonApiKey, setOzonApiKey] = useState('');
-  const [ozonClientId, setOzonClientId] = useState('');
-  const [ozonWarehouseId, setOzonWarehouseId] = useState('');
-  const [wbApiKey, setWbApiKey] = useState('');
+  const { credentials, loading: credentialsLoading, saving, updateCredentialField, saveCredentials } = useMarketplaceCredentials();
+  
+  const ozonCreds = credentials['Ozon'] || {};
+  const wbCreds = credentials['Wildberries'] || {};
+
   const [autoSync, setAutoSync] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
@@ -99,10 +101,10 @@ const MarketplaceIntegration = () => {
       return;
     }
 
-    if (!ozonWarehouseId) {
+    if (!ozonCreds.warehouse_id) {
       toast({
         title: "Не указан Warehouse ID",
-        description: "Пожалуйста, укажите Warehouse ID в настройках Ozon.",
+        description: "Пожалуйста, укажите и сохраните Warehouse ID в настройках Ozon.",
         variant: "destructive",
       });
       return;
@@ -118,7 +120,7 @@ const MarketplaceIntegration = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
-        body: { stocks, warehouseId: ozonWarehouseId },
+        body: { stocks, warehouseId: ozonCreds.warehouse_id },
       });
 
       if (error) throw error;
@@ -168,22 +170,26 @@ const MarketplaceIntegration = () => {
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
+    let apiKey, clientId;
 
     try {
       if (marketplace === 'Ozon') {
-        if (!ozonApiKey || !ozonClientId) {
+        apiKey = ozonCreds.api_key;
+        clientId = ozonCreds.client_id;
+        if (!apiKey || !clientId) {
           toast({
             title: "Не указаны обязательные поля",
             description: "Пожалуйста, укажите API ключ и Client ID для Ozon.",
             variant: "destructive",
           });
+          setCheckingConnection(null);
           return;
         }
 
         const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
           body: { 
-            apiKey: ozonApiKey, 
-            clientId: ozonClientId 
+            apiKey, 
+            clientId
           },
         });
 
@@ -203,17 +209,19 @@ const MarketplaceIntegration = () => {
           });
         }
       } else if (marketplace === 'Wildberries') {
-        if (!wbApiKey) {
+        apiKey = wbCreds.api_key;
+        if (!apiKey) {
           toast({
             title: "Не указан API ключ",
             description: "Пожалуйста, укажите API ключ для Wildberries.",
             variant: "destructive",
           });
+          setCheckingConnection(null);
           return;
         }
 
         const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
-          body: { apiKey: wbApiKey },
+          body: { apiKey },
         });
 
         if (error) throw error;
@@ -365,34 +373,48 @@ const MarketplaceIntegration = () => {
                   <Input
                     type="password"
                     placeholder="Введите API ключ Ozon"
-                    value={ozonApiKey}
-                    onChange={(e) => setOzonApiKey(e.target.value)}
+                    value={ozonCreds.api_key || ''}
+                    onChange={(e) => updateCredentialField('Ozon', 'api_key', e.target.value)}
+                    disabled={credentialsLoading || saving}
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Client ID</label>
                   <Input
                     placeholder="Введите Client ID"
-                    value={ozonClientId}
-                    onChange={(e) => setOzonClientId(e.target.value)}
+                    value={ozonCreds.client_id || ''}
+                    onChange={(e) => updateCredentialField('Ozon', 'client_id', e.target.value)}
+                    disabled={credentialsLoading || saving}
                   />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Warehouse ID</label>
                   <Input
                     placeholder="Введите Warehouse ID Ozon"
-                    value={ozonWarehouseId}
-                    onChange={(e) => setOzonWarehouseId(e.target.value)}
+                    value={ozonCreds.warehouse_id || ''}
+                    onChange={(e) => updateCredentialField('Ozon', 'warehouse_id', e.target.value)}
+                    disabled={credentialsLoading || saving}
                   />
                 </div>
-                <Button
-                  className="w-full"
-                  onClick={() => handleCheckConnection('Ozon')}
-                  disabled={!ozonApiKey || !ozonClientId || checkingConnection === 'Ozon'}
-                >
-                  <CheckCircle className={`w-4 h-4 mr-2 ${checkingConnection === 'Ozon' ? 'animate-spin' : ''}`} />
-                  {checkingConnection === 'Ozon' ? 'Проверяем...' : 'Проверить подключение'}
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleCheckConnection('Ozon')}
+                    disabled={!ozonCreds.api_key || !ozonCreds.client_id || checkingConnection === 'Ozon' || saving || credentialsLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${checkingConnection === 'Ozon' ? 'animate-spin' : ''}`} />
+                    {checkingConnection === 'Ozon' ? 'Проверка...' : 'Проверить'}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    variant="outline"
+                    onClick={() => saveCredentials('Ozon')}
+                    disabled={saving || credentialsLoading}
+                  >
+                    <Save className={`w-4 h-4 mr-2 ${saving ? 'animate-spin' : ''}`} />
+                    {saving ? 'Сохранение...' : 'Сохранить'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -411,22 +433,30 @@ const MarketplaceIntegration = () => {
                   <Input
                     type="password"
                     placeholder="Введите API ключ Wildberries"
-                    value={wbApiKey}
-                    onChange={(e) => setWbApiKey(e.target.value)}
+                    value={wbCreds.api_key || ''}
+                    onChange={(e) => updateCredentialField('Wildberries', 'api_key', e.target.value)}
+                    disabled={credentialsLoading || saving}
                   />
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Поставщик ID</label>
-                  <Input placeholder="Введите ID поставщика" />
+                <div className="flex space-x-2">
+                   <Button
+                    className="flex-1"
+                    onClick={() => handleCheckConnection('Wildberries')}
+                    disabled={!wbCreds.api_key || checkingConnection === 'Wildberries' || saving || credentialsLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${checkingConnection === 'Wildberries' ? 'animate-spin' : ''}`} />
+                    {checkingConnection === 'Wildberries' ? 'Проверка...' : 'Проверить'}
+                  </Button>
+                   <Button
+                    className="flex-1"
+                    variant="outline"
+                    onClick={() => saveCredentials('Wildberries')}
+                    disabled={saving || credentialsLoading}
+                  >
+                    <Save className={`w-4 h-4 mr-2 ${saving ? 'animate-spin' : ''}`} />
+                    {saving ? 'Сохранение...' : 'Сохранить'}
+                  </Button>
                 </div>
-                <Button
-                  className="w-full"
-                  onClick={() => handleCheckConnection('Wildberries')}
-                  disabled={!wbApiKey || checkingConnection === 'Wildberries'}
-                >
-                  <CheckCircle className={`w-4 h-4 mr-2 ${checkingConnection === 'Wildberries' ? 'animate-spin' : ''}`} />
-                  {checkingConnection === 'Wildberries' ? 'Проверяем...' : 'Проверить подключение'}
-                </Button>
               </CardContent>
             </Card>
           </div>

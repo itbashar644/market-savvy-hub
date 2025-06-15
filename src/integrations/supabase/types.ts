@@ -92,6 +92,39 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_credentials: {
+        Row: {
+          api_key: string | null
+          client_id: string | null
+          created_at: string
+          id: number
+          marketplace: string
+          updated_at: string
+          user_id: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: number
+          marketplace: string
+          updated_at?: string
+          user_id: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          client_id?: string | null
+          created_at?: string
+          id?: number
+          marketplace?: string
+          updated_at?: string
+          user_id?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
       newsletter_subscriptions: {
         Row: {
           email: string
