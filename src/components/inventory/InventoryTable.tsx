@@ -47,6 +47,25 @@ const InventoryTable = ({
     }
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '—';
+    try {
+      const date = new Date(dateString);
+      const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Moscow',
+      };
+      return new Intl.DateTimeFormat('ru-RU', options).format(date);
+    } catch (e) {
+      console.error("Invalid date:", dateString);
+      return dateString;
+    }
+  };
+
   const filteredInventory = inventory.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,7 +109,7 @@ const InventoryTable = ({
                 <TableHead>Текущий остаток</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Статус</TableHead>
-                <TableHead>Последнее пополнение</TableHead>
+                <TableHead>Последнее изменение</TableHead>
                 <TableHead>Действия</TableHead>
               </TableRow>
             </TableHeader>
@@ -109,7 +128,6 @@ const InventoryTable = ({
                     <StockEditor
                       itemId={item.id}
                       currentStock={item.currentStock}
-                      minStock={item.minStock}
                       editingStock={editingStock}
                       setEditingStock={setEditingStock}
                       onStockUpdate={onStockUpdate}
@@ -121,7 +139,7 @@ const InventoryTable = ({
                       {getStatusText(item.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{item.lastRestocked}</TableCell>
+                  <TableCell>{formatDate(item.lastRestocked)}</TableCell>
                   <TableCell>
                     <Dialog>
                       <DialogTrigger asChild>

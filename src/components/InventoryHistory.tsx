@@ -52,8 +52,22 @@ const InventoryHistoryComponent = ({ history, productFilter }: InventoryHistoryP
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('ru-RU');
+    if (!dateString) return '—';
+    try {
+      const date = new Date(dateString);
+      const options: Intl.DateTimeFormatOptions = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Moscow',
+      };
+      return new Intl.DateTimeFormat('ru-RU', options).format(date);
+    } catch (e) {
+      console.error("Invalid date:", dateString);
+      return dateString;
+    }
   };
 
   const filteredHistory = history.filter(item => {
