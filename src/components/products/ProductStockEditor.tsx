@@ -16,7 +16,7 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
   const [newStock, setNewStock] = useState(currentStock);
   const { updateProduct, refreshProducts } = useProducts();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     console.log('Обновляем остаток для продукта:', productId, 'новый остаток:', newStock);
     
     // Определяем новый статус на основе остатка
@@ -27,14 +27,21 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
       newStatus = 'low_stock';
     }
 
-    // Обновляем продукт с новым остатком и статусом
-    updateProduct(productId, { 
-      stock: newStock,
-      status: newStatus
-    });
-    
-    refreshProducts();
-    setIsEditing(false);
+    try {
+      // Обновляем продукт с новым остатком и статусом
+      const result = updateProduct(productId, { 
+        stock: newStock,
+        status: newStatus
+      });
+      
+      console.log('Результат обновления:', result);
+      
+      // Принудительно обновляем список продуктов
+      await refreshProducts();
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Ошибка при обновлении остатка:', error);
+    }
   };
 
   const handleCancel = () => {
