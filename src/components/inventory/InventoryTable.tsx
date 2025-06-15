@@ -128,6 +128,7 @@ const InventoryTable = ({
                     <StockEditor
                       itemId={item.id}
                       currentStock={item.currentStock}
+                      status={item.status}
                       editingStock={editingStock}
                       setEditingStock={setEditingStock}
                       onStockUpdate={onStockUpdate}

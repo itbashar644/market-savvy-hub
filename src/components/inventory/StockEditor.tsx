@@ -3,11 +3,12 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Edit } from 'lucide-react';
+import { InventoryItem } from '@/types/database';
 
 interface StockEditorProps {
   itemId: string;
   currentStock: number;
-  minStock: number;
+  status: InventoryItem['status'];
   editingStock: { id: string; newStock: number } | null;
   setEditingStock: (editing: { id: string; newStock: number } | null) => void;
   onStockUpdate: (productId: string, newStock: number) => void;
@@ -16,7 +17,7 @@ interface StockEditorProps {
 const StockEditor = ({ 
   itemId, 
   currentStock, 
-  minStock, 
+  status,
   editingStock, 
   setEditingStock, 
   onStockUpdate 
@@ -72,7 +73,7 @@ const StockEditor = ({
   return (
     <div className="flex items-center gap-2">
       <span className={`font-medium ${
-        currentStock <= minStock ? 'text-red-600' : 'text-gray-900'
+        (status === 'out_of_stock' || status === 'low_stock') ? 'text-red-600' : 'text-gray-900'
       }`}>
         {currentStock}
       </span>
