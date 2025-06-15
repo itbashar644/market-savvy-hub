@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Marketplace } from '@/types/marketplace';
 interface MarketplaceCardProps {
   marketplace: Marketplace;
   onSync: (name: string) => void;
+  onShowProducts: (name: string) => void;
   syncInProgress: boolean;
   syncingMarketplace: string | null;
 }
@@ -32,7 +32,13 @@ const getStatusText = (status: Marketplace['status']) => {
   }
 };
 
-const MarketplaceCard: React.FC<MarketplaceCardProps> = ({ marketplace, onSync, syncInProgress, syncingMarketplace }) => {
+const MarketplaceCard: React.FC<MarketplaceCardProps> = ({ 
+  marketplace, 
+  onSync, 
+  onShowProducts, 
+  syncInProgress, 
+  syncingMarketplace 
+}) => {
   return (
     <Card className="hover:shadow-lg transition-shadow duration-300">
       <CardHeader>
@@ -82,6 +88,15 @@ const MarketplaceCard: React.FC<MarketplaceCardProps> = ({ marketplace, onSync, 
               Синхронизировать
             </Button>
           </div>
+          
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="w-full"
+            onClick={() => onShowProducts(marketplace.name)}
+          >
+            Показать товары
+          </Button>
         </div>
       </CardContent>
     </Card>

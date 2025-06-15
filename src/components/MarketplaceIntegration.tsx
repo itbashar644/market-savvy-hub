@@ -10,8 +10,8 @@ import MarketplaceCard from './marketplace/MarketplaceCard';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import UpdateRules from './marketplace/UpdateRules';
+import ProductsListModal from './marketplace/ProductsListModal';
 import { Marketplace, SyncLog } from '@/types/marketplace';
-
 
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
@@ -25,6 +25,8 @@ const MarketplaceIntegration = () => {
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
+  const [showProductsModal, setShowProductsModal] = useState(false);
+  const [selectedMarketplace, setSelectedMarketplace] = useState<string>('');
 
   const marketplaces: Marketplace[] = [
     {
@@ -84,6 +86,87 @@ const MarketplaceIntegration = () => {
   ];
 
   const handleSync = async (marketplace: string) => {
+    if (marketplace === 'Wildberries') {
+      console.log('Wildberries credentials check:', wbCreds);
+
+      if (!wbCreds.api_key) {
+        toast({
+          title: "Не указан API ключ",
+          description: "Пожалуйста, укажите и сохраните API ключ в настройках Wildberries.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSyncInProgress(true);
+      setSyncingMarketplace(marketplace);
+
+      const stocks = inventory.map(item => ({
+        offer_id: item.sku,
+        stock: item.currentStock,
+      }));
+
+      console.log('Sending Wildberries request with credentials:', {
+        hasApiKey: !!wbCreds.api_key,
+        stocksCount: stocks.length
+      });
+
+      try {
+        const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
+          body: { 
+            stocks, 
+            apiKey: wbCreds.api_key,
+          },
+        });
+
+        console.log('Wildberries function response:', { data, error });
+
+        if (error) throw error;
+        
+        const wbResult = data.result;
+        const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
+
+        if (failedUpdates.length > 0) {
+          console.error('Failed Wildberries updates:', failedUpdates);
+          toast({
+            title: "Ошибка синхронизации с Wildberries",
+            description: `Не удалось обновить ${failedUpdates.length} товаров. Подробности в консоли.`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Синхронизация с Wildberries завершена",
+            description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
+          });
+        }
+
+      } catch (error: any) {
+        console.error('Error syncing with Wildberries:', error);
+        let description = "Произошла неизвестная ошибка.";
+
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const errorJson = await error.context.json();
+            description = errorJson.error || JSON.stringify(errorJson);
+          } catch {
+            description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
+          }
+        } else {
+          description = error.message;
+        }
+
+        toast({
+          title: "Ошибка синхронизации с Wildberries",
+          description,
+          variant: "destructive"
+        });
+      } finally {
+        setSyncInProgress(false);
+        setSyncingMarketplace(null);
+      }
+      return;
+    }
+
     if (marketplace !== 'Ozon') {
       toast({
         title: "Функционал в разработке",
@@ -275,6 +358,11 @@ const MarketplaceIntegration = () => {
     }
   };
 
+  const handleShowProducts = (marketplace: string) => {
+    setSelectedMarketplace(marketplace);
+    setShowProductsModal(true);
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -297,6 +385,7 @@ const MarketplaceIntegration = () => {
             key={marketplace.name}
             marketplace={marketplace}
             onSync={handleSync}
+            onShowProducts={handleShowProducts}
             syncInProgress={syncInProgress}
             syncingMarketplace={syncingMarketplace}
           />
@@ -325,6 +414,12 @@ const MarketplaceIntegration = () => {
           <UpdateRules />
         </TabsContent>
       </Tabs>
+
+      <ProductsListModal
+        isOpen={showProductsModal}
+        onClose={() => setShowProductsModal(false)}
+        marketplace={selectedMarketplace}
+      />
     </div>
   );
 };
