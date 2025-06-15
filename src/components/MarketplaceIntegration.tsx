@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -94,6 +93,8 @@ const MarketplaceIntegration = () => {
       return;
     }
 
+    console.log('Ozon credentials check:', ozonCreds);
+
     if (!ozonCreds.api_key || !ozonCreds.client_id) {
       toast({
         title: "Не указаны API ключ или Client ID",
@@ -120,6 +121,13 @@ const MarketplaceIntegration = () => {
       stock: item.currentStock,
     }));
 
+    console.log('Sending request with credentials:', {
+      hasApiKey: !!ozonCreds.api_key,
+      hasClientId: !!ozonCreds.client_id,
+      hasWarehouseId: !!ozonCreds.warehouse_id,
+      stocksCount: stocks.length
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
         body: { 
@@ -129,6 +137,8 @@ const MarketplaceIntegration = () => {
           clientId: ozonCreds.client_id,
         },
       });
+
+      console.log('Supabase function response:', { data, error });
 
       if (error) throw error;
       
