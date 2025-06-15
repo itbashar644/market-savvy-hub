@@ -11,31 +11,43 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        try {
-            const { data: userProfile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+    const fetchProfile = async (user: User | null) => {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+      try {
+        const { data: userProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-            if (error && error.code !== 'PGRST116') { // Игнорируем ошибку, если профиль еще не создан
-                throw error;
-            }
-            setProfile(userProfile as Profile | null);
-        } catch(error) {
-            console.error("Ошибка при получении профиля:", error)
-            setProfile(null);
+        if (error && error.code !== 'PGRST116') {
+          throw error;
         }
-      } else {
+        setProfile(userProfile as Profile | null);
+      } catch (error) {
+        console.error("Ошибка при получении профиля:", error);
         setProfile(null);
       }
+    };
+
+    const initializeSession = async () => {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      await fetchProfile(session?.user ?? null);
       setLoading(false);
+    };
+
+    initializeSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      fetchProfile(session?.user ?? null);
     });
 
     return () => {
