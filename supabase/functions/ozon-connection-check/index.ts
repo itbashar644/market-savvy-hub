@@ -27,18 +27,17 @@ serve(async (req) => {
 
     console.log('Checking Ozon connection with clientId:', clientId);
 
-    // Используем простой endpoint для получения списка категорий - он доступен с базовыми правами
-    const response = await fetch('https://api-seller.ozon.ru/v1/category/tree', {
-      method: 'POST',
+    // Используем endpoint для получения информации о продавце - самый базовый endpoint
+    const response = await fetch('https://api-seller.ozon.ru/v1/seller/info', {
+      method: 'GET',
       headers: {
         'Client-Id': clientId,
         'Api-Key': apiKey,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        "category_id": 0
-      })
+      }
     });
+
+    console.log('Ozon API response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -59,7 +58,18 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Недостаточно прав доступа' 
+            error: 'Недостаточно прав доступа. Проверьте права API ключа.' 
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      } else if (response.status === 404) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'API endpoint не найден. Проверьте корректность Client ID.' 
           }),
           { 
             status: 200, 
@@ -70,7 +80,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Ошибка подключения к Ozon API' 
+            error: `Ошибка подключения к Ozon API (${response.status}): ${errorText}` 
           }),
           { 
             status: 200, 
@@ -80,12 +90,14 @@ serve(async (req) => {
       }
     }
 
-    console.log('Ozon connection successful');
+    const responseData = await response.json();
+    console.log('Ozon connection successful, seller info:', responseData);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Подключение к Ozon успешно установлено' 
+        message: 'Подключение к Ozon успешно установлено',
+        sellerInfo: responseData
       }),
       { 
         status: 200, 
@@ -98,7 +110,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Внутренняя ошибка сервера' 
+        error: `Внутренняя ошибка сервера: ${error.message}` 
       }),
       { 
         status: 200, 
