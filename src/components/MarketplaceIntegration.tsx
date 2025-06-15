@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -252,7 +251,6 @@ const MarketplaceIntegration = () => {
       return;
     }
 
-    // ... keep existing code (Ozon sync logic)
     if (marketplace !== 'Ozon') {
       toast({
         title: "Функционал в разработке",
@@ -308,7 +306,7 @@ const MarketplaceIntegration = () => {
       
       const ozonResult = data.result;
       const successUpdates = ozonResult.filter((r: { updated: boolean; }) => r.updated);
-      const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => !r.updated);
+      const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => r.updated);
 
       updateLastSync(marketplace);
 
