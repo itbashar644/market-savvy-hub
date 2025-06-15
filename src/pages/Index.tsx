@@ -9,6 +9,7 @@ import OrdersManager from '@/components/OrdersManager';
 import CustomersManager from '@/components/CustomersManager';
 import InventoryManager from '@/components/InventoryManager';
 import ReportsManager from '@/components/ReportsManager';
+import AnalyticsManager from '@/components/AnalyticsManager';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -32,7 +33,7 @@ const Index = () => {
       case 'reports':
         return <ReportsManager />;
       case 'analytics':
-        return <div className="p-6"><h1 className="text-3xl font-bold">Аналитика</h1><p className="text-gray-600 mt-2">Расширенная аналитика в разработке...</p></div>;
+        return <AnalyticsManager />;
       case 'settings':
         return <div className="p-6"><h1 className="text-3xl font-bold">Настройки</h1><p className="text-gray-600 mt-2">Настройки системы в разработке...</p></div>;
       default:
