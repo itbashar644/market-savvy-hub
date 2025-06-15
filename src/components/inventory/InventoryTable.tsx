@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,7 +88,6 @@ const InventoryTable = ({
                 <TableHead>SKU</TableHead>
                 <TableHead>Категория</TableHead>
                 <TableHead>Текущий остаток</TableHead>
-                <TableHead>Мин./Макс.</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Последнее пополнение</TableHead>
@@ -116,9 +114,6 @@ const InventoryTable = ({
                       setEditingStock={setEditingStock}
                       onStockUpdate={onStockUpdate}
                     />
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">
-                    {item.minStock} / {item.maxStock}
                   </TableCell>
                   <TableCell>₽{item.price.toLocaleString()}</TableCell>
                   <TableCell>

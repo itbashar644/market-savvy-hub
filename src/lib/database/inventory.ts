@@ -1,3 +1,4 @@
+
 import { InventoryItem, InventoryHistory, Product } from '@/types/database';
 import { BaseDatabase } from './base';
 
@@ -60,6 +61,21 @@ export class InventoryDatabase extends BaseDatabase {
     const inventory = this.getInventory();
     const index = inventory.findIndex(i => i.productId === product.id);
     
+    let inventoryStatus: InventoryItem['status'];
+    switch (product.status) {
+      case 'active':
+        inventoryStatus = 'in_stock';
+        break;
+      case 'low_stock':
+        inventoryStatus = 'low_stock';
+        break;
+      case 'out_of_stock':
+        inventoryStatus = 'out_of_stock';
+        break;
+      default:
+        inventoryStatus = product.stock > 0 ? 'in_stock' : 'out_of_stock';
+    }
+
     const inventoryItem: InventoryItem = {
       id: index >= 0 ? inventory[index].id : this.generateId(),
       productId: product.id,
@@ -71,8 +87,8 @@ export class InventoryDatabase extends BaseDatabase {
       maxStock: product.maxStock,
       price: product.price,
       supplier: product.supplier,
-      lastRestocked: new Date().toISOString(),
-      status: product.status as any,
+      lastRestocked: index >= 0 ? inventory[index].lastRestocked : new Date().toISOString(),
+      status: inventoryStatus,
     };
 
     if (index >= 0) {
