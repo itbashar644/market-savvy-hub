@@ -4,12 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, Package, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload } from 'lucide-react';
+import { useProducts } from '@/hooks/useDatabase';
+import ProductImport from './ProductImport';
 
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const products = [];
+  const [showImport, setShowImport] = useState(false);
+  const { products, loading } = useProducts();
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -34,6 +37,17 @@ const ProductsManager = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-600">Загрузка товаров...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -41,10 +55,30 @@ const ProductsManager = () => {
           <h1 className="text-3xl font-bold text-gray-900">Управление товарами</h1>
           <p className="text-gray-600 mt-1">Каталог товаров и синхронизация с маркетплейсами</p>
         </div>
-        <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Добавить товар
-        </Button>
+        <div className="flex space-x-2">
+          <Dialog open={showImport} onOpenChange={setShowImport}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Upload className="w-4 h-4" />
+                <span>Импорт CSV</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Импорт товаров</DialogTitle>
+                <DialogDescription>
+                  Загрузите CSV файл для массового импорта товаров
+                </DialogDescription>
+              </DialogHeader>
+              <ProductImport />
+            </DialogContent>
+          </Dialog>
+          
+          <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Добавить товар
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -77,14 +111,24 @@ const ProductsManager = () => {
               <p className="text-gray-600 mb-6">
                 {searchTerm 
                   ? 'Попробуйте изменить критерии поиска'
-                  : 'Начните с добавления первого товара в каталог'
+                  : 'Начните с добавления первого товара в каталог или импортируйте из CSV'
                 }
               </p>
               {!searchTerm && (
-                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Добавить первый товар
-                </Button>
+                <div className="flex justify-center space-x-2">
+                  <Button 
+                    onClick={() => setShowImport(true)}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Импорт CSV</span>
+                  </Button>
+                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Добавить первый товар
+                  </Button>
+                </div>
               )}
             </div>
           </CardContent>
@@ -170,7 +214,11 @@ const ProductsManager = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="p-4 h-auto flex flex-col items-center space-y-2">
+            <Button 
+              variant="outline" 
+              className="p-4 h-auto flex flex-col items-center space-y-2"
+              onClick={() => setShowImport(true)}
+            >
               <Package className="w-6 h-6" />
               <span>Импорт товаров</span>
             </Button>
