@@ -17,7 +17,7 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
   const { updateProduct, refreshProducts } = useProducts();
 
   const handleSave = async () => {
-    console.log('Обновляем остаток для продукта:', productId, 'новый остаток:', newStock);
+    console.log('Сохраняем новый остаток:', newStock, 'для продукта:', productId);
     
     // Определяем новый статус на основе остатка
     let newStatus: 'active' | 'low_stock' | 'out_of_stock' = 'active';
@@ -34,11 +34,14 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
         status: newStatus
       });
       
-      console.log('Результат обновления:', result);
+      console.log('Результат обновления продукта:', result);
+      
+      // Обновляем состояние компонента
+      setIsEditing(false);
       
       // Принудительно обновляем список продуктов
-      await refreshProducts();
-      setIsEditing(false);
+      refreshProducts();
+      
     } catch (error) {
       console.error('Ошибка при обновлении остатка:', error);
     }
@@ -50,6 +53,7 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
   };
 
   const handleEdit = () => {
+    console.log('Начинаем редактирование остатка для продукта:', productId);
     setNewStock(currentStock);
     setIsEditing(true);
   };
