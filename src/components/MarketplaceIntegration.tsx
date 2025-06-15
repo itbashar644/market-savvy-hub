@@ -1,30 +1,23 @@
+
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  RefreshCw, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  Settings,
-  Save,
-  ExternalLink,
-  Upload,
-  Download
-} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useInventory, useMarketplaceCredentials } from '@/hooks/useDatabase';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
+import MarketplaceCard from './marketplace/MarketplaceCard';
+import MarketplaceSettings from './marketplace/MarketplaceSettings';
+import SyncLogs from './marketplace/SyncLogs';
+import UpdateRules from './marketplace/UpdateRules';
+import { Marketplace, SyncLog } from '@/types/marketplace';
+
+
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
-  const { credentials, loading: credentialsLoading, saving, updateCredentialField, saveCredentials } = useMarketplaceCredentials();
+  const { credentials } = useMarketplaceCredentials();
   
   const ozonCreds = credentials['Ozon'] || {};
   const wbCreds = credentials['Wildberries'] || {};
@@ -34,10 +27,10 @@ const MarketplaceIntegration = () => {
   const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
 
-  const marketplaces = [
+  const marketplaces: Marketplace[] = [
     {
       name: 'Ozon',
-      status: 'connected',
+      status: ozonCreds.api_key && ozonCreds.client_id ? 'connected' : 'not-configured',
       lastSync: '2024-01-15 14:30',
       products: 156,
       orders: 23,
@@ -46,7 +39,7 @@ const MarketplaceIntegration = () => {
     },
     {
       name: 'Wildberries',
-      status: 'connected',
+      status: wbCreds.api_key ? 'connected' : 'not-configured',
       lastSync: '2024-01-15 14:25',
       products: 142,
       orders: 18,
@@ -64,7 +57,7 @@ const MarketplaceIntegration = () => {
     }
   ];
 
-  const syncLogs = [
+  const syncLogs: SyncLog[] = [
     {
       id: 1,
       marketplace: 'Ozon',
@@ -111,7 +104,12 @@ const MarketplaceIntegration = () => {
     }
 
     if (!ozonCreds.warehouse_id) {
-      return;
+        toast({
+            title: "Не указан Warehouse ID",
+            description: "Пожалуйста, укажите и сохраните Warehouse ID в настройках Ozon.",
+            variant: "destructive",
+        });
+        return;
     }
 
     setSyncInProgress(true);
@@ -267,24 +265,6 @@ const MarketplaceIntegration = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'connected': return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'disconnected': return <XCircle className="w-5 h-5 text-red-600" />;
-      case 'error': return <AlertTriangle className="w-5 h-5 text-yellow-600" />;
-      default: return <XCircle className="w-5 h-5 text-gray-600" />;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'connected': return 'Подключен';
-      case 'disconnected': return 'Отключен';
-      case 'error': return 'Ошибка';
-      default: return 'Неизвестно';
-    }
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -301,60 +281,15 @@ const MarketplaceIntegration = () => {
         </div>
       </div>
 
-      {/* Marketplace Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {marketplaces.map((marketplace, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${marketplace.color} text-white text-xl`}>
-                    {marketplace.icon}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{marketplace.name}</CardTitle>
-                    <div className="flex items-center space-x-2 mt-1">
-                      {getStatusIcon(marketplace.status)}
-                      <span className="text-sm text-gray-600">
-                        {getStatusText(marketplace.status)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Товары:</span>
-                  <Badge variant="outline">{marketplace.products}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Заказы:</span>
-                  <Badge variant="outline">{marketplace.orders}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Последняя синхронизация:</span>
-                  <span className="text-xs text-gray-500">{marketplace.lastSync}</span>
-                </div>
-                
-                <div className="flex space-x-2 pt-2">
-                  <Button 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleSync(marketplace.name)}
-                    disabled={syncInProgress || marketplace.status === 'disconnected'}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-1 ${syncInProgress && syncingMarketplace === marketplace.name ? 'animate-spin' : ''}`} />
-                    Синхронизировать
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {marketplaces.map((marketplace) => (
+          <MarketplaceCard 
+            key={marketplace.name}
+            marketplace={marketplace}
+            onSync={handleSync}
+            syncInProgress={syncInProgress}
+            syncingMarketplace={syncingMarketplace}
+          />
         ))}
       </div>
 
@@ -366,182 +301,18 @@ const MarketplaceIntegration = () => {
         </TabsList>
 
         <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Ozon Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <span>🛍️</span>
-                  <span>Настройки Ozon</span>
-                </CardTitle>
-                <CardDescription>Конфигурация API для интеграции с Ozon</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">API ключ</label>
-                  <Input
-                    type="password"
-                    placeholder="Введите API ключ Ozon"
-                    value={ozonCreds.api_key || ''}
-                    onChange={(e) => updateCredentialField('Ozon', 'api_key', e.target.value)}
-                    disabled={credentialsLoading || saving}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Client ID</label>
-                  <Input
-                    placeholder="Введите Client ID"
-                    value={ozonCreds.client_id || ''}
-                    onChange={(e) => updateCredentialField('Ozon', 'client_id', e.target.value)}
-                    disabled={credentialsLoading || saving}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Warehouse ID</label>
-                  <Input
-                    placeholder="Введите Warehouse ID Ozon"
-                    value={ozonCreds.warehouse_id || ''}
-                    onChange={(e) => updateCredentialField('Ozon', 'warehouse_id', e.target.value)}
-                    disabled={credentialsLoading || saving}
-                  />
-                </div>
-                <div className="flex space-x-2">
-                  <Button
-                    className="flex-1"
-                    onClick={() => handleCheckConnection('Ozon')}
-                    disabled={!ozonCreds.api_key || !ozonCreds.client_id || checkingConnection === 'Ozon' || saving || credentialsLoading}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${checkingConnection === 'Ozon' ? 'animate-spin' : ''}`} />
-                    {checkingConnection === 'Ozon' ? 'Проверка...' : 'Проверить'}
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    variant="outline"
-                    onClick={() => saveCredentials('Ozon')}
-                    disabled={saving || credentialsLoading}
-                  >
-                    <Save className={`w-4 h-4 mr-2 ${saving ? 'animate-spin' : ''}`} />
-                    {saving ? 'Сохранение...' : 'Сохранить'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Wildberries Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <span>🛒</span>
-                  <span>Настройки Wildberries</span>
-                </CardTitle>
-                <CardDescription>Конфигурация API для интеграции с Wildberries</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">API ключ</label>
-                  <Input
-                    type="password"
-                    placeholder="Введите API ключ Wildberries"
-                    value={wbCreds.api_key || ''}
-                    onChange={(e) => updateCredentialField('Wildberries', 'api_key', e.target.value)}
-                    disabled={credentialsLoading || saving}
-                  />
-                </div>
-                <div className="flex space-x-2">
-                   <Button
-                    className="flex-1"
-                    onClick={() => handleCheckConnection('Wildberries')}
-                    disabled={!wbCreds.api_key || checkingConnection === 'Wildberries' || saving || credentialsLoading}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${checkingConnection === 'Wildberries' ? 'animate-spin' : ''}`} />
-                    {checkingConnection === 'Wildberries' ? 'Проверка...' : 'Проверить'}
-                  </Button>
-                   <Button
-                    className="flex-1"
-                    variant="outline"
-                    onClick={() => saveCredentials('Wildberries')}
-                    disabled={saving || credentialsLoading}
-                  >
-                    <Save className={`w-4 h-4 mr-2 ${saving ? 'animate-spin' : ''}`} />
-                    {saving ? 'Сохранение...' : 'Сохранить'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <MarketplaceSettings 
+            handleCheckConnection={handleCheckConnection}
+            checkingConnection={checkingConnection}
+          />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>История синхронизации</CardTitle>
-              <CardDescription>Последние операции с маркетплейсами</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {syncLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-2 rounded-full ${
-                        log.status === 'success' ? 'bg-green-100' : 'bg-red-100'
-                      }`}>
-                        {log.status === 'success' ? 
-                          <CheckCircle className="w-4 h-4 text-green-600" /> :
-                          <XCircle className="w-4 h-4 text-red-600" />
-                        }
-                      </div>
-                      <div>
-                        <p className="font-medium">{log.marketplace} - {log.action}</p>
-                        <p className="text-sm text-gray-600">{log.details}</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-gray-500">{log.timestamp}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <SyncLogs logs={syncLogs} />
         </TabsContent>
 
         <TabsContent value="rules" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Правила автоматического обновления</CardTitle>
-              <CardDescription>Настройте условия для автоматической синхронизации данных</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Обновлять остатки каждые:</label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option>15 минут</option>
-                    <option>30 минут</option>
-                    <option>1 час</option>
-                    <option>3 часа</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Обновлять цены каждые:</label>
-                  <select className="w-full p-2 border rounded-md">
-                    <option>1 час</option>
-                    <option>3 часа</option>
-                    <option>6 часов</option>
-                    <option>12 часов</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch defaultChecked />
-                <span className="text-sm">Автоматически загружать новые заказы</span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch defaultChecked />
-                <span className="text-sm">Уведомлять об ошибках синхронизации</span>
-              </div>
-            </CardContent>
-          </Card>
+          <UpdateRules />
         </TabsContent>
       </Tabs>
     </div>
