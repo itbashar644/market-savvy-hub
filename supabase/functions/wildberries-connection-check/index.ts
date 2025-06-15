@@ -32,7 +32,7 @@ serve(async (req) => {
       method: 'GET',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
       }
     });
@@ -74,7 +74,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error checking Wildberries connection:', error);
+    console.error('Full error in Wildberries connection check:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -87,4 +87,3 @@ serve(async (req) => {
     );
   }
 })
-
