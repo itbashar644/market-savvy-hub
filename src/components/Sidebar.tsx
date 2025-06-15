@@ -34,7 +34,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 text-white h-screen flex flex-col">
+    <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
       <div className="p-6 border-b border-slate-700">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
           CRM Store
@@ -66,7 +66,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
         </ul>
       </nav>
       
-      <div className="p-4 border-t border-slate-700">
+      <div className="p-4 border-t border-slate-700 mt-auto">
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-3 rounded-lg">
           <p className="text-sm font-medium">Статус синхронизации</p>
           <p className="text-xs text-green-100 mt-1">Все системы работают</p>
