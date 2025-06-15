@@ -6,5 +6,5 @@ export { useInventory } from './database/useInventory';
 export { useInventoryHistory } from './database/useInventoryHistory';
 export { useOrderStatusHistory } from './database/useOrderStatusHistory';
 export { useAnalytics } from './database/useAnalytics';
-export { useMarketplaceCredentials, type MarketplaceCredential } from './database/useMarketplaceCredentials';
+export { useMarketplaceCredentials, MarketplaceCredentialsProvider, type MarketplaceCredential } from './database/useMarketplaceCredentials';
 export { useDatabase } from './database/useDatabase';

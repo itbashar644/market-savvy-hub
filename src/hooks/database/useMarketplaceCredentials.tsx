@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../useAuth';
 import { useToast } from '../use-toast';
@@ -13,7 +13,17 @@ export interface MarketplaceCredential {
   warehouse_id?: string | null;
 }
 
-export const useMarketplaceCredentials = () => {
+interface MarketplaceCredentialsContextValue {
+  credentials: Record<string, Partial<MarketplaceCredential>>;
+  loading: boolean;
+  saving: boolean;
+  updateCredentialField: (marketplace: string, field: keyof Omit<MarketplaceCredential, 'id' | 'user_id' | 'created_at' | 'updated_at'>, value: string) => void;
+  saveCredentials: (marketplace: string) => Promise<void>;
+}
+
+const MarketplaceCredentialsContext = createContext<MarketplaceCredentialsContextValue | undefined>(undefined);
+
+export const MarketplaceCredentialsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [credentials, setCredentials] = useState<Record<string, Partial<MarketplaceCredential>>>({});
@@ -113,12 +123,26 @@ export const useMarketplaceCredentials = () => {
       setSaving(false);
     }
   };
-
-  return {
+  
+  const value = {
     credentials,
     loading,
     saving,
     updateCredentialField,
     saveCredentials,
   };
+
+  return (
+    <MarketplaceCredentialsContext.Provider value={value}>
+      {children}
+    </MarketplaceCredentialsContext.Provider>
+  );
+};
+
+export const useMarketplaceCredentials = () => {
+  const context = useContext(MarketplaceCredentialsContext);
+  if (context === undefined) {
+    throw new Error('useMarketplaceCredentials must be used within a MarketplaceCredentialsProvider');
+  }
+  return context;
 };

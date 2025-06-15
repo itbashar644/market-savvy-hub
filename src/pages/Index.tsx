@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Dashboard from '@/components/Dashboard';
@@ -11,6 +10,7 @@ import InventoryManager from '@/components/InventoryManager';
 import ReportsManager from '@/components/ReportsManager';
 import AnalyticsManager from '@/components/AnalyticsManager';
 import SettingsManager from '@/components/SettingsManager';
+import { MarketplaceCredentialsProvider } from '@/hooks/useDatabase';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -43,12 +43,14 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 overflow-auto">
-        {renderContent()}
-      </main>
-    </div>
+    <MarketplaceCredentialsProvider>
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <main className="flex-1 overflow-auto">
+          {renderContent()}
+        </main>
+      </div>
+    </MarketplaceCredentialsProvider>
   );
 };
 
