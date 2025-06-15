@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Edit } from 'lucide-react';
-import { useInventory } from '@/hooks/useDatabase';
+import { useInventory, useProducts } from '@/hooks/useDatabase';
 
 interface ProductStockEditorProps {
   productId: string;
@@ -15,9 +15,11 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
   const [isEditing, setIsEditing] = useState(false);
   const [newStock, setNewStock] = useState(currentStock);
   const { updateStock } = useInventory();
+  const { refreshProducts } = useProducts();
 
   const handleSave = () => {
     updateStock(productId, newStock, 'manual', 'Ручное изменение остатка из карточки товара');
+    refreshProducts();
     setIsEditing(false);
   };
 
@@ -31,6 +33,14 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
     setIsEditing(true);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
   if (isEditing) {
     return (
       <div className="flex items-center gap-2">
@@ -38,6 +48,7 @@ const ProductStockEditor = ({ productId, currentStock, minStock }: ProductStockE
           type="number"
           value={newStock}
           onChange={(e) => setNewStock(parseInt(e.target.value) || 0)}
+          onKeyDown={handleKeyDown}
           className="w-16 h-8 text-sm"
           min="0"
           autoFocus
