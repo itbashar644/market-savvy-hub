@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
+import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import { useAuth } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/update-password" element={<UpdatePasswordPage />} />
             <Route path="/auth" element={!session ? <AuthPage /> : <Navigate to="/" />} />
             <Route path="/" element={session ? <Index /> : <Navigate to="/auth" />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
