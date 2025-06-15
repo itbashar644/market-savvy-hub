@@ -74,6 +74,21 @@ export interface InventoryItem {
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
 }
 
+export interface InventoryHistory {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  previousStock: number;
+  newStock: number;
+  changeAmount: number;
+  changeType: 'manual' | 'sale' | 'restock' | 'adjustment' | 'return';
+  reason?: string;
+  userId?: string;
+  userName?: string;
+  timestamp: string;
+}
+
 export interface SalesData {
   date: string;
   sales: number;

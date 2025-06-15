@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/database';
-import { Customer, Product, Order, InventoryItem, SalesData, CategoryData } from '@/types/database';
+import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData } from '@/types/database';
 
 export const useCustomers = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -139,8 +139,8 @@ export const useInventory = () => {
     refreshInventory();
   }, []);
 
-  const updateStock = (productId: string, newStock: number) => {
-    const updated = db.updateInventoryStock(productId, newStock);
+  const updateStock = (productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string) => {
+    const updated = db.updateInventoryStock(productId, newStock, changeType, reason);
     refreshInventory();
     return updated;
   };
@@ -150,6 +150,26 @@ export const useInventory = () => {
     loading,
     updateStock,
     refreshInventory,
+  };
+};
+
+export const useInventoryHistory = () => {
+  const [history, setHistory] = useState<InventoryHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refreshHistory = () => {
+    setHistory(db.getInventoryHistory());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshHistory();
+  }, []);
+
+  return {
+    history,
+    loading,
+    refreshHistory,
   };
 };
 

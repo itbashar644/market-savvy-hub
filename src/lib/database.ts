@@ -1,5 +1,5 @@
 
-import { Customer, Product, Order, InventoryItem, SalesData, CategoryData } from '@/types/database';
+import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData } from '@/types/database';
 
 // Утилиты для работы с LocalStorage
 class LocalDatabase {
@@ -157,12 +157,29 @@ class LocalDatabase {
     return this.getFromStorage<InventoryItem>('inventory');
   }
 
-  updateInventoryStock(productId: string, newStock: number): InventoryItem | null {
+  updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
     const inventory = this.getInventory();
     const index = inventory.findIndex(i => i.productId === productId);
     if (index === -1) return null;
 
     const item = inventory[index];
+    const previousStock = item.currentStock;
+    const changeAmount = newStock - previousStock;
+
+    // Записываем историю изменения
+    this.addInventoryHistory({
+      productId: item.productId,
+      productName: item.name,
+      sku: item.sku,
+      previousStock,
+      newStock,
+      changeAmount,
+      changeType,
+      reason,
+      userName: 'Администратор', // В реальном приложении здесь будет имя текущего пользователя
+      timestamp: new Date().toISOString(),
+    });
+
     item.currentStock = newStock;
     item.status = newStock <= 0 ? 'out_of_stock' 
                 : newStock <= item.minStock ? 'low_stock' 
@@ -171,6 +188,24 @@ class LocalDatabase {
     
     this.saveToStorage('inventory', inventory);
     return item;
+  }
+
+  // Работа с историей остатков
+  getInventoryHistory(): InventoryHistory[] {
+    return this.getFromStorage<InventoryHistory>('inventory_history').sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }
+
+  addInventoryHistory(historyRecord: Omit<InventoryHistory, 'id'>): InventoryHistory {
+    const history = this.getInventoryHistory();
+    const newRecord: InventoryHistory = {
+      ...historyRecord,
+      id: this.generateId(),
+    };
+    history.push(newRecord);
+    this.saveToStorage('inventory_history', history);
+    return newRecord;
   }
 
   private updateInventoryFromProduct(product: Product): void {
@@ -369,6 +404,33 @@ class LocalDatabase {
         supplier: 'Apple Official',
         ozonSynced: true,
         wbSynced: true,
+      });
+
+      // Добавляем тестовую историю изменений
+      this.addInventoryHistory({
+        productId: 'test-product-1',
+        productName: 'Смартфон iPhone 15',
+        sku: 'IP15-128GB-BLK',
+        previousStock: 60,
+        newStock: 50,
+        changeAmount: -10,
+        changeType: 'sale',
+        reason: 'Продажа через интернет-магазин',
+        userName: 'Система',
+        timestamp: new Date(Date.now() - 86400000).toISOString(), // вчера
+      });
+
+      this.addInventoryHistory({
+        productId: 'test-product-2',
+        productName: 'Ноутбук MacBook Air M2',
+        sku: 'MBA-M2-256GB',
+        previousStock: 20,
+        newStock: 25,
+        changeAmount: 5,
+        changeType: 'restock',
+        reason: 'Поступление от поставщика',
+        userName: 'Администратор',
+        timestamp: new Date(Date.now() - 43200000).toISOString(), // 12 часов назад
       });
     }
   }
