@@ -1,4 +1,5 @@
-// v1.1 - Force redeploy
+
+// v1.2 - Add warehouse_id support
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -16,10 +17,14 @@ serve(async (req) => {
   }
 
   try {
-    const { stocks } = await req.json();
+    const { stocks, warehouseId } = await req.json();
 
     if (!stocks || !Array.isArray(stocks)) {
       throw new Error('"stocks" array is required in the request body.');
+    }
+    
+    if (!warehouseId) {
+      throw new Error('"warehouseId" is required in the request body.');
     }
 
     if (stocks.length === 0) {
@@ -36,6 +41,11 @@ serve(async (req) => {
       throw new Error('Ozon API credentials are not set in environment variables.');
     }
 
+    const parsedWarehouseId = parseInt(warehouseId, 10);
+    if (isNaN(parsedWarehouseId) || parsedWarehouseId <= 0) {
+      throw new Error('Invalid "warehouseId". It must be a positive number.');
+    }
+
     const stockChunks = chunk(stocks, 100); // Ozon API limit is 100 items per request
     let allResults: any[] = [];
 
@@ -43,7 +53,8 @@ serve(async (req) => {
       const ozonPayload = {
         stocks: stockChunk.map(item => ({
           offer_id: item.offer_id,
-          stock: item.stock
+          stock: item.stock,
+          warehouse_id: parsedWarehouseId,
         }))
       };
 

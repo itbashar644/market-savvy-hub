@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
   const [ozonApiKey, setOzonApiKey] = useState('');
+  const [ozonWarehouseId, setOzonWarehouseId] = useState('');
   const [wbApiKey, setWbApiKey] = useState('');
   const [autoSync, setAutoSync] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -96,6 +98,15 @@ const MarketplaceIntegration = () => {
       return;
     }
 
+    if (!ozonWarehouseId) {
+      toast({
+        title: "Не указан Warehouse ID",
+        description: "Пожалуйста, укажите Warehouse ID в настройках Ozon.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSyncInProgress(true);
     setSyncingMarketplace(marketplace);
 
@@ -106,7 +117,7 @@ const MarketplaceIntegration = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
-        body: { stocks },
+        body: { stocks, warehouseId: ozonWarehouseId },
       });
 
       if (error) throw error;
@@ -276,6 +287,14 @@ const MarketplaceIntegration = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-700">Client ID</label>
                   <Input placeholder="Введите Client ID" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Warehouse ID</label>
+                  <Input
+                    placeholder="Введите Warehouse ID Ozon"
+                    value={ozonWarehouseId}
+                    onChange={(e) => setOzonWarehouseId(e.target.value)}
+                  />
                 </div>
                 <Button className="w-full">
                   <CheckCircle className="w-4 h-4 mr-2" />
