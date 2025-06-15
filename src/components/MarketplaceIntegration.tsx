@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,13 +16,17 @@ import {
   Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useInventory } from '@/hooks/useDatabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
+  const { inventory } = useInventory();
   const [ozonApiKey, setOzonApiKey] = useState('');
   const [wbApiKey, setWbApiKey] = useState('');
   const [autoSync, setAutoSync] = useState(true);
   const [syncInProgress, setSyncInProgress] = useState(false);
+  const [syncingMarketplace, setSyncingMarketplace] = useState<string | null>(null);
 
   const marketplaces = [
     {
@@ -83,16 +86,58 @@ const MarketplaceIntegration = () => {
   ];
 
   const handleSync = async (marketplace: string) => {
-    setSyncInProgress(true);
-    
-    // Имитация синхронизации
-    setTimeout(() => {
-      setSyncInProgress(false);
+    if (marketplace !== 'Ozon') {
       toast({
-        title: "Синхронизация завершена",
-        description: `Данные с ${marketplace} успешно синхронизированы`,
+        title: "Функционал в разработке",
+        description: `Синхронизация с ${marketplace} пока не доступна.`,
+        variant: "default",
       });
-    }, 2000);
+      return;
+    }
+
+    setSyncInProgress(true);
+    setSyncingMarketplace(marketplace);
+
+    const stocks = inventory.map(item => ({
+      offer_id: item.sku,
+      stock: item.currentStock,
+    }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ozon-stock-sync', {
+        body: { stocks },
+      });
+
+      if (error) throw error;
+      
+      const ozonResult = data.result;
+      const failedUpdates = ozonResult.filter((r: { updated: boolean; }) => !r.updated);
+
+      if (failedUpdates.length > 0) {
+        console.error('Failed Ozon updates:', failedUpdates);
+        toast({
+          title: "Ошибка синхронизации с Ozon",
+          description: `Не удалось обновить ${failedUpdates.length} товаров. Подробности в консоли.`,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Синхронизация с Ozon завершена",
+          description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Error syncing with Ozon:', error);
+      toast({
+        title: "Ошибка при вызове функции синхронизации",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setSyncInProgress(false);
+      setSyncingMarketplace(null);
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -176,7 +221,7 @@ const MarketplaceIntegration = () => {
                     onClick={() => handleSync(marketplace.name)}
                     disabled={syncInProgress || marketplace.status === 'disconnected'}
                   >
-                    <RefreshCw className={`w-4 h-4 mr-1 ${syncInProgress ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-4 h-4 mr-1 ${syncInProgress && syncingMarketplace === marketplace.name ? 'animate-spin' : ''}`} />
                     Синхронизировать
                   </Button>
                 </div>
