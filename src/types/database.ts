@@ -58,6 +58,7 @@ export interface Order {
   shippingAddress?: string;
   paymentMethod?: string;
   statusHistory?: OrderStatusHistory[];
+  source?: string;
 }
 
 export interface OrderItem {

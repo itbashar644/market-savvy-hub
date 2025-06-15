@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,6 +171,7 @@ const OrdersManager = () => {
                   <TableHead>Товары</TableHead>
                   <TableHead>Сумма</TableHead>
                   <TableHead>Статус</TableHead>
+                  <TableHead>Источник</TableHead>
                   <TableHead>Дата</TableHead>
                   <TableHead>Действия</TableHead>
                 </TableRow>
@@ -230,6 +230,7 @@ const OrdersManager = () => {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell>{order.source || 'CRM'}</TableCell>
                     <TableCell>{new Date(order.createdAt).toLocaleDateString('ru-RU')}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">

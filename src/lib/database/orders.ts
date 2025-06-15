@@ -1,4 +1,3 @@
-
 import { Order, OrderStatusHistory } from '@/types/database';
 import { BaseDatabase } from './base';
 
@@ -27,6 +26,7 @@ export class OrderDatabase extends BaseDatabase {
     const now = new Date().toISOString();
     const newOrder: Order = {
       ...order,
+      source: order.source || 'CRM',
       id: this.generateId(),
       createdAt: now,
       updatedAt: now,
