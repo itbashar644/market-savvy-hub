@@ -27,15 +27,14 @@ serve(async (req) => {
 
     console.log('Checking Ozon connection with clientId:', clientId);
 
-    // Проверяем подключение к Ozon API
-    const response = await fetch('https://api-seller.ozon.ru/v1/report/info', {
-      method: 'POST',
+    // Используем более простой endpoint для проверки подключения
+    const response = await fetch('https://api-seller.ozon.ru/v1/seller/info', {
+      method: 'GET',
       headers: {
         'Client-Id': clientId,
         'Api-Key': apiKey,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({})
+      }
     });
 
     if (!response.ok) {
