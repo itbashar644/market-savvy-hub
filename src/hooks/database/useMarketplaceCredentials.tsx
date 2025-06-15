@@ -29,6 +29,7 @@ export const MarketplaceCredentialsProvider = ({ children }: { children: ReactNo
   const [credentials, setCredentials] = useState<Record<string, Partial<MarketplaceCredential>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchCredentials = useCallback(async () => {
     if (!user) {
@@ -58,17 +59,23 @@ export const MarketplaceCredentialsProvider = ({ children }: { children: ReactNo
       });
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, [user, toast]);
 
   useEffect(() => {
     if (user) {
-      fetchCredentials();
+      if (!initialized) {
+        fetchCredentials();
+      } else {
+        setLoading(false);
+      }
     } else {
       setCredentials({});
       setLoading(false);
+      setInitialized(false);
     }
-  }, [user, fetchCredentials]);
+  }, [user, initialized, fetchCredentials]);
 
   const updateCredentialField = (marketplace: string, field: keyof Omit<MarketplaceCredential, 'id' | 'user_id' | 'created_at' | 'updated_at'>, value: string) => {
     setCredentials(prev => ({
