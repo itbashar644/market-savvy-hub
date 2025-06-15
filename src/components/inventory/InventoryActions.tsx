@@ -1,10 +1,12 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, TrendingUp, History } from 'lucide-react';
+import { Plus, TrendingUp, History, Edit } from 'lucide-react';
 import { InventoryHistory, InventoryItem } from '@/types/database';
 import InventoryHistoryComponent from '../InventoryHistory';
 import RestockForm from './RestockForm';
+import BulkStockEditor from './BulkStockEditor';
 
 interface InventoryActionsProps {
   inventory: InventoryItem[];
@@ -12,10 +14,19 @@ interface InventoryActionsProps {
   showHistory: boolean;
   setShowHistory: (show: boolean) => void;
   onStockUpdate: (productId: string, newStock: number, changeType: InventoryHistory['changeType'], reason?: string) => void;
+  onBulkStockUpdate: (updates: { sku: string; newStock: number }[]) => void;
 }
 
-const InventoryActions = ({ inventory, history, showHistory, setShowHistory, onStockUpdate }: InventoryActionsProps) => {
+const InventoryActions = ({ 
+  inventory, 
+  history, 
+  showHistory, 
+  setShowHistory, 
+  onStockUpdate, 
+  onBulkStockUpdate 
+}: InventoryActionsProps) => {
   const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false);
+  const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
 
   const handleRestock = (productId: string, currentStock: number, quantityToAdd: number) => {
     const newStock = currentStock + quantityToAdd;
@@ -60,6 +71,28 @@ const InventoryActions = ({ inventory, history, showHistory, setShowHistory, onS
             inventory={inventory}
             onRestock={handleRestock}
             onClose={() => setIsRestockDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isBulkEditDialogOpen} onOpenChange={setIsBulkEditDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            <Edit className="w-4 h-4 mr-2" />
+            Массовое редактирование
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Массовое редактирование остатков</DialogTitle>
+            <DialogDescription>
+              Обновите остатки для нескольких товаров одновременно, используя формат SKU - Остаток.
+            </DialogDescription>
+          </DialogHeader>
+          <BulkStockEditor
+            inventory={inventory}
+            onBulkUpdate={onBulkStockUpdate}
+            onClose={() => setIsBulkEditDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>

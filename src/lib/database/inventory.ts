@@ -1,4 +1,3 @@
-
 import { InventoryItem, InventoryHistory, Product } from '@/types/database';
 import { BaseDatabase } from './base';
 
@@ -38,6 +37,47 @@ export class InventoryDatabase extends BaseDatabase {
     
     this.saveToStorage('inventory', inventory);
     return item;
+  }
+
+  bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): InventoryItem[] {
+    const inventory = this.getInventory();
+    const history = this.getInventoryHistory();
+    const updatedItems: InventoryItem[] = [];
+
+    updates.forEach(({ sku, newStock }) => {
+        const index = inventory.findIndex(i => i.sku === sku);
+        if (index !== -1) {
+            const item = inventory[index];
+            const previousStock = item.currentStock;
+            
+            if (previousStock !== newStock) {
+                const changeAmount = newStock - previousStock;
+                this.addInventoryHistory({
+                  productId: item.productId,
+                  productName: item.name,
+                  sku: item.sku,
+                  previousStock,
+                  newStock,
+                  changeAmount,
+                  changeType: 'manual',
+                  reason: 'Массовое обновление',
+                  userName: 'Администратор',
+                  timestamp: new Date().toISOString(),
+                });
+
+                item.currentStock = newStock;
+                item.status = newStock <= 0 ? 'out_of_stock'
+                            : newStock <= item.minStock ? 'low_stock'
+                            : 'in_stock';
+                item.lastRestocked = new Date().toISOString();
+                updatedItems.push(item);
+            }
+        }
+    });
+
+    this.saveToStorage('inventory', inventory);
+    // History is saved inside addInventoryHistory
+    return updatedItems;
   }
 
   getInventoryHistory(): InventoryHistory[] {

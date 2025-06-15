@@ -1,13 +1,14 @@
+
 import React, { useState } from 'react';
 import { Package } from 'lucide-react';
 import { useInventory, useInventoryHistory } from '@/hooks/useDatabase';
 import InventoryStats from './inventory/InventoryStats';
 import InventoryActions from './inventory/InventoryActions';
 import InventoryTable from './inventory/InventoryTable';
-import { InventoryHistory } from '@/types/database';
+import { InventoryHistory, InventoryItem } from '@/types/database';
 
 const InventoryManager = () => {
-  const { inventory, loading, updateStock } = useInventory();
+  const { inventory, loading, updateStock, bulkUpdateStock } = useInventory();
   const { history } = useInventoryHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -16,6 +17,10 @@ const InventoryManager = () => {
   const handleStockUpdate = (productId: string, newStock: number) => {
     updateStock(productId, newStock, 'manual', 'Ручное изменение остатка');
     setEditingStock(null);
+  };
+  
+  const handleBulkStockUpdate = (updates: { sku: string; newStock: number }[]) => {
+    bulkUpdateStock(updates);
   };
 
   if (loading) {
@@ -39,6 +44,7 @@ const InventoryManager = () => {
         <InventoryActions
           inventory={inventory}
           onStockUpdate={updateStock}
+          onBulkStockUpdate={handleBulkStockUpdate}
           history={history}
           showHistory={showHistory}
           setShowHistory={setShowHistory}

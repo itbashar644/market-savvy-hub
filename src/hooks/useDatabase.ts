@@ -149,10 +149,16 @@ export const useInventory = () => {
     return updated;
   };
 
+  const bulkUpdateStock = (updates: { sku: string; newStock: number }[]) => {
+    db.bulkUpdateInventoryStock(updates);
+    refreshInventory();
+  };
+
   return {
     inventory,
     loading,
     updateStock,
+    bulkUpdateStock,
     refreshInventory,
   };
 };

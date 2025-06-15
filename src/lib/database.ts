@@ -132,6 +132,33 @@ class LocalDatabase {
     return updatedInventoryItem;
   }
 
+  bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): void {
+    const updatedItems = this.inventoryDb.bulkUpdateInventoryStock(updates);
+
+    updatedItems.forEach(item => {
+      let productStatus: 'active' | 'low_stock' | 'out_of_stock';
+      switch (item.status) {
+        case 'in_stock':
+          productStatus = 'active';
+          break;
+        case 'low_stock':
+          productStatus = 'low_stock';
+          break;
+        case 'out_of_stock':
+          productStatus = 'out_of_stock';
+          break;
+        default:
+          productStatus = 'active';
+      }
+
+      // Синхронизируем остаток и статус с записью о товаре
+      this.productDb.updateProduct(item.productId, {
+        stock: item.currentStock,
+        status: productStatus
+      });
+    });
+  }
+
   getInventoryHistory(): InventoryHistory[] {
     return this.inventoryDb.getInventoryHistory();
   }
