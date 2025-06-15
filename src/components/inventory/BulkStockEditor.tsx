@@ -54,6 +54,15 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
         return { sku, newStock, productName: 'Товар не найден', currentStock: 0, status: 'not_found' };
       }
     });
+
+    const statusOrder = {
+      'invalid_stock': 0,
+      'not_found': 1,
+      'found': 2,
+    };
+
+    updates.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+    
     setParsedUpdates(updates);
   };
   
@@ -113,7 +122,14 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
               </TableHeader>
               <TableBody>
                 {parsedUpdates.map((update, index) => (
-                  <TableRow key={index}>
+                  <TableRow
+                    key={index}
+                    className={
+                      update.status === 'not_found' || update.status === 'invalid_stock'
+                        ? 'bg-red-50'
+                        : ''
+                    }
+                  >
                     <TableCell>{update.sku}</TableCell>
                     <TableCell>{update.productName}</TableCell>
                     <TableCell>{update.status === 'found' ? update.currentStock : '–'}</TableCell>
@@ -121,7 +137,7 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
                     <TableCell>
                       {update.status === 'found' && <span className="text-green-600">Найден</span>}
                       {update.status === 'not_found' && <span className="text-red-600">Не найден</span>}
-                      {update.status === 'invalid_stock' && <span className="text-yellow-600">Ошибка</span>}
+                      {update.status === 'invalid_stock' && <span className="text-red-600">Ошибка</span>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -142,3 +158,4 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
 };
 
 export default BulkStockEditor;
+
