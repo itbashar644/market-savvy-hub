@@ -10,9 +10,12 @@ import {
   Store,
   TrendingUp,
   Warehouse,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   activeTab: string;
@@ -20,6 +23,8 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+  const { signOut } = useAuth();
+
   const menuItems = [
     { id: 'dashboard', label: 'Дашборд', icon: BarChart3 },
     { id: 'products', label: 'Товары', icon: Package },
@@ -66,7 +71,11 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
         </ul>
       </nav>
       
-      <div className="p-4 border-t border-slate-700 mt-auto">
+      <div className="p-4 border-t border-slate-700 mt-auto space-y-4">
+         <Button onClick={() => signOut()} className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700">
+            <LogOut size={16} />
+            <span>Выйти</span>
+        </Button>
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-3 rounded-lg">
           <p className="text-sm font-medium">Статус синхронизации</p>
           <p className="text-xs text-green-100 mt-1">Все системы работают</p>
