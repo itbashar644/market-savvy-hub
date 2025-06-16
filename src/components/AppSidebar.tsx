@@ -81,27 +81,34 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
   const { signOut } = useAuth();
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
-      <SidebarHeader className="bg-sidebar">
-        <div className="flex items-center gap-2 px-4 py-2">
-          <Store className="h-6 w-6 text-sidebar-foreground" />
-          <span className="text-lg font-semibold text-sidebar-foreground">CRM Store</span>
+    <Sidebar variant="inset" collapsible="icon" className="sidebar-modern" {...props}>
+      <SidebarHeader className="px-4 py-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600">
+            <Store className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold sidebar-header-modern">CRM Store</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Управление</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium text-xs uppercase tracking-wider px-4">
+            Управление
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1 px-2">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     onClick={() => onTabChange(item.key)}
                     isActive={activeTab === item.key}
                     tooltip={item.title}
+                    className={`sidebar-menu-button-modern ${
+                      activeTab === item.key ? 'sidebar-menu-button-active' : ''
+                    }`}
                   >
-                    <item.icon />
-                    <span>{item.title}</span>
+                    <item.icon className="h-4 w-4" />
+                    <span className="text-sm">{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -109,15 +116,16 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={() => signOut()}
               tooltip="Выйти"
+              className="sidebar-menu-button-modern text-red-400 hover:text-red-300 hover:bg-red-500/10"
             >
-              <LogOut />
-              <span>Выйти</span>
+              <LogOut className="h-4 w-4" />
+              <span className="text-sm">Выйти</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
