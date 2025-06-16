@@ -28,13 +28,91 @@ serve(async (req) => {
     }
 
     console.log('Syncing stocks to Wildberries for', stocks.length, 'items');
+    console.log('Sample stocks data:', stocks.slice(0, 3));
 
     // Используем ваш ID склада
     const warehouseId = 7963;
 
-    // Обновляем остатки с правильной структурой данных
+    // Попробуем сначала получить информацию о товарах через API карточек
+    let existingProducts = [];
+    try {
+      console.log('Checking existing products via content API...');
+      const contentResponse = await fetch(`${WB_API_URL}/content/v2/get/cards/list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': apiKey,
+          'User-Agent': 'Supabase-Edge-Function/1.0',
+        },
+        body: JSON.stringify({
+          settings: {
+            cursor: {
+              limit: 1000
+            },
+            filter: {
+              withPhoto: -1
+            }
+          }
+        }),
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (contentResponse.ok) {
+        const contentData = await contentResponse.json();
+        console.log('Content API response status:', contentResponse.status);
+        console.log('Found products in content API:', contentData.cards?.length || 0);
+        
+        if (contentData.cards) {
+          existingProducts = contentData.cards.map((card: any) => ({
+            nmID: card.nmID,
+            vendorCode: card.vendorCode,
+            sizes: card.sizes
+          }));
+          console.log('Sample existing products:', existingProducts.slice(0, 3));
+        }
+      } else {
+        console.log('Content API failed with status:', contentResponse.status);
+      }
+    } catch (contentError) {
+      console.log('Content API error (continuing anyway):', contentError.message);
+    }
+
+    // Проверяем, какие SKU действительно существуют
+    const stocksToUpdate = stocks.filter(stock => {
+      const exists = existingProducts.some(product => 
+        product.vendorCode === stock.offer_id ||
+        product.sizes?.some((size: any) => size.skus?.some((sku: string) => sku === stock.offer_id))
+      );
+      if (!exists) {
+        console.log(`SKU ${stock.offer_id} not found in existing products`);
+      }
+      return exists;
+    });
+
+    console.log(`Filtered stocks: ${stocksToUpdate.length} out of ${stocks.length} exist in Wildberries`);
+
+    if (stocksToUpdate.length === 0) {
+      console.log('No valid SKUs found in Wildberries catalog');
+      const allErrors = stocks.map(item => ({
+        offer_id: item.offer_id,
+        updated: false,
+        errors: [
+          {
+            code: 'SKU_NOT_FOUND',
+            message: `SKU ${item.offer_id} не найден в каталоге Wildberries. Проверьте правильность артикула.`,
+          },
+        ],
+      }));
+      
+      return new Response(JSON.stringify({ result: allErrors }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    // Обновляем остатки с улучшенной структурой данных
     const wbPayload = {
-      stocks: stocks.map(item => ({
+      stocks: stocksToUpdate.map(item => ({
         sku: item.offer_id,
         amount: item.stock,
         warehouseId: warehouseId
@@ -90,11 +168,19 @@ serve(async (req) => {
       // Успешное обновление - Wildberries возвращает 204 No Content при успехе
       console.log('Stocks updated successfully');
       
-      const result = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: true,
-        errors: []
-      }));
+      const result = stocks.map(item => {
+        const wasUpdated = stocksToUpdate.some(updated => updated.offer_id === item.offer_id);
+        return {
+          offer_id: item.offer_id,
+          updated: wasUpdated,
+          errors: wasUpdated ? [] : [
+            {
+              code: 'SKU_NOT_FOUND',
+              message: `SKU ${item.offer_id} не найден в каталоге Wildberries.`,
+            },
+          ]
+        };
+      });
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,7 +244,7 @@ serve(async (req) => {
         errors: [
           {
             code: 'CONFLICT_ERROR',
-            message: `Конфликт: ${conflictDetails}. Проверьте, что SKU существуют в личном кабинете WB и ID склада правильный.`,
+            message: `Конфликт: ${conflictDetails}. Возможно, некоторые SKU не существуют в каталоге товаров.`,
           },
         ],
       }));
