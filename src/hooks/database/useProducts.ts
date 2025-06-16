@@ -8,6 +8,7 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
 
   const refreshProducts = async () => {
     try {
@@ -84,35 +85,57 @@ export const useProducts = () => {
   useEffect(() => {
     refreshProducts();
 
-    // Clean up any existing channel first
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    // Cleanup function to prevent multiple subscriptions
+    const setupRealtimeSubscription = () => {
+      // Only set up subscription if not already subscribed
+      if (isSubscribedRef.current || channelRef.current) {
+        return;
+      }
 
-    // Set up new real-time subscription with unique channel name
-    const channelName = `products_changes_${Date.now()}`;
-    channelRef.current = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products'
-        },
-        () => {
-          console.log('Products table changed, refreshing...');
-          refreshProducts();
-        }
-      )
-      .subscribe();
+      try {
+        // Create unique channel name to prevent conflicts
+        const channelName = `products_realtime_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('Setting up realtime subscription:', channelName);
+        
+        const channel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'products'
+            },
+            (payload) => {
+              console.log('Products table changed:', payload.eventType);
+              refreshProducts();
+            }
+          )
+          .subscribe((status) => {
+            console.log('Subscription status:', status);
+            if (status === 'SUBSCRIBED') {
+              isSubscribedRef.current = true;
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+      }
+    };
+
+    // Set up subscription with a small delay to ensure cleanup completes
+    const timeoutId = setTimeout(setupRealtimeSubscription, 100);
 
     return () => {
+      clearTimeout(timeoutId);
+      
       if (channelRef.current) {
+        console.log('Cleaning up realtime subscription');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      isSubscribedRef.current = false;
     };
   }, []);
 
