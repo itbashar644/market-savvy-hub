@@ -39,6 +39,12 @@ serve(async (req) => {
 
     console.log('Updating stocks for warehouse:', warehouseId, 'stocks count:', stocks.length);
 
+    // Формируем данные в формате WB API
+    const stocksData = stocks.map((stock: any) => ({
+      sku: stock.sku,
+      amount: stock.amount
+    }));
+
     // Обновляем остатки на складе
     const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
       method: 'PUT',
@@ -46,7 +52,7 @@ serve(async (req) => {
         'Authorization': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ stocks }),
+      body: JSON.stringify({ stocks: stocksData }),
     });
 
     console.log('WB stocks update response status:', response.status);

@@ -40,7 +40,12 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        skus: [] // Пустой массив для получения всех остатков
+        stocks: [
+          {
+            sku: "test",
+            amount: 0
+          }
+        ]
       }),
     });
 
