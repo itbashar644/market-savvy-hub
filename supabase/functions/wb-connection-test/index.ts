@@ -32,30 +32,28 @@ serve(async (req) => {
 
     console.log('Testing WB API connection with warehouse ID:', warehouseId);
 
-    // Тестируем подключение запросом к получению складов (GET метод)
-    const response = await fetch(`https://suppliers-api.wildberries.ru/api/v1/warehouses`, {
-      method: 'GET',
+    // Тестируем подключение запросом к правильному endpoint
+    const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
+      method: 'PUT',
       headers: {
         'Authorization': apiKey,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        stocks: []
+      }),
     });
 
     console.log('WB API response status:', response.status);
 
     if (response.ok) {
       const data = await response.json();
-      console.log('WB connection successful, warehouses count:', data?.length || 0);
-      
-      // Проверим, что наш склад существует в списке
-      const warehouse = data?.find((w: any) => w.id?.toString() === warehouseId.toString());
+      console.log('WB connection successful');
       
       return new Response(JSON.stringify({ 
         success: true, 
-        message: warehouse 
-          ? `Подключение к Wildberries успешно. Склад "${warehouse.name}" найден`
-          : `Подключение к Wildberries успешно. Внимание: склад с ID ${warehouseId} не найден в списке`,
-        warehousesCount: data?.length || 0,
-        warehouseFound: !!warehouse
+        message: 'Подключение к Wildberries успешно',
+        response: data
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

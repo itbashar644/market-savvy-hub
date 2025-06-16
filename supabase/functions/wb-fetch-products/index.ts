@@ -30,12 +30,16 @@ serve(async (req) => {
 
     console.log('Fetching products from WB warehouse:', warehouseId);
 
-    // Получаем остатки товаров с указанного склада (GET метод)
-    const response = await fetch(`https://suppliers-api.wildberries.ru/api/v1/supplier/stocks?warehouseId=${warehouseId}`, {
-      method: 'GET',
+    // Получаем остатки товаров через правильный endpoint
+    const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
+      method: 'POST',
       headers: {
         'Authorization': apiKey,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        stocks: []
+      }),
     });
 
     console.log('WB API response status:', response.status);
@@ -53,9 +57,9 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('WB API response received, stocks count:', data?.length || 0);
+    console.log('WB API response received, stocks count:', data?.stocks?.length || 0);
 
-    if (!data || !Array.isArray(data)) {
+    if (!data.stocks || !Array.isArray(data.stocks)) {
       return new Response(JSON.stringify({ 
         products: [],
         total: 0,
@@ -67,9 +71,9 @@ serve(async (req) => {
     }
 
     // Преобразуем данные об остатках в формат товаров
-    const products = data.map((stock: any) => ({
+    const products = data.stocks.map((stock: any) => ({
       nm_id: stock.nmId || 0,
-      sku: stock.barcode || stock.sku || '',
+      sku: stock.sku || stock.barcode || '',
       title: stock.subject || 'Товар без названия',
       brand: stock.brand || '',
       category: stock.category || '',
@@ -86,7 +90,7 @@ serve(async (req) => {
       discount_price: stock.Discount || null,
       rating: 0,
       feedbacks_count: 0,
-      stock_quantity: (stock.inWayToClient || 0) + (stock.inWayFromClient || 0) + (stock.quantityFull || 0),
+      stock_quantity: stock.amount || 0,
       warehouse_id: parseInt(warehouseId),
       barcode: stock.barcode || ''
     }));
