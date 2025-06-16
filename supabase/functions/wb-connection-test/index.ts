@@ -20,54 +20,36 @@ serve(async (req) => {
       });
     }
 
-    if (!warehouseId) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'ID склада обязателен' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
+    console.log('Testing WB API connection using ping endpoint');
 
-    console.log('Testing WB API connection with warehouse ID:', warehouseId);
-
-    // Проверяем подключение через получение списка складов
-    const warehousesResponse = await fetch(`https://suppliers-api.wildberries.ru/api/v1/warehouses`, {
+    // Проверяем подключение через ping endpoint
+    const pingResponse = await fetch(`https://marketplace-api.wildberries.ru/ping`, {
       method: 'GET',
       headers: {
         'Authorization': apiKey,
       },
     });
 
-    console.log('WB warehouses API response status:', warehousesResponse.status);
+    console.log('WB ping API response status:', pingResponse.status);
 
-    if (warehousesResponse.ok) {
-      const warehouses = await warehousesResponse.json();
-      console.log('WB connection successful, warehouses count:', warehouses?.length || 0);
-      
-      // Проверяем, существует ли указанный склад
-      const warehouse = warehouses?.find((w: any) => w.id?.toString() === warehouseId.toString());
+    if (pingResponse.ok) {
+      console.log('WB ping successful');
       
       return new Response(JSON.stringify({ 
         success: true, 
-        message: warehouse 
-          ? `Подключение к Wildberries успешно. Склад "${warehouse.name}" найден`
-          : `Подключение к Wildberries успешно. Внимание: склад с ID ${warehouseId} не найден в списке`,
-        warehousesCount: warehouses?.length || 0,
-        warehouseFound: !!warehouse,
-        availableWarehouses: warehouses?.map((w: any) => ({ id: w.id, name: w.name })) || []
+        message: `Подключение к Wildberries успешно установлено`,
+        warehouseId: warehouseId || null
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     } else {
-      const errorText = await warehousesResponse.text();
-      console.log('WB warehouses API error:', warehousesResponse.status, errorText);
+      const errorText = await pingResponse.text();
+      console.log('WB ping API error:', pingResponse.status, errorText);
       
       return new Response(JSON.stringify({ 
         success: false, 
-        error: `Ошибка API Wildberries: ${warehousesResponse.status} - ${errorText}` 
+        error: `Ошибка API Wildberries: ${pingResponse.status} - ${errorText}` 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
