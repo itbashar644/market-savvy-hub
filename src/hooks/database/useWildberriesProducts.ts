@@ -57,6 +57,12 @@ export const useWildberriesProducts = () => {
     mutationFn: async (apiKey: string) => {
       setLoading(true);
       
+      // Получаем пользователя заранее
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw new Error('Пользователь не авторизован');
+      }
+      
       // Вызываем edge function для получения товаров
       const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
         body: { apiKey }
@@ -75,7 +81,7 @@ export const useWildberriesProducts = () => {
           .upsert(
             data.products.map((product: any) => ({
               ...product,
-              user_id: (await supabase.auth.getUser()).data.user?.id
+              user_id: userData.user.id
             })),
             { 
               onConflict: 'nm_id',

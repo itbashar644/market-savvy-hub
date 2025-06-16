@@ -14,7 +14,7 @@ const WildberriesProductsList = () => {
   const { products, isLoading, syncProducts, deleteProduct, isSyncing } = useWildberriesProducts();
   const { credentials } = useMarketplaceCredentials();
   
-  const wbCreds = credentials.find(c => c.marketplace === 'wildberries');
+  const wbCreds = credentials.wildberries;
 
   const filteredProducts = products.filter(product =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -116,7 +116,7 @@ const WildberriesProductsList = () => {
                   <TableHead>Размер</TableHead>
                   <TableHead>Статус</TableHead>
                   <TableHead>Обновлен</TableHead>
-                  <TableHead width="100">Действия</TableHead>
+                  <TableHead className="w-[100px]">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
