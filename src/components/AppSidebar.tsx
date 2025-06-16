@@ -5,12 +5,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from "@/components/ui/button"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 import {
   Sidebar,
@@ -137,25 +137,31 @@ const MobileSidebar = ({ activeTab, onTabChange }: { activeTab: string; onTabCha
 
   const handleTabChange = (tab: string) => {
     onTabChange(tab);
-    setOpen(false); // Закрываем сайдбар после выбора
+    setOpen(false);
   };
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
-          <SidebarTrigger />
-        </Button>
-      </DrawerTrigger>
-      <DrawerContent className="h-[85vh]">
-        <DrawerHeader>
-          <DrawerTitle className="text-center">CRM Store</DrawerTitle>
-        </DrawerHeader>
-        <div className="flex-1 overflow-auto px-4 pb-4">
-          <SidebarMenuContent activeTab={activeTab} onTabChange={handleTabChange} />
-        </div>
-      </DrawerContent>
-    </Drawer>
+    <>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="md:hidden fixed top-4 left-4 z-50 bg-white shadow-md"
+        onClick={() => setOpen(true)}
+      >
+        <SidebarTrigger />
+      </Button>
+      
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="left" className="w-80 p-0">
+          <SheetHeader className="p-4 border-b">
+            <SheetTitle>CRM Store</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-auto p-4">
+            <SidebarMenuContent activeTab={activeTab} onTabChange={handleTabChange} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };
 

@@ -26,6 +26,9 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
   const { toast } = useToast();
 
   const parseInput = () => {
+    console.log('Parsing input:', textInput);
+    console.log('Available inventory:', inventory.map(i => ({ sku: i.sku, name: i.name })));
+    
     const lines = textInput.trim().split('\n');
     const updates: ParsedUpdate[] = lines.filter(line => line.trim() !== '').map(line => {
       const parts = line.trim().split(/[\s\t]+/);
@@ -40,7 +43,15 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
         return { sku, newStock: 0, productName: 'Неверный остаток', currentStock: 0, status: 'invalid_stock' };
       }
       
-      const inventoryItem = inventory.find(item => item.sku === sku);
+      // Ищем товар по SKU с учетом разных вариантов
+      const inventoryItem = inventory.find(item => 
+        item.sku === sku || 
+        item.sku === sku.toString() ||
+        item.productId === sku ||
+        item.name.toLowerCase().includes(sku.toLowerCase())
+      );
+      
+      console.log(`Searching for SKU: ${sku}, found:`, inventoryItem);
       
       if (inventoryItem) {
         return {
@@ -64,6 +75,7 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
     updates.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
     
     setParsedUpdates(updates);
+    console.log('Parsed updates:', updates);
   };
   
   const handleSave = () => {
@@ -80,6 +92,7 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
       return;
     }
     
+    console.log('Sending updates:', validUpdates);
     onBulkUpdate(validUpdates);
     toast({
       title: 'Остатки успешно обновлены',
@@ -94,12 +107,25 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
         <label htmlFor="bulk-stock-input" className="block text-sm font-medium text-gray-700 mb-1">
           Введите SKU и новый остаток (через пробел или таб), каждую позицию с новой строки.
         </label>
+        <div className="mb-2 p-3 bg-blue-50 rounded-md text-sm">
+          <p className="font-medium mb-1">Доступные SKU в системе:</p>
+          <div className="max-h-32 overflow-y-auto text-xs">
+            {inventory.slice(0, 10).map(item => (
+              <div key={item.id} className="flex justify-between">
+                <span>{item.sku}</span>
+                <span className="text-gray-500">{item.name}</span>
+              </div>
+            ))}
+            {inventory.length > 10 && <p className="text-gray-500 mt-1">...и еще {inventory.length - 10} товаров</p>}
+          </div>
+        </div>
         <Textarea
           id="bulk-stock-input"
           value={textInput}
           onChange={(e) => setTextInput(e.target.value)}
-          placeholder="SKU001 50&#10;SKU002 120&#10;SKU003 0"
-          rows={10}
+          placeholder="x9.pro.pink 50&#10;Y92.blue 120&#10;Y92.pink 0"
+          rows={8}
+          className="font-mono text-sm"
         />
         <Button onClick={parseInput} className="mt-2">
           Проверить данные
@@ -113,11 +139,11 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
+                  <TableHead className="w-24">SKU</TableHead>
                   <TableHead>Товар</TableHead>
-                  <TableHead>Текущий остаток</TableHead>
-                  <TableHead>Новый остаток</TableHead>
-                  <TableHead>Статус</TableHead>
+                  <TableHead className="w-20">Текущий</TableHead>
+                  <TableHead className="w-20">Новый</TableHead>
+                  <TableHead className="w-24">Статус</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -130,11 +156,11 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
                         : ''
                     }
                   >
-                    <TableCell>{update.sku}</TableCell>
-                    <TableCell>{update.productName}</TableCell>
-                    <TableCell>{update.status === 'found' ? update.currentStock : '–'}</TableCell>
-                    <TableCell>{update.status === 'found' || update.status === 'not_found' ? update.newStock : '–'}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-mono text-xs">{update.sku}</TableCell>
+                    <TableCell className="text-xs">{update.productName}</TableCell>
+                    <TableCell className="text-xs">{update.status === 'found' ? update.currentStock : '–'}</TableCell>
+                    <TableCell className="text-xs">{update.status === 'found' || update.status === 'not_found' ? update.newStock : '–'}</TableCell>
+                    <TableCell className="text-xs">
                       {update.status === 'found' && <span className="text-green-600">Найден</span>}
                       {update.status === 'not_found' && <span className="text-red-600">Не найден</span>}
                       {update.status === 'invalid_stock' && <span className="text-red-600">Ошибка</span>}
@@ -150,7 +176,7 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="outline" onClick={onClose}>Отмена</Button>
         <Button onClick={handleSave} disabled={parsedUpdates.filter(u => u.status === 'found').length === 0}>
-          Сохранить изменения
+          Сохранить изменения ({parsedUpdates.filter(u => u.status === 'found').length})
         </Button>
       </div>
     </div>
@@ -158,4 +184,3 @@ const BulkStockEditor = ({ inventory, onBulkUpdate, onClose }: BulkStockEditorPr
 };
 
 export default BulkStockEditor;
-

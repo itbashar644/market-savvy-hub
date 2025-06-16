@@ -54,7 +54,7 @@ const Index = () => {
         <div className="min-h-screen flex w-full">
           <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <SidebarInset className="flex-1">
-            <main className={`flex-1 overflow-auto p-6 ${isMobile ? 'pt-16' : ''}`}>
+            <main className={`flex-1 overflow-auto ${isMobile ? 'pt-16 px-2 pb-4' : 'p-6'}`}>
               {renderContent()}
             </main>
           </SidebarInset>
