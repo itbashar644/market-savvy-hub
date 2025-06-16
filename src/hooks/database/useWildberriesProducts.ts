@@ -59,9 +59,46 @@ export const useWildberriesProducts = () => {
     }
   });
 
+  // Тестирование подключения к WB
+  const testConnectionMutation = useMutation({
+    mutationFn: async ({ apiKey, warehouseId }: { apiKey: string; warehouseId: string }) => {
+      console.log('Testing WB connection...');
+      
+      const { data, error } = await supabase.functions.invoke('wb-connection-test', {
+        body: { apiKey, warehouseId }
+      });
+
+      if (error) {
+        console.error('Connection test function error:', error);
+        throw new Error(`Ошибка функции: ${error.message}`);
+      }
+      
+      if (data?.error) {
+        console.error('Connection test API error:', data.error);
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Подключение успешно",
+        description: `Найдено товаров на складе: ${data?.stocksCount || 0}`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Connection test error:', error);
+      toast({
+        title: "Ошибка подключения",
+        description: error.message || "Не удалось подключиться к Wildberries",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Синхронизация товаров с Wildberries
   const syncProductsMutation = useMutation({
-    mutationFn: async (apiKey: string) => {
+    mutationFn: async ({ apiKey, warehouseId }: { apiKey: string; warehouseId: string }) => {
       setLoading(true);
       console.log('Starting WB products sync...');
       
@@ -71,11 +108,11 @@ export const useWildberriesProducts = () => {
         throw new Error('Пользователь не авторизован');
       }
       
-      console.log('Calling wb-get-products function...');
+      console.log('Calling wb-fetch-products function...');
       
-      // Вызываем новую функцию для получения товаров
-      const { data, error } = await supabase.functions.invoke('wb-get-products', {
-        body: { apiKey }
+      // Вызываем функцию для получения товаров
+      const { data, error } = await supabase.functions.invoke('wb-fetch-products', {
+        body: { apiKey, warehouseId }
       });
 
       console.log('Function response:', { data, error });
@@ -137,6 +174,47 @@ export const useWildberriesProducts = () => {
     }
   });
 
+  // Обновление остатков
+  const updateStocksMutation = useMutation({
+    mutationFn: async ({ apiKey, warehouseId, stocks }: { 
+      apiKey: string; 
+      warehouseId: string;
+      stocks: Array<{ sku: string; amount: number }>;
+    }) => {
+      console.log('Updating WB stocks...');
+      
+      const { data, error } = await supabase.functions.invoke('wb-update-stocks', {
+        body: { apiKey, warehouseId, stocks }
+      });
+
+      if (error) {
+        console.error('Update stocks function error:', error);
+        throw new Error(`Ошибка функции: ${error.message}`);
+      }
+      
+      if (data?.error) {
+        console.error('Update stocks API error:', data.error);
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Остатки обновлены",
+        description: `Обновлено позиций: ${data?.updatedCount || 0}`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Update stocks error:', error);
+      toast({
+        title: "Ошибка обновления остатков",
+        description: error.message || "Не удалось обновить остатки",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Удаление товара
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -166,10 +244,19 @@ export const useWildberriesProducts = () => {
     }
   });
 
-  const syncProducts = useCallback((apiKey: string) => {
-    console.log('Starting sync with API key present:', !!apiKey);
-    syncProductsMutation.mutate(apiKey);
+  const testConnection = useCallback((apiKey: string, warehouseId: string) => {
+    console.log('Testing connection with API key and warehouse ID:', !!apiKey, warehouseId);
+    testConnectionMutation.mutate({ apiKey, warehouseId });
+  }, [testConnectionMutation]);
+
+  const syncProducts = useCallback((apiKey: string, warehouseId: string) => {
+    console.log('Starting sync with API key and warehouse ID:', !!apiKey, warehouseId);
+    syncProductsMutation.mutate({ apiKey, warehouseId });
   }, [syncProductsMutation]);
+
+  const updateStocks = useCallback((apiKey: string, warehouseId: string, stocks: Array<{ sku: string; amount: number }>) => {
+    updateStocksMutation.mutate({ apiKey, warehouseId, stocks });
+  }, [updateStocksMutation]);
 
   const deleteProduct = useCallback((productId: string) => {
     deleteProductMutation.mutate(productId);
@@ -179,8 +266,12 @@ export const useWildberriesProducts = () => {
     products,
     isLoading: isLoading || loading,
     error,
+    testConnection,
     syncProducts,
+    updateStocks,
     deleteProduct,
-    isSyncing: syncProductsMutation.isPending || loading
+    isTestingConnection: testConnectionMutation.isPending,
+    isSyncing: syncProductsMutation.isPending || loading,
+    isUpdatingStocks: updateStocksMutation.isPending
   };
 };

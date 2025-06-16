@@ -8,7 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { apiKey } = await req.json();
+    const { apiKey, warehouseId } = await req.json();
     
     if (!apiKey) {
       return new Response(JSON.stringify({ 
@@ -20,10 +20,20 @@ serve(async (req) => {
       });
     }
 
-    console.log('Testing WB API connection...');
+    if (!warehouseId) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'ID склада обязателен' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
-    // Тестируем API ключ запросом к складам
-    const response = await fetch('https://marketplace-api.wildberries.ru/api/v3/warehouses', {
+    console.log('Testing WB API connection with warehouse ID:', warehouseId);
+
+    // Тестируем подключение запросом к складским остаткам
+    const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
       method: 'GET',
       headers: {
         'Authorization': apiKey,
@@ -35,12 +45,12 @@ serve(async (req) => {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('WB connection successful:', data);
+      console.log('WB connection successful, stocks count:', data?.stocks?.length || 0);
       
       return new Response(JSON.stringify({ 
         success: true, 
         message: 'Подключение к Wildberries успешно',
-        data 
+        stocksCount: data?.stocks?.length || 0
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

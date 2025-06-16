@@ -17,7 +17,7 @@ const MarketplaceIntegration = () => {
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
   const { credentials } = useMarketplaceCredentials();
-  const { syncProducts } = useWildberriesProducts();
+  const { syncProducts, testConnection } = useWildberriesProducts();
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
@@ -54,23 +54,12 @@ const MarketplaceIntegration = () => {
           throw new Error('Необходимо указать API ключ для Wildberries');
         }
 
-        // Используем новую функцию для проверки подключения
-        const { data, error } = await supabase.functions.invoke('wb-test-connection', {
-          body: {
-            apiKey: wbCreds.api_key
-          }
-        });
-        
-        if (error) throw error;
-        
-        if (data.success) {
-          toast({
-            title: "Соединение установлено",
-            description: "Подключение к Wildberries API успешно",
-          });
-        } else {
-          throw new Error(data.error || 'Ошибка подключения к Wildberries');
+        if (!wbCreds?.warehouse_id) {
+          throw new Error('Необходимо указать ID склада для Wildberries');
         }
+
+        // Используем новую функцию для проверки подключения
+        testConnection(wbCreds.api_key, wbCreds.warehouse_id);
       }
     } catch (error: any) {
       console.error('Connection check error:', error);
@@ -95,10 +84,10 @@ const MarketplaceIntegration = () => {
       const errors = [];
       
       // Синхронизация товаров Wildberries
-      if (wbCreds?.api_key) {
+      if (wbCreds?.api_key && wbCreds?.warehouse_id) {
         try {
           console.log('Starting Wildberries products sync...');
-          syncProducts(wbCreds.api_key);
+          syncProducts(wbCreds.api_key, wbCreds.warehouse_id);
           syncCount++;
           console.log('Wildberries products sync initiated');
         } catch (error: any) {
@@ -147,7 +136,7 @@ const MarketplaceIntegration = () => {
       if (syncCount === 0 && errors.length === 0) {
         toast({
           title: "Нет настроенных подключений",
-          description: "Убедитесь, что API ключи настроены правильно",
+          description: "Убедитесь, что API ключи и ID складов настроены правильно",
           variant: "destructive",
         });
       }
