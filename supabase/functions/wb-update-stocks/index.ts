@@ -28,9 +28,9 @@ serve(async (req) => {
       });
     }
 
-    if (!stocks || !Array.isArray(stocks)) {
+    if (!stocks || !Array.isArray(stocks) || stocks.length === 0) {
       return new Response(JSON.stringify({ 
-        error: 'Данные об остатках обязательны' 
+        error: 'Данные об остатках обязательны (минимум 1 товар)' 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

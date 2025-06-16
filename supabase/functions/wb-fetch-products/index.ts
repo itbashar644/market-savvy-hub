@@ -30,16 +30,12 @@ serve(async (req) => {
 
     console.log('Fetching products from WB warehouse:', warehouseId);
 
-    // Получаем остатки товаров через правильный endpoint
-    const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
-      method: 'POST',
+    // Получаем остатки через suppliers API (более подходящий для получения данных)
+    const response = await fetch(`https://suppliers-api.wildberries.ru/api/v1/supplier/stocks?warehouseId=${warehouseId}`, {
+      method: 'GET',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        stocks: []
-      }),
     });
 
     console.log('WB API response status:', response.status);
@@ -57,9 +53,9 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('WB API response received, stocks count:', data?.stocks?.length || 0);
+    console.log('WB API response received, stocks count:', data?.length || 0);
 
-    if (!data.stocks || !Array.isArray(data.stocks)) {
+    if (!data || !Array.isArray(data)) {
       return new Response(JSON.stringify({ 
         products: [],
         total: 0,
@@ -71,9 +67,9 @@ serve(async (req) => {
     }
 
     // Преобразуем данные об остатках в формат товаров
-    const products = data.stocks.map((stock: any) => ({
+    const products = data.map((stock: any) => ({
       nm_id: stock.nmId || 0,
-      sku: stock.sku || stock.barcode || '',
+      sku: stock.barcode || stock.sku || '',
       title: stock.subject || 'Товар без названия',
       brand: stock.brand || '',
       category: stock.category || '',
@@ -90,7 +86,7 @@ serve(async (req) => {
       discount_price: stock.Discount || null,
       rating: 0,
       feedbacks_count: 0,
-      stock_quantity: stock.amount || 0,
+      stock_quantity: (stock.inWayToClient || 0) + (stock.inWayFromClient || 0) + (stock.quantityFull || 0),
       warehouse_id: parseInt(warehouseId),
       barcode: stock.barcode || ''
     }));
@@ -101,7 +97,7 @@ serve(async (req) => {
       products,
       total: products.length,
       warehouseId: parseInt(warehouseId),
-      source: 'stocks_api'
+      source: 'suppliers_api'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
