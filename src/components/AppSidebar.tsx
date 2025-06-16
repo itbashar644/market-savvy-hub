@@ -86,7 +86,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onTabChange: (tab: string) => void;
 }
 
-const SidebarContent = ({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) => {
+const SidebarMenuContent = ({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) => {
   const { signOut } = useAuth();
 
   return (
@@ -152,7 +152,7 @@ const MobileSidebar = ({ activeTab, onTabChange }: { activeTab: string; onTabCha
           <DrawerTitle className="text-center">CRM Store</DrawerTitle>
         </DrawerHeader>
         <div className="flex-1 overflow-auto px-4 pb-4">
-          <SidebarContent activeTab={activeTab} onTabChange={handleTabChange} />
+          <SidebarMenuContent activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
       </DrawerContent>
     </Drawer>
@@ -172,7 +172,7 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
         <SidebarTrigger />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarContent activeTab={activeTab} onTabChange={onTabChange} />
+        <SidebarMenuContent activeTab={activeTab} onTabChange={onTabChange} />
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
