@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useProducts } from '@/hooks/useDatabase';
+import { useProducts } from '@/hooks/database/useProducts';
 import { Upload, Check, X } from 'lucide-react';
 
 const WildberriesSkuImport = () => {
@@ -184,7 +184,7 @@ air.pods.2	161379719`;
           return;
         }
 
-        const updated = updateProduct(product.id, { wildberries_sku: wbSku });
+        const updated = updateProduct(product.id, { wildberriesSku: wbSku });
         if (updated) {
           success.push(`${internalSku} → ${wbSku}`);
         } else {

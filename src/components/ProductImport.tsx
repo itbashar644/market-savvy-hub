@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useProducts } from '@/hooks/useDatabase';
+import { useProducts } from '@/hooks/database/useProducts';
 import { useToast } from '@/hooks/use-toast';
 import { ImportedProduct, FileType } from '@/types/import';
 import { parseCSV, parseExcel } from '@/utils/fileParser';
@@ -83,14 +83,40 @@ const ProductImport = () => {
           productStatus = 'low_stock';
         }
 
-        // Маппинг данных в формат CRM
+        // Маппинг данных в формат Product с новой структурой
         const productData = {
-          name: item.title,
-          sku: item.articleNumber || item.id,
-          category: item.category,
-          price: item.discountPrice || item.price,
+          title: item.title,
+          name: item.title, // Backwards compatibility
           description: item.description,
-          image: item.imageUrl || '/placeholder.svg',
+          price: item.discountPrice || item.price,
+          discountPrice: item.discountPrice,
+          category: item.category,
+          imageUrl: item.imageUrl || '/placeholder.svg',
+          image: item.imageUrl || '/placeholder.svg', // Backwards compatibility
+          rating: 4.8,
+          inStock: item.inStock,
+          colors: [],
+          sizes: [],
+          specifications: [],
+          isNew: false,
+          isBestseller: false,
+          stockQuantity: item.stockQuantity || 0,
+          archived: false,
+          articleNumber: item.articleNumber,
+          sku: item.articleNumber || item.id, // Backwards compatibility
+          barcode: item.barcode,
+          countryOfOrigin: item.countryOfOrigin,
+          material: item.material,
+          modelName: item.modelName,
+          wildberriesUrl: item.wildberriesUrl,
+          ozonUrl: item.ozonUrl,
+          avitoUrl: item.avitoUrl,
+          videoUrl: item.videoUrl,
+          videoType: item.videoType,
+          wildberriesSku: item.wildberriesSku,
+          colorVariants: [],
+          additionalImages: [],
+          // Backwards compatibility fields
           status: productStatus,
           stock: item.stockQuantity || 0,
           minStock: 5,

@@ -28,24 +28,28 @@ export const useProducts = () => {
       const transformedData: Product[] = (data || []).map(item => ({
         id: item.id,
         title: item.title,
+        name: item.title, // Backwards compatibility
         description: item.description,
         price: Number(item.price),
         discountPrice: item.discount_price ? Number(item.discount_price) : undefined,
         category: item.category,
         imageUrl: item.image_url,
-        additionalImages: item.additional_images || [],
+        image: item.image_url, // Backwards compatibility
+        additionalImages: Array.isArray(item.additional_images) ? item.additional_images : [],
         rating: Number(item.rating),
         inStock: item.in_stock,
-        colors: item.colors || [],
-        sizes: item.sizes || [],
-        specifications: item.specifications || [],
+        colors: Array.isArray(item.colors) ? item.colors : [],
+        sizes: Array.isArray(item.sizes) ? item.sizes : [],
+        specifications: Array.isArray(item.specifications) ? item.specifications : [],
         isNew: item.is_new || false,
         isBestseller: item.is_bestseller || false,
         stockQuantity: item.stock_quantity || 0,
+        stock: item.stock_quantity || 0, // Backwards compatibility
         createdAt: item.created_at,
         updatedAt: item.updated_at,
         archived: item.archived || false,
         articleNumber: item.article_number,
+        sku: item.article_number || item.id, // Backwards compatibility
         barcode: item.barcode,
         countryOfOrigin: item.country_of_origin,
         material: item.material,
@@ -56,14 +60,10 @@ export const useProducts = () => {
         videoUrl: item.video_url,
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
-        colorVariants: item.color_variants || [],
-        // Backwards compatibility mapping
-        name: item.title,
-        sku: item.article_number || item.id,
-        image: item.image_url,
-        status: item.stockQuantity <= 0 ? 'out_of_stock' : 
-                item.stockQuantity <= 5 ? 'low_stock' : 'active',
-        stock: item.stock_quantity || 0,
+        colorVariants: Array.isArray(item.color_variants) ? item.color_variants : [],
+        // Additional backwards compatibility fields
+        status: item.stock_quantity <= 0 ? 'out_of_stock' : 
+                item.stock_quantity <= 5 ? 'low_stock' : 'active',
         minStock: 5,
         maxStock: 100,
         supplier: 'Default',

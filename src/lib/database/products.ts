@@ -66,7 +66,7 @@ export class ProductDatabase extends BaseDatabase {
       supplier: updatedProduct.supplier,
       lastRestocked: invIndex >= 0 ? inventory[invIndex].lastRestocked : new Date().toISOString(),
       status: inventoryStatus,
-      wildberries_sku: updatedProduct.wildberries_sku, // Синхронизируем SKU WB
+      wildberries_sku: updatedProduct.wildberriesSku, // Используем правильное поле
     };
 
     if (invIndex >= 0) {
@@ -95,7 +95,7 @@ export class ProductDatabase extends BaseDatabase {
 
     products.forEach(product => {
       if (skuMappings[product.sku]) {
-        product.wildberries_sku = skuMappings[product.sku];
+        product.wildberriesSku = skuMappings[product.sku]; // Используем правильное поле
         product.updatedAt = new Date().toISOString();
         updated = true;
       }

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload, Filter, X, Settings } from 'lucide-react';
-import { useProducts } from '@/hooks/useDatabase';
+import { useProducts } from '@/hooks/database/useProducts';
 import ProductImport from './ProductImport';
 import ProductStockEditor from './products/ProductStockEditor';
 import WildberriesSkuImport from './products/WildberriesSkuImport';
@@ -271,9 +271,9 @@ const ProductsManager = () => {
                   <div>
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <CardDescription>Артикул: {product.sku}</CardDescription>
-                    {product.wildberries_sku && (
+                    {product.wildberriesSku && (
                       <CardDescription className="text-purple-600">
-                        WB SKU: {product.wildberries_sku}
+                        WB SKU: {product.wildberriesSku}
                       </CardDescription>
                     )}
                   </div>
@@ -313,7 +313,7 @@ const ProductsManager = () => {
                     </Badge>
                     <Badge className={product.wbSynced ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
                       WB {product.wbSynced ? '✓' : '✗'}
-                      {!product.wildberries_sku && (
+                      {!product.wildberriesSku && (
                         <span className="ml-1 text-red-500" title="SKU Wildberries не настроен">⚠</span>
                       )}
                     </Badge>
