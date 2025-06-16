@@ -70,7 +70,7 @@ const MarketplaceIntegration = () => {
       <Tabs defaultValue="settings" className="space-y-4">
         <TabsList>
           <TabsTrigger value="settings">Настройки</TabsTrigger>
-          <TabsTrigger value="products">Товары WB</TabsTrigger>
+          <TabsTrigger value="wb-products">Товары ВБ</TabsTrigger>
           <TabsTrigger value="rules">Правила обновления</TabsTrigger>
           <TabsTrigger value="logs">Логи синхронизации</TabsTrigger>
         </TabsList>
@@ -82,7 +82,7 @@ const MarketplaceIntegration = () => {
           />
         </TabsContent>
 
-        <TabsContent value="products">
+        <TabsContent value="wb-products">
           <WildberriesProductsList />
         </TabsContent>
 
