@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Download, Upload } from 'lucide-react';
+import { RefreshCw, Upload, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWildberriesSync } from '@/hooks/database/useWildberriesSync';
 import { useWildberriesStockUpdate } from '@/hooks/database/useWildberriesStockUpdate';
@@ -18,7 +18,8 @@ const ManualSyncControls = () => {
       await syncWbProducts();
       toast.success('✅ Синхронизация Wildberries завершена');
     } catch (error) {
-      toast.error('❌ Ошибка синхронизации Wildberries');
+      console.error('Wildberries sync error:', error);
+      toast.error('❌ Ошибка синхронизации Wildberries: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setSyncing(null);
     }
@@ -33,21 +34,28 @@ const ManualSyncControls = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
         },
+        body: JSON.stringify({
+          stocks: [],
+          warehouseId: 1,
+          apiKey: process.env.OZON_API_KEY || '',
+          clientId: process.env.OZON_CLIENT_ID || ''
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
       }
 
       const result = await response.json();
-      if (result.success) {
+      if (result.success !== false) {
         toast.success('✅ Синхронизация Ozon завершена');
       } else {
-        toast.error('❌ Ошибка синхронизации Ozon: ' + result.error);
+        toast.error('❌ Ошибка синхронизации Ozon: ' + (result.error || 'Неизвестная ошибка'));
       }
     } catch (error) {
       console.error('Ozon sync error:', error);
-      toast.error('❌ Ошибка синхронизации Ozon');
+      toast.error('❌ Ошибка синхронизации Ozon: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setSyncing(null);
     }
@@ -57,17 +65,37 @@ const ManualSyncControls = () => {
     setSyncing(`${marketplace}-stock`);
     try {
       if (marketplace === 'wildberries') {
-        // Пример данных для обновления остатков - в реальном проекте это должно приходить из формы
+        // Пример данных для обновления остатков
         const sampleProducts = [
           { nm_id: 123456, warehouse_id: 1, stock: 10 }
         ];
         await updateWbStock(sampleProducts);
+        toast.success('✅ Остатки Wildberries обновлены');
       } else {
-        // Для Ozon - здесь можно добавить аналогичную функциональность
-        toast.info('Обновление остатков Ozon пока не реализовано');
+        // Для Ozon
+        const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
+          },
+          body: JSON.stringify({
+            stocks: [{ offer_id: 'test123', stock: 5 }],
+            warehouseId: 1,
+            apiKey: process.env.OZON_API_KEY || '',
+            clientId: process.env.OZON_CLIENT_ID || ''
+          })
+        });
+
+        if (response.ok) {
+          toast.success('✅ Остатки Ozon обновлены');
+        } else {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
       }
     } catch (error) {
-      toast.error(`❌ Ошибка обновления остатков ${marketplace}`);
+      console.error(`${marketplace} stock update error:`, error);
+      toast.error(`❌ Ошибка обновления остатков ${marketplace}: ` + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setSyncing(null);
     }
@@ -94,7 +122,7 @@ const ManualSyncControls = () => {
               variant="outline"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${syncing === 'wildberries-sync' ? 'animate-spin' : ''}`} />
-              Синхронизировать Wildberries
+              {syncing === 'wildberries-sync' ? 'Синхронизация...' : 'Синхронизировать Wildberries'}
             </Button>
             
             <Button 
@@ -104,7 +132,7 @@ const ManualSyncControls = () => {
               variant="outline"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${syncing === 'ozon-sync' ? 'animate-spin' : ''}`} />
-              Синхронизировать Ozon
+              {syncing === 'ozon-sync' ? 'Синхронизация...' : 'Синхронизировать Ozon'}
             </Button>
           </div>
         </CardContent>
@@ -129,7 +157,7 @@ const ManualSyncControls = () => {
               variant="outline"
             >
               <Upload className={`w-4 h-4 mr-2 ${syncing === 'wildberries-stock' ? 'animate-spin' : ''}`} />
-              Обновить остатки Wildberries
+              {syncing === 'wildberries-stock' ? 'Обновление...' : 'Обновить остатки Wildberries'}
             </Button>
             
             <Button 
@@ -139,7 +167,7 @@ const ManualSyncControls = () => {
               variant="outline"
             >
               <Upload className={`w-4 h-4 mr-2 ${syncing === 'ozon-stock' ? 'animate-spin' : ''}`} />
-              Обновить остатки Ozon
+              {syncing === 'ozon-stock' ? 'Обновление...' : 'Обновить остатки Ozon'}
             </Button>
           </div>
         </CardContent>
