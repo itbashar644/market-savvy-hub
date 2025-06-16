@@ -1,14 +1,44 @@
-
 import { InventoryItem, InventoryHistory, Product } from '@/types/database';
+import { supabase } from '@/integrations/supabase/client';
 import { BaseDatabase } from './base';
 
 export class InventoryDatabase extends BaseDatabase {
-  getInventory(): InventoryItem[] {
-    return this.getFromStorage<InventoryItem>('inventory');
+  async getInventory(): Promise<InventoryItem[]> {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching inventory from Supabase:', error);
+        return this.getFromStorage<InventoryItem>('inventory');
+      }
+
+      // Transform Supabase data to match our InventoryItem type
+      return data.map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        name: item.name,
+        sku: item.sku,
+        category: item.category,
+        currentStock: item.current_stock,
+        minStock: item.min_stock,
+        maxStock: item.max_stock,
+        price: item.price,
+        supplier: item.supplier || '',
+        lastRestocked: item.last_restocked,
+        status: item.status as InventoryItem['status'],
+      }));
+    } catch (error) {
+      console.error('Error in getInventory:', error);
+      return this.getFromStorage<InventoryItem>('inventory');
+    }
   }
 
   updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
-    const inventory = this.getInventory();
+    console.warn('updateInventoryStock is deprecated. Use useInventory hook instead.');
+    const inventory = this.getFromStorage<InventoryItem>('inventory');
     const index = inventory.findIndex(i => i.productId === productId);
     if (index === -1) return null;
 
@@ -16,7 +46,6 @@ export class InventoryDatabase extends BaseDatabase {
     const previousStock = item.currentStock;
     const changeAmount = newStock - previousStock;
 
-    // Записываем историю изменения
     this.addInventoryHistory({
       productId: item.productId,
       productName: item.name,
@@ -38,7 +67,6 @@ export class InventoryDatabase extends BaseDatabase {
     
     this.saveToStorage('inventory', inventory);
 
-    // Sync with product
     const products = this.getFromStorage<Product>('products');
     const productIndex = products.findIndex(p => p.id === productId);
     if (productIndex !== -1) {
@@ -54,7 +82,8 @@ export class InventoryDatabase extends BaseDatabase {
   }
 
   bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): InventoryItem[] {
-    const inventory = this.getInventory();
+    console.warn('bulkUpdateInventoryStock is deprecated. Use useInventory hook instead.');
+    const inventory = this.getFromStorage<InventoryItem>('inventory');
     const products = this.getFromStorage<Product>('products');
     const updatedItems: InventoryItem[] = [];
 
@@ -86,7 +115,6 @@ export class InventoryDatabase extends BaseDatabase {
                 item.lastRestocked = new Date().toISOString();
                 updatedItems.push(item);
 
-                // Sync with product
                 const productIndex = products.findIndex(p => p.id === item.productId);
                 if (productIndex !== -1) {
                     products[productIndex].stock = newStock;
@@ -100,7 +128,6 @@ export class InventoryDatabase extends BaseDatabase {
 
     this.saveToStorage('inventory', inventory);
     this.saveToStorage('products', products);
-    // History is saved inside addInventoryHistory
     return updatedItems;
   }
 
@@ -122,7 +149,7 @@ export class InventoryDatabase extends BaseDatabase {
   }
 
   updateInventoryFromProduct(product: Product): void {
-    const inventory = this.getInventory();
+    const inventory = this.getFromStorage<InventoryItem>('inventory');
     const index = inventory.findIndex(i => i.productId === product.id);
     
     let inventoryStatus: InventoryItem['status'];
@@ -165,7 +192,7 @@ export class InventoryDatabase extends BaseDatabase {
   }
 
   deleteInventoryItem(productId: string): void {
-    const inventory = this.getInventory();
+    const inventory = this.getFromStorage<InventoryItem>('inventory');
     const filtered = inventory.filter(i => i.productId !== productId);
     this.saveToStorage('inventory', filtered);
   }

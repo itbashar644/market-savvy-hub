@@ -1,4 +1,6 @@
+
 import { Customer, Product, Order, InventoryItem, InventoryHistory, SalesData, CategoryData, OrderStatusHistory } from '@/types/database';
+import { supabase } from '@/integrations/supabase/client';
 import { CustomerDatabase } from './database/customers';
 import { ProductDatabase } from './database/products';
 import { OrderDatabase } from './database/orders';
@@ -98,65 +100,22 @@ class LocalDatabase {
     return this.orderDb.getOrderStatusHistory();
   }
 
-  // Inventory methods
+  // Inventory methods - now using Supabase through the hook
   getInventory(): InventoryItem[] {
-    return this.inventoryDb.getInventory();
+    // This method is now deprecated in favor of useInventory hook
+    console.warn('getInventory is deprecated. Use useInventory hook instead.');
+    return [];
   }
 
   updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
-    const updatedInventoryItem = this.inventoryDb.updateInventoryStock(productId, newStock, changeType, reason);
-
-    if (updatedInventoryItem) {
-      let productStatus: 'active' | 'low_stock' | 'out_of_stock';
-      switch (updatedInventoryItem.status) {
-        case 'in_stock':
-          productStatus = 'active';
-          break;
-        case 'low_stock':
-          productStatus = 'low_stock';
-          break;
-        case 'out_of_stock':
-          productStatus = 'out_of_stock';
-          break;
-        default:
-          productStatus = 'active';
-      }
-
-      // Синхронизируем остаток и статус с записью о товаре
-      this.productDb.updateProduct(productId, {
-        stock: newStock,
-        status: productStatus
-      });
-    }
-    
-    return updatedInventoryItem;
+    // This method is now deprecated in favor of useInventory hook
+    console.warn('updateInventoryStock is deprecated. Use useInventory hook instead.');
+    return null;
   }
 
   bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): void {
-    const updatedItems = this.inventoryDb.bulkUpdateInventoryStock(updates);
-
-    updatedItems.forEach(item => {
-      let productStatus: 'active' | 'low_stock' | 'out_of_stock';
-      switch (item.status) {
-        case 'in_stock':
-          productStatus = 'active';
-          break;
-        case 'low_stock':
-          productStatus = 'low_stock';
-          break;
-        case 'out_of_stock':
-          productStatus = 'out_of_stock';
-          break;
-        default:
-          productStatus = 'active';
-      }
-
-      // Синхронизируем остаток и статус с записью о товаре
-      this.productDb.updateProduct(item.productId, {
-        stock: item.currentStock,
-        status: productStatus
-      });
-    });
+    // This method is now deprecated in favor of useInventory hook
+    console.warn('bulkUpdateInventoryStock is deprecated. Use useInventory hook instead.');
   }
 
   getInventoryHistory(): InventoryHistory[] {

@@ -53,15 +53,15 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
 
   return (
     <Sidebar className="border-r-0 bg-slate-900 text-white">
-      <SidebarHeader className="border-b border-slate-700 p-6">
+      <SidebarHeader className="border-b border-slate-700 p-4 bg-gradient-to-r from-blue-600 to-blue-700">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold text-white">
               CRM Store
             </h1>
-            <p className="text-slate-400 text-sm mt-1">Управление магазином</p>
+            <p className="text-blue-100 text-xs mt-0.5">Управление магазином</p>
           </div>
-          <SidebarTrigger className="md:hidden text-white hover:bg-slate-800" />
+          <SidebarTrigger className="md:hidden text-white hover:bg-blue-500/20" />
         </div>
       </SidebarHeader>
       
