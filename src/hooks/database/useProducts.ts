@@ -57,6 +57,18 @@ export const useProducts = () => {
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
         colorVariants: item.color_variants || [],
+        // Backwards compatibility mapping
+        name: item.title,
+        sku: item.article_number || item.id,
+        image: item.image_url,
+        status: item.stockQuantity <= 0 ? 'out_of_stock' : 
+                item.stockQuantity <= 5 ? 'low_stock' : 'active',
+        stock: item.stock_quantity || 0,
+        minStock: 5,
+        maxStock: 100,
+        supplier: 'Default',
+        ozonSynced: false,
+        wbSynced: !!item.wildberries_sku,
       }));
 
       setProducts(transformedData);
@@ -144,38 +156,44 @@ export const useProducts = () => {
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     try {
+      const updateData: any = {};
+      
+      // Map Product fields to database fields
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.price !== undefined) updateData.price = updates.price;
+      if (updates.discountPrice !== undefined) updateData.discount_price = updates.discountPrice;
+      if (updates.category !== undefined) updateData.category = updates.category;
+      if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
+      if (updates.additionalImages !== undefined) updateData.additional_images = updates.additionalImages;
+      if (updates.rating !== undefined) updateData.rating = updates.rating;
+      if (updates.inStock !== undefined) updateData.in_stock = updates.inStock;
+      if (updates.colors !== undefined) updateData.colors = updates.colors;
+      if (updates.sizes !== undefined) updateData.sizes = updates.sizes;
+      if (updates.specifications !== undefined) updateData.specifications = updates.specifications;
+      if (updates.isNew !== undefined) updateData.is_new = updates.isNew;
+      if (updates.isBestseller !== undefined) updateData.is_bestseller = updates.isBestseller;
+      if (updates.stockQuantity !== undefined) updateData.stock_quantity = updates.stockQuantity;
+      if (updates.archived !== undefined) updateData.archived = updates.archived;
+      if (updates.articleNumber !== undefined) updateData.article_number = updates.articleNumber;
+      if (updates.barcode !== undefined) updateData.barcode = updates.barcode;
+      if (updates.countryOfOrigin !== undefined) updateData.country_of_origin = updates.countryOfOrigin;
+      if (updates.material !== undefined) updateData.material = updates.material;
+      if (updates.modelName !== undefined) updateData.model_name = updates.modelName;
+      if (updates.wildberriesUrl !== undefined) updateData.wildberries_url = updates.wildberriesUrl;
+      if (updates.ozonUrl !== undefined) updateData.ozon_url = updates.ozonUrl;
+      if (updates.avitoUrl !== undefined) updateData.avito_url = updates.avitoUrl;
+      if (updates.videoUrl !== undefined) updateData.video_url = updates.videoUrl;
+      if (updates.videoType !== undefined) updateData.video_type = updates.videoType;
+      if (updates.wildberriesSku !== undefined) updateData.wildberries_sku = updates.wildberriesSku;
+      if (updates.colorVariants !== undefined) updateData.color_variants = updates.colorVariants;
+      
+      // Handle backwards compatibility fields
+      if (updates.stock !== undefined) updateData.stock_quantity = updates.stock;
+
       const { data, error } = await supabase
         .from('products')
-        .update({
-          title: updates.title,
-          description: updates.description,
-          price: updates.price,
-          discount_price: updates.discountPrice,
-          category: updates.category,
-          image_url: updates.imageUrl,
-          additional_images: updates.additionalImages,
-          rating: updates.rating,
-          in_stock: updates.inStock,
-          colors: updates.colors,
-          sizes: updates.sizes,
-          specifications: updates.specifications,
-          is_new: updates.isNew,
-          is_bestseller: updates.isBestseller,
-          stock_quantity: updates.stockQuantity,
-          archived: updates.archived,
-          article_number: updates.articleNumber,
-          barcode: updates.barcode,
-          country_of_origin: updates.countryOfOrigin,
-          material: updates.material,
-          model_name: updates.modelName,
-          wildberries_url: updates.wildberriesUrl,
-          ozon_url: updates.ozonUrl,
-          avito_url: updates.avitoUrl,
-          video_url: updates.videoUrl,
-          video_type: updates.videoType,
-          wildberries_sku: updates.wildberriesSku,
-          color_variants: updates.colorVariants,
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();

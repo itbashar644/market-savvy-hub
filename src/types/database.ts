@@ -18,22 +18,47 @@ export interface Customer {
 
 export interface Product {
   id: string;
-  name: string;
-  sku: string;
-  category: string;
-  price: number;
+  title: string;
   description: string;
-  image: string;
-  status: 'active' | 'low_stock' | 'out_of_stock';
-  stock: number;
-  minStock: number;
-  maxStock: number;
-  supplier: string;
+  price: number;
+  discountPrice?: number;
+  category: string;
+  imageUrl: string;
+  additionalImages?: any[];
+  rating: number;
+  inStock: boolean;
+  colors?: any[];
+  sizes?: any[];
+  specifications?: any[];
+  isNew?: boolean;
+  isBestseller?: boolean;
+  stockQuantity?: number;
   createdAt: string;
   updatedAt: string;
-  ozonSynced: boolean;
-  wbSynced: boolean;
-  wildberries_sku?: string; // Добавляем SKU для Wildberries
+  archived?: boolean;
+  articleNumber?: string;
+  barcode?: string;
+  countryOfOrigin?: string;
+  material?: string;
+  modelName?: string;
+  wildberriesUrl?: string;
+  ozonUrl?: string;
+  avitoUrl?: string;
+  videoUrl?: string;
+  videoType?: string;
+  wildberriesSku?: string;
+  colorVariants?: any[];
+  // Для обратной совместимости с компонентами
+  name?: string;
+  sku?: string;
+  image?: string;
+  status?: 'active' | 'low_stock' | 'out_of_stock';
+  stock?: number;
+  minStock?: number;
+  maxStock?: number;
+  supplier?: string;
+  ozonSynced?: boolean;
+  wbSynced?: boolean;
 }
 
 export interface OrderStatusHistory {
@@ -94,7 +119,7 @@ export interface InventoryItem {
   supplier: string;
   lastRestocked: string;
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
-  wildberries_sku?: string; // Добавляем SKU для Wildberries
+  wildberries_sku?: string;
 }
 
 export interface InventoryHistory {
