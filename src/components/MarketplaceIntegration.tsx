@@ -1,16 +1,16 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
-import SyncLogs from './marketplace/SyncLogs';
+import DetailedSyncLogs from './marketplace/DetailedSyncLogs';
 import UpdateRules from './marketplace/UpdateRules';
 import WildberriesProductsList from './marketplace/WildberriesProductsList';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarketplaceCredentials } from '@/hooks/database/useMarketplaceCredentials';
 import { useWildberriesProducts } from '@/hooks/database/useWildberriesProducts';
+import { useSyncLogs } from '@/hooks/database/useSyncLogs';
 
 const MarketplaceIntegration = () => {
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
@@ -18,9 +18,16 @@ const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { credentials } = useMarketplaceCredentials();
   const { syncProducts, testConnection } = useWildberriesProducts();
+  const { 
+    logs, 
+    addWildberriesConnectionTest, 
+    addWildberriesSync,
+    clearLogs 
+  } = useSyncLogs();
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
+    const startTime = Date.now();
     
     try {
       if (marketplace === 'Ozon') {
@@ -60,9 +67,16 @@ const MarketplaceIntegration = () => {
 
         // Используем новую функцию для проверки подключения
         testConnection(wbCreds.api_key, wbCreds.warehouse_id);
+        addWildberriesConnectionTest(true, undefined, wbCreds.warehouse_id);
       }
     } catch (error: any) {
       console.error('Connection check error:', error);
+      
+      if (marketplace === 'Wildberries') {
+        const wbCreds = credentials.Wildberries;
+        addWildberriesConnectionTest(false, error.message, wbCreds?.warehouse_id);
+      }
+      
       toast({
         title: "Ошибка подключения",
         description: error.message || `Не удалось подключиться к ${marketplace}`,
@@ -75,6 +89,7 @@ const MarketplaceIntegration = () => {
 
   const handleSyncAll = async () => {
     setSyncing(true);
+    const startTime = Date.now();
     
     try {
       const wbCreds = credentials.Wildberries;
@@ -90,9 +105,13 @@ const MarketplaceIntegration = () => {
           syncProducts(wbCreds.api_key, wbCreds.warehouse_id);
           syncCount++;
           console.log('Wildberries products sync initiated');
+          
+          // Добавляем лог о начале синхронизации
+          addWildberriesSync(true, undefined, undefined, Date.now() - startTime);
         } catch (error: any) {
           errors.push(`Wildberries: ${error.message}`);
           console.error('Wildberries sync error:', error);
+          addWildberriesSync(false, undefined, error.message, Date.now() - startTime);
         }
       }
       
@@ -195,7 +214,10 @@ const MarketplaceIntegration = () => {
         </TabsContent>
 
         <TabsContent value="logs">
-          <SyncLogs logs={[]} />
+          <DetailedSyncLogs 
+            logs={logs} 
+            onClearLogs={clearLogs}
+          />
         </TabsContent>
       </Tabs>
     </div>

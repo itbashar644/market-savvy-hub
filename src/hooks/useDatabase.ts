@@ -1,3 +1,4 @@
+
 export { useCustomers } from './database/useCustomers';
 export { useProducts } from './database/useProducts';
 export { useOrders } from './database/useOrders';
@@ -8,3 +9,4 @@ export { useAnalytics } from './database/useAnalytics';
 export { useMarketplaceCredentials, MarketplaceCredentialsProvider, type MarketplaceCredential } from './database/useMarketplaceCredentials';
 export { useDatabase } from './database/useDatabase';
 export { useWildberriesProducts } from './database/useWildberriesProducts';
+export { useSyncLogs } from './database/useSyncLogs';
