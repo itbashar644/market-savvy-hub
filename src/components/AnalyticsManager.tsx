@@ -56,7 +56,15 @@ const AnalyticsManager = () => {
       return sum + (productInOrder?.total || 0);
     }, 0);
     
-    return { ...product, revenue };
+    return { 
+      ...product, 
+      name: product.name || product.title, // Ensure name is always set
+      sku: product.sku || product.articleNumber || product.id, // Ensure sku is always set
+      image: product.image || product.imageUrl, // Ensure image is always set
+      stock: product.stock || product.stockQuantity || 0, // Ensure stock is always set
+      status: product.status || (product.stockQuantity && product.stockQuantity > 0 ? 'active' : 'out_of_stock'), // Ensure status is always set
+      revenue 
+    };
   }).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
 
   // Анализ клиентов
