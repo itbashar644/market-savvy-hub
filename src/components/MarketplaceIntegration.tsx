@@ -17,7 +17,9 @@ const MarketplaceIntegration = () => {
     
     try {
       if (marketplace === 'Ozon') {
-        const { data, error } = await supabase.functions.invoke('ozon-connection-check');
+        const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
+          body: {}
+        });
         
         if (error) throw error;
         
@@ -30,7 +32,9 @@ const MarketplaceIntegration = () => {
           throw new Error(data.error || 'Ошибка подключения к Ozon');
         }
       } else if (marketplace === 'Wildberries') {
-        const { data, error } = await supabase.functions.invoke('wildberries-connection-check');
+        const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
+          body: {}
+        });
         
         if (error) throw error;
         

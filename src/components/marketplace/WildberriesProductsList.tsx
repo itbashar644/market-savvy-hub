@@ -5,16 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Download, Search, Trash2, ExternalLink, Settings } from 'lucide-react';
+import { RefreshCw, Search, Trash2, ExternalLink, Settings } from 'lucide-react';
 import { useWildberriesProducts } from '@/hooks/database/useWildberriesProducts';
-import { useMarketplaceCredentials } from '@/hooks/useDatabase';
+import { useMarketplaceCredentials } from '@/hooks/database/useMarketplaceCredentials';
 
 const WildberriesProductsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { products, isLoading, syncProducts, deleteProduct, isSyncing } = useWildberriesProducts();
   const { credentials } = useMarketplaceCredentials();
   
-  const wbCreds = credentials.wildberries;
+  const wbCreds = credentials.Wildberries || {};
 
   const filteredProducts = products.filter(product =>
     product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
