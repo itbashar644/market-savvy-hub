@@ -30,13 +30,16 @@ serve(async (req) => {
 
     console.log('Fetching products from WB warehouse:', warehouseId);
 
-    // Получаем товары и остатки с указанного склада
+    // Получаем товары и остатки с указанного склада (POST метод)
     const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Authorization': apiKey,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        skus: [] // Пустой массив для получения всех товаров
+      }),
     });
 
     console.log('WB API response status:', response.status);
