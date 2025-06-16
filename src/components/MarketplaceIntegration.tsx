@@ -35,7 +35,7 @@ const MarketplaceIntegration = () => {
   } = useAutoSync();
   
   const { getMarketplaceStats } = useMarketplaceStats();
-  const { lastError, showPersistentError } = useErrorHandler();
+  const { lastError, showPersistentError, clearError } = useErrorHandler();
   const { 
     syncInProgress, 
     syncingMarketplace, 
@@ -101,12 +101,19 @@ const MarketplaceIntegration = () => {
   };
 
   const handleSyncWithModal = async (marketplace: string) => {
-    await handleSync(marketplace);
-    
-    // Показываем модальное окно с результатами, если есть ошибки
-    if (syncResults.length > 0) {
-      setSelectedMarketplace(marketplace);
-      setShowSyncResultModal(true);
+    try {
+      await handleSync(marketplace);
+      
+      // Показываем модальное окно с результатами только если есть ошибки
+      if (syncResults.length > 0) {
+        const hasErrors = syncResults.some(r => !r.updated);
+        if (hasErrors) {
+          setSelectedMarketplace(marketplace);
+          setShowSyncResultModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
     }
   };
 
@@ -133,7 +140,7 @@ const MarketplaceIntegration = () => {
         </div>
       </div>
 
-      <ErrorDisplay lastError={lastError} />
+      <ErrorDisplay lastError={lastError} onClear={clearError} />
 
       <MarketplaceGrid
         marketplaces={marketplaces}

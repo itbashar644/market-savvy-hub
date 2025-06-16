@@ -26,6 +26,15 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
     console.log('Current inventory:', inventory);
     console.log('Inventory length:', inventory?.length || 0);
 
+    // Проверяем, не идет ли уже синхронизация
+    if (syncInProgress) {
+      showPersistentError(
+        "Синхронизация уже выполняется",
+        "Дождитесь завершения текущей синхронизации перед запуском новой."
+      );
+      return;
+    }
+
     if (marketplace === 'Wildberries') {
       if (!wbCreds.api_key) {
         showPersistentError(
@@ -46,6 +55,7 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
 
       setSyncInProgress(true);
       setSyncingMarketplace(marketplace);
+      setSyncResults([]);
 
       const stocks = inventory.map(item => ({
         offer_id: item.sku,
@@ -159,6 +169,7 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
       return;
     }
 
+    // Проверки для Ozon
     if (!ozonCreds.api_key || !ozonCreds.client_id) {
       showPersistentError(
         "Не указаны API ключ или Client ID",
@@ -186,6 +197,7 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
 
     setSyncInProgress(true);
     setSyncingMarketplace(marketplace);
+    setSyncResults([]);
 
     const stocks = inventory.map(item => ({
       offer_id: item.sku,
@@ -225,6 +237,30 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
         failed: failedUpdates.length
       });
 
+      // Специальная обработка ошибки "TOO_MANY_REQUESTS"
+      const tooManyRequestsErrors = failedUpdates.filter((r: any) => 
+        r.errors && r.errors.some((e: any) => e.code === "TOO_MANY_REQUESTS")
+      );
+
+      if (tooManyRequestsErrors.length > 0) {
+        addLog({
+          marketplace,
+          action: 'Обновление остатков',
+          status: 'error',
+          details: `Ozon API: Слишком частые запросы на обновление остатков. Попробуйте через несколько минут.`,
+          successCount: 0,
+          errorCount: tooManyRequestsErrors.length
+        });
+
+        showPersistentError(
+          "Ограничение частоты запросов Ozon",
+          "Ozon API сообщает о слишком частых запросах на обновление остатков. Пожалуйста, подождите несколько минут перед повторной попыткой синхронизации."
+        );
+
+        return;
+      }
+
+      // Обновляем время последней синхронизации только при успешном запросе
       updateLastSync(marketplace);
 
       if (failedUpdates.length > 0) {
@@ -245,12 +281,13 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
           toast({
             title: "Частичная синхронизация с Ozon",
             description: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками. Смотрите детали.`,
-            variant: "default"
+            variant: "default",
+            duration: 8000,
           });
         } else {
           showPersistentError(
             "Ошибка синхронизации с Ozon",
-            `Не удалось обновить ${failedUpdates.length} товаров. Смотрите детали.`
+            `Не удалось обновить ${failedUpdates.length} товаров. Смотрите детали в модальном окне.`
           );
         }
       } else {
@@ -266,6 +303,7 @@ export const useSyncOperations = (showPersistentError: (title: string, descripti
         toast({
           title: "Синхронизация с Ozon завершена",
           description: `Остатки для ${successUpdates.length} товаров успешно обновлены.`,
+          duration: 5000,
         });
       }
 

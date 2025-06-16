@@ -7,7 +7,7 @@ export const useErrorHandler = () => {
   const [lastError, setLastError] = useState<string>('');
   const [errorTimeout, setErrorTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Функция для отображения ошибок с автоскрытием
+  // Функция для отображения стойких ошибок
   const showPersistentError = (title: string, description: string) => {
     setLastError(description);
     
@@ -16,17 +16,18 @@ export const useErrorHandler = () => {
       clearTimeout(errorTimeout);
     }
     
+    // Показываем тост с длительным временем отображения
     toast({
       title,
       description,
       variant: "destructive",
-      duration: 15000, // Увеличиваем до 15 секунд
+      duration: 20000, // 20 секунд
     });
     
-    // Устанавливаем новый таймаут для очистки ошибки
+    // Устанавливаем новый таймаут для очистки ошибки (1 минута)
     const newTimeout = setTimeout(() => {
       setLastError('');
-    }, 30000); // Очищаем через 30 секунд
+    }, 60000);
     
     setErrorTimeout(newTimeout);
   };
