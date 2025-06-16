@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -103,10 +104,10 @@ const InventoryTable = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Товар</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead>Категория</TableHead>
                 <TableHead>Текущий остаток</TableHead>
+                <TableHead>Товар</TableHead>
+                <TableHead>Категория</TableHead>
                 <TableHead>Цена</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Последнее изменение</TableHead>
@@ -116,14 +117,7 @@ const InventoryTable = ({
             <TableBody>
               {filteredInventory.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-gray-500">{item.supplier}</p>
-                    </div>
-                  </TableCell>
                   <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                  <TableCell>{item.category}</TableCell>
                   <TableCell>
                     <StockEditor
                       productId={item.productId}
@@ -134,6 +128,13 @@ const InventoryTable = ({
                       onStockUpdate={onStockUpdate}
                     />
                   </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-gray-500">{item.supplier}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{item.category}</TableCell>
                   <TableCell>₽{item.price.toLocaleString()}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(item.status)}>
