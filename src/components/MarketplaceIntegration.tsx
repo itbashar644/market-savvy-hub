@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -113,7 +112,9 @@ const MarketplaceIntegration = () => {
       }
 
       // Фильтруем только товары с настроенным wildberries_sku
-      const itemsWithWbSku = inventory.filter(item => item.wildberries_sku);
+      const itemsWithWbSku = inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '');
+      
+      console.log('Filtered items with WB SKU:', itemsWithWbSku);
       
       if (itemsWithWbSku.length === 0) {
         toast({
