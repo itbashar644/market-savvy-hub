@@ -240,35 +240,74 @@ const MarketplaceIntegration = () => {
         stock: item.currentStock,
       }));
 
-      console.log('Syncing stocks to Wildberries:', stocks);
+      console.log('Syncing stocks to Wildberries via Supabase function:', stocks);
 
       try {
-        // Используем прямую синхронизацию
-        const result = await syncWildberriesDirect(stocks, wbCreds.api_key);
-        const failedUpdates = result.result.filter((r: { updated: boolean; }) => !r.updated);
+        const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
+          body: { 
+            stocks, 
+            apiKey: wbCreds.api_key,
+          },
+        });
+
+        console.log('Supabase function response:', { data, error });
+
+        if (error) throw error;
+        
+        const wbResult = data.result;
+        const successUpdates = wbResult.filter((r: { updated: boolean; }) => r.updated);
+        const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
+
+        console.log('Sync results:', {
+          total: wbResult.length,
+          success: successUpdates.length,
+          failed: failedUpdates.length
+        });
 
         if (failedUpdates.length > 0) {
           console.error('Failed Wildberries updates:', failedUpdates);
-          setSyncResults(result.result);
+          setSyncResults(wbResult);
           setSelectedMarketplace(marketplace);
           setShowSyncResultModal(true);
-          toast({
-            title: "Ошибка синхронизации с Wildberries",
-            description: `Не удалось обновить ${failedUpdates.length} товаров. Нажмите для подробностей.`,
-            variant: "destructive"
-          });
+          
+          if (successUpdates.length > 0) {
+            toast({
+              title: "Частичная синхронизация с Wildberries",
+              description: `Обновлено ${successUpdates.length} товаров, ${failedUpdates.length} с ошибками. Смотрите детали.`,
+              variant: "default"
+            });
+          } else {
+            toast({
+              title: "Ошибка синхронизации с Wildberries",
+              description: `Не удалось обновить ${failedUpdates.length} товаров. Смотрите детали.`,
+              variant: "destructive"
+            });
+          }
         } else {
           toast({
             title: "Синхронизация с Wildberries завершена",
-            description: `Остатки для ${stocks.length} товаров успешно отправлены.`,
+            description: `Остатки для ${successUpdates.length} товаров успешно обновлены.`,
           });
         }
 
       } catch (error: any) {
         console.error('Error syncing with Wildberries:', error);
+        let description = "Произошла неизвестная ошибка.";
+
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const errorJson = await error.context.json();
+            description = errorJson.error || JSON.stringify(errorJson);
+          } catch {
+            description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
+          }
+        } else {
+          description = error.message;
+        }
+
         toast({
           title: "Ошибка синхронизации с Wildberries",
-          description: error.message || "Произошла неизвестная ошибка.",
+          description,
           variant: "destructive"
         });
       } finally {
@@ -461,19 +500,27 @@ const MarketplaceIntegration = () => {
           return;
         }
 
-        // Используем прямую проверку подключения
-        const result = await checkWildberriesConnectionDirect(apiKey);
+        console.log('Checking Wildberries connection via Supabase function...');
+        const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
+          body: { 
+            apiKey
+          },
+        });
 
-        if (result.success) {
+        console.log('Wildberries connection check response:', { data, error });
+
+        if (error) throw error;
+
+        if (data.success) {
           toast({
             title: "Подключение к Wildberries",
-            description: result.message,
+            description: data.message,
             variant: "default",
           });
         } else {
           toast({
             title: "Ошибка подключения к Wildberries",
-            description: result.error,
+            description: data.error,
             variant: "destructive",
           });
         }
@@ -486,9 +533,22 @@ const MarketplaceIntegration = () => {
       }
     } catch (error: any) {
       console.error('Error checking connection:', error);
+      let description = "Произошла неизвестная ошибка.";
+
+      if (error instanceof FunctionsHttpError) {
+        try {
+          const errorJson = await error.context.json();
+          description = errorJson.error || JSON.stringify(errorJson);
+        } catch {
+          description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
+        }
+      } else {
+        description = error.message;
+      }
+
       toast({
         title: "Ошибка проверки подключения",
-        description: error.message || "Произошла неизвестная ошибка.",
+        description,
         variant: "destructive"
       });
     } finally {
