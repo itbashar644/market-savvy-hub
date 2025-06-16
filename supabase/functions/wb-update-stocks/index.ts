@@ -39,13 +39,13 @@ serve(async (req) => {
 
     console.log('Updating stocks for warehouse:', warehouseId, 'stocks count:', stocks.length);
 
-    // Формируем данные в формате WB API
+    // Формируем данные в формате WB API - используем валидные баркоды
     const stocksData = stocks.map((stock: any) => ({
-      sku: stock.sku,
+      sku: stock.sku || stock.barcode, // Используем баркод как SKU
       amount: stock.amount
     }));
 
-    // Обновляем остатки на складе
+    // Обновляем остатки на складе (PUT метод к правильному endpoint)
     const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
       method: 'PUT',
       headers: {
