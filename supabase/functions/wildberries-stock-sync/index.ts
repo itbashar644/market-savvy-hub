@@ -33,86 +33,9 @@ serve(async (req) => {
     // Используем ваш ID склада
     const warehouseId = 7963;
 
-    // Попробуем сначала получить информацию о товарах через API карточек
-    let existingProducts = [];
-    try {
-      console.log('Checking existing products via content API...');
-      const contentResponse = await fetch(`${WB_API_URL}/content/v2/get/cards/list`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiKey,
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-        },
-        body: JSON.stringify({
-          settings: {
-            cursor: {
-              limit: 1000
-            },
-            filter: {
-              withPhoto: -1
-            }
-          }
-        }),
-        signal: AbortSignal.timeout(30000)
-      });
-
-      if (contentResponse.ok) {
-        const contentData = await contentResponse.json();
-        console.log('Content API response status:', contentResponse.status);
-        console.log('Found products in content API:', contentData.cards?.length || 0);
-        
-        if (contentData.cards) {
-          existingProducts = contentData.cards.map((card: any) => ({
-            nmID: card.nmID,
-            vendorCode: card.vendorCode,
-            sizes: card.sizes
-          }));
-          console.log('Sample existing products:', existingProducts.slice(0, 3));
-        }
-      } else {
-        console.log('Content API failed with status:', contentResponse.status);
-      }
-    } catch (contentError) {
-      console.log('Content API error (continuing anyway):', contentError.message);
-    }
-
-    // Проверяем, какие SKU действительно существуют
-    const stocksToUpdate = stocks.filter(stock => {
-      const exists = existingProducts.some(product => 
-        product.vendorCode === stock.offer_id ||
-        product.sizes?.some((size: any) => size.skus?.some((sku: string) => sku === stock.offer_id))
-      );
-      if (!exists) {
-        console.log(`SKU ${stock.offer_id} not found in existing products`);
-      }
-      return exists;
-    });
-
-    console.log(`Filtered stocks: ${stocksToUpdate.length} out of ${stocks.length} exist in Wildberries`);
-
-    if (stocksToUpdate.length === 0) {
-      console.log('No valid SKUs found in Wildberries catalog');
-      const allErrors = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: false,
-        errors: [
-          {
-            code: 'SKU_NOT_FOUND',
-            message: `SKU ${item.offer_id} не найден в каталоге Wildberries. Проверьте правильность артикула.`,
-          },
-        ],
-      }));
-      
-      return new Response(JSON.stringify({ result: allErrors }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
-    // Обновляем остатки с улучшенной структурой данных
+    // Формируем данные для обновления остатков
     const wbPayload = {
-      stocks: stocksToUpdate.map(item => ({
+      stocks: stocks.map(item => ({
         sku: item.offer_id,
         amount: item.stock,
         warehouseId: warehouseId
@@ -168,34 +91,29 @@ serve(async (req) => {
       // Успешное обновление - Wildberries возвращает 204 No Content при успехе
       console.log('Stocks updated successfully');
       
-      const result = stocks.map(item => {
-        const wasUpdated = stocksToUpdate.some(updated => updated.offer_id === item.offer_id);
-        return {
-          offer_id: item.offer_id,
-          updated: wasUpdated,
-          errors: wasUpdated ? [] : [
-            {
-              code: 'SKU_NOT_FOUND',
-              message: `SKU ${item.offer_id} не найден в каталоге Wildberries.`,
-            },
-          ]
-        };
-      });
+      const result = stocks.map(item => ({
+        offer_id: item.offer_id,
+        updated: true,
+        errors: []
+      }));
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     } else if (response.status === 400) {
-      // Ошибка валидации - пытаемся разобрать детали
+      // Ошибка валидации - разбираем детали
       let errorDetails = 'Неправильный формат данных';
+      let parsedResponse = null;
+      
       try {
-        const errorData = JSON.parse(responseText);
-        console.log('Detailed 400 error:', errorData);
-        if (errorData.errors && Array.isArray(errorData.errors)) {
-          errorDetails = errorData.errors.map((err: any) => err.message || err.description || JSON.stringify(err)).join('; ');
-        } else if (errorData.message) {
-          errorDetails = errorData.message;
+        parsedResponse = JSON.parse(responseText);
+        console.log('Detailed 400 error:', parsedResponse);
+        
+        if (parsedResponse.errors && Array.isArray(parsedResponse.errors)) {
+          errorDetails = parsedResponse.errors.map((err: any) => err.message || err.description || JSON.stringify(err)).join('; ');
+        } else if (parsedResponse.message) {
+          errorDetails = parsedResponse.message;
         }
       } catch (parseError) {
         console.log('Could not parse error response as JSON');
@@ -218,38 +136,47 @@ serve(async (req) => {
         status: 200,
       });
     } else if (response.status === 409) {
-      // Конфликт - детальный анализ
+      // Конфликт - анализируем ответ API для получения деталей по каждому SKU
       let conflictDetails = 'Конфликт данных';
+      let skuSpecificErrors = {};
+      
       try {
         const errorData = JSON.parse(responseText);
         console.log('Detailed 409 error:', errorData);
+        
         if (errorData.errors && Array.isArray(errorData.errors)) {
-          conflictDetails = errorData.errors.map((err: any) => {
-            if (err.field && err.message) {
-              return `${err.field}: ${err.message}`;
+          // Если есть детальные ошибки по SKU
+          errorData.errors.forEach((err: any) => {
+            if (err.field && err.field.includes('sku')) {
+              const sku = err.value || 'unknown';
+              skuSpecificErrors[sku] = err.message || 'SKU не найден в каталоге';
             }
-            return err.message || err.description || JSON.stringify(err);
-          }).join('; ');
+          });
+          conflictDetails = errorData.errors.map((err: any) => err.message || err.description || JSON.stringify(err)).join('; ');
         } else if (errorData.message) {
           conflictDetails = errorData.message;
         }
       } catch (parseError) {
         console.log('Could not parse conflict response as JSON');
-        conflictDetails = responseText || 'SKU не найдены в личном кабинете Wildberries или неверный ID склада';
+        conflictDetails = 'SKU не найдены в каталоге Wildberries или неверный ID склада';
       }
       
-      const allErrors = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: false,
-        errors: [
-          {
-            code: 'CONFLICT_ERROR',
-            message: `Конфликт: ${conflictDetails}. Возможно, некоторые SKU не существуют в каталоге товаров.`,
-          },
-        ],
-      }));
+      // Создаем ответ с учетом специфичных ошибок по SKU
+      const result = stocks.map(item => {
+        const specificError = skuSpecificErrors[item.offer_id];
+        return {
+          offer_id: item.offer_id,
+          updated: false,
+          errors: [
+            {
+              code: 'SKU_NOT_FOUND',
+              message: specificError || `SKU ${item.offer_id} не найден в каталоге Wildberries. Проверьте правильность артикула.`,
+            },
+          ],
+        };
+      });
       
-      return new Response(JSON.stringify({ result: allErrors }), {
+      return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
