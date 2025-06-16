@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
 
@@ -7,6 +7,7 @@ export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
 
   const refreshProducts = async () => {
     try {
@@ -83,9 +84,16 @@ export const useProducts = () => {
   useEffect(() => {
     refreshProducts();
 
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('products_changes')
+    // Clean up any existing channel first
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    // Set up new real-time subscription with unique channel name
+    const channelName = `products_changes_${Date.now()}`;
+    channelRef.current = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -94,13 +102,17 @@ export const useProducts = () => {
           table: 'products'
         },
         () => {
+          console.log('Products table changed, refreshing...');
           refreshProducts();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, []);
 
