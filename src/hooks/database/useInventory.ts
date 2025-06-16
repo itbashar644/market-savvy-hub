@@ -1,11 +1,12 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InventoryItem, InventoryHistory } from '@/types/database';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useInventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const refreshInventory = async () => {
     try {
@@ -89,7 +90,8 @@ export const useInventory = () => {
             change_amount: newStock - inventoryItem.currentStock,
             change_type: changeType,
             reason: reason,
-            user_name: 'Администратор',
+            user_id: user?.email || 'система',
+            user_name: user?.user_metadata?.full_name || user?.email || 'Администратор',
           });
       }
 

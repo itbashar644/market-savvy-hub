@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Search, History, TrendingUp, TrendingDown, RotateCcw, ShoppingCart, Package, Edit3 } from 'lucide-react';
+import { Search, History, TrendingUp, TrendingDown, RotateCcw, ShoppingCart, Package, Edit3, User, Mail } from 'lucide-react';
 import { InventoryHistory } from '@/types/database';
 
 interface InventoryHistoryProps {
@@ -165,7 +164,22 @@ const InventoryHistoryComponent = ({ history, productFilter }: InventoryHistoryP
                     </div>
                   </TableCell>
                   <TableCell>
-                    {record.userName || 'Система'}
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3 text-gray-400" />
+                        <span className="text-sm font-medium">
+                          {record.userName || 'Система'}
+                        </span>
+                      </div>
+                      {record.userId && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Mail className="w-3 h-3 text-gray-400" />
+                          <span className="text-xs text-gray-500">
+                            {record.userId}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">
                     {formatDate(record.timestamp)}

@@ -9,10 +9,11 @@ export const useWildberriesStockUpdate = () => {
     const startTime = Date.now();
     
     try {
-      const response = await fetch('/functions/v1/wildberries-stock-update', {
+      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ products }),
       });

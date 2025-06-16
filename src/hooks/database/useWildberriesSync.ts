@@ -9,10 +9,11 @@ export const useWildberriesSync = () => {
     const startTime = Date.now();
     
     try {
-      const response = await fetch('/functions/v1/wildberries-stock-sync', {
+      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
       });
 

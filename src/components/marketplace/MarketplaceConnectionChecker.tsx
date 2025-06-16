@@ -4,14 +4,16 @@ import { toast } from "sonner";
 export class MarketplaceConnectionChecker {
   static async checkConnection(marketplace: string): Promise<void> {
     try {
+      // Используем правильные пути для Supabase Edge Functions
       const endpoint = marketplace === 'Ozon' 
-        ? '/functions/v1/ozon-connection-check'
-        : '/functions/v1/wildberries-connection-check';
+        ? 'https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-connection-check'
+        : 'https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-connection-check';
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
       });
 
