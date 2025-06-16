@@ -91,10 +91,10 @@ const MarketplaceIntegration = () => {
       let syncCount = 0;
       const errors = [];
       
-      // Синхронизация Wildberries
+      // Проверяем подключение к Wildberries
       if (wbCreds?.api_key) {
         try {
-          const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
+          const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
             body: { apiKey: wbCreds.api_key }
           });
           
@@ -102,6 +102,7 @@ const MarketplaceIntegration = () => {
           
           if (data.success) {
             syncCount++;
+            console.log('Wildberries connection verified for sync');
           } else {
             errors.push(`Wildberries: ${data.error}`);
           }
@@ -110,10 +111,10 @@ const MarketplaceIntegration = () => {
         }
       }
       
-      // Синхронизация Ozon
+      // Проверяем подключение к Ozon
       if (ozonCreds?.api_key && ozonCreds?.client_id) {
         try {
-          const { data, error } = await supabase.functions.invoke('ozon-products-list', {
+          const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
             body: { 
               apiKey: ozonCreds.api_key,
               clientId: ozonCreds.client_id 
@@ -124,6 +125,7 @@ const MarketplaceIntegration = () => {
           
           if (data.success) {
             syncCount++;
+            console.log('Ozon connection verified for sync');
           } else {
             errors.push(`Ozon: ${data.error}`);
           }
@@ -134,14 +136,14 @@ const MarketplaceIntegration = () => {
       
       if (syncCount > 0) {
         toast({
-          title: "Синхронизация завершена",
-          description: `Синхронизировано ${syncCount} маркетплейса(-ов)`,
+          title: "Проверка подключений завершена",
+          description: `Проверено ${syncCount} маркетплейса(-ов). Соединения работают корректно.`,
         });
       } 
       
       if (errors.length > 0) {
         toast({
-          title: "Частичная синхронизация",
+          title: "Ошибки при проверке",
           description: `Ошибки: ${errors.join(', ')}`,
           variant: "destructive",
         });
@@ -149,7 +151,7 @@ const MarketplaceIntegration = () => {
       
       if (syncCount === 0 && errors.length === 0) {
         toast({
-          title: "Нет данных для синхронизации",
+          title: "Нет настроенных подключений",
           description: "Убедитесь, что API ключи настроены правильно",
           variant: "destructive",
         });
@@ -181,7 +183,7 @@ const MarketplaceIntegration = () => {
           size="lg"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Синхронизация...' : 'Синхронизировать все'}
+          {syncing ? 'Проверка подключений...' : 'Синхронизировать все'}
         </Button>
       </div>
 
