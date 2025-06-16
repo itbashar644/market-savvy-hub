@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { useInventory, useMarketplaceCredentials } from '@/hooks/useDatabase';
+import { useInventory, useMarketplaceCredentials, useProducts } from '@/hooks/useDatabase';
 import { supabase } from '@/integrations/supabase/client';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
@@ -17,6 +17,7 @@ import { Marketplace, SyncLog } from '@/types/marketplace';
 const MarketplaceIntegration = () => {
   const { toast } = useToast();
   const { inventory } = useInventory();
+  const { products } = useProducts();
   const { credentials } = useMarketplaceCredentials();
   
   const ozonCreds = credentials['Ozon'] || {};
@@ -90,6 +91,7 @@ const MarketplaceIntegration = () => {
 
   const handleSync = async (marketplace: string) => {
     console.log(`Starting sync with ${marketplace}`);
+    console.log('Current products:', products);
     console.log('Current inventory:', inventory);
 
     if (marketplace === 'Wildberries') {
@@ -102,36 +104,50 @@ const MarketplaceIntegration = () => {
         return;
       }
 
-      if (!inventory || inventory.length === 0) {
+      if (!products || products.length === 0) {
         toast({
           title: "Нет товаров для синхронизации",
-          description: "В инвентаре нет товаров для отправки на Wildberries.",
+          description: "В каталоге нет товаров для отправки на Wildberries.",
           variant: "destructive",
         });
         return;
       }
 
-      // Фильтруем только товары с настроенным wildberries_sku
-      const itemsWithWbSku = inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '');
+      // Фильтруем товары с настроенным wildberries_sku и достаточным количеством на складе
+      const itemsWithWbSku = products.filter(product => {
+        const hasWbSku = product.wildberries_sku && product.wildberries_sku.trim() !== '';
+        const hasStock = product.stock > 0;
+        return hasWbSku && hasStock;
+      });
       
-      console.log('Filtered items with WB SKU:', itemsWithWbSku);
+      console.log('Products with WB SKU:', itemsWithWbSku);
       
       if (itemsWithWbSku.length === 0) {
-        toast({
-          title: "Не настроены SKU Wildberries",
-          description: "Нет товаров с настроенным SKU для Wildberries. Настройте SKU в разделе 'Управление товарами'.",
-          variant: "destructive",
-        });
+        const itemsWithoutSku = products.filter(product => !product.wildberries_sku || product.wildberries_sku.trim() === '');
+        
+        if (itemsWithoutSku.length > 0) {
+          toast({
+            title: "Не настроены SKU Wildberries",
+            description: "Нет товаров с настроенным SKU для Wildberries. Настройте SKU в разделе 'Управление товарами' → 'SKU WB'.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Нет товаров в наличии",
+            description: "Все товары с настроенным SKU Wildberries имеют нулевой остаток.",
+            variant: "destructive",
+          });
+        }
         return;
       }
 
       setSyncInProgress(true);
       setSyncingMarketplace(marketplace);
 
-      // Используем wildberries_sku вместо обычного sku
-      const stocks = itemsWithWbSku.map(item => ({
-        offer_id: item.wildberries_sku!, // Используем WB SKU
-        stock: item.currentStock,
+      // Используем wildberries_sku и текущий остаток товара
+      const stocks = itemsWithWbSku.map(product => ({
+        offer_id: product.wildberries_sku!, // Используем WB SKU
+        stock: product.stock,
       }));
 
       console.log('Syncing stocks to Wildberries via Supabase function:', stocks);
