@@ -16,9 +16,14 @@ export interface ImportedProduct {
   isBestseller?: boolean;
   articleNumber: string;
   barcode?: string;
+  material?: string;
+  modelName?: string;
   wildberriesUrl?: string;
   ozonUrl?: string;
   avitoUrl?: string;
+  videoUrl?: string;
+  videoType?: string;
+  wildberriesSku?: string;
   stockQuantity: number;
 }
 

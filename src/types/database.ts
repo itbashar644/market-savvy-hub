@@ -1,4 +1,3 @@
-
 // Интерфейсы для базы данных
 
 export interface Customer {
@@ -49,7 +48,7 @@ export interface Product {
   wildberriesSku?: string;
   colorVariants?: any[];
   // Для обратной совместимости с компонентами
-  name?: string;
+  name?: string; // Made optional to fix AnalyticsManager error
   sku?: string;
   image?: string;
   status?: 'active' | 'low_stock' | 'out_of_stock';
