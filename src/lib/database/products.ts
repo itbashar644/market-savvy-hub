@@ -66,6 +66,7 @@ export class ProductDatabase extends BaseDatabase {
       supplier: updatedProduct.supplier,
       lastRestocked: invIndex >= 0 ? inventory[invIndex].lastRestocked : new Date().toISOString(),
       status: inventoryStatus,
+      wildberries_sku: updatedProduct.wildberries_sku, // Синхронизируем SKU WB
     };
 
     if (invIndex >= 0) {
@@ -85,5 +86,25 @@ export class ProductDatabase extends BaseDatabase {
     
     this.saveToStorage('products', filtered);
     return true;
+  }
+
+  // Новый метод для массового обновления SKU Wildberries
+  updateWildberriesSkus(skuMappings: { [internalSku: string]: string }): boolean {
+    const products = this.getProducts();
+    let updated = false;
+
+    products.forEach(product => {
+      if (skuMappings[product.sku]) {
+        product.wildberries_sku = skuMappings[product.sku];
+        product.updatedAt = new Date().toISOString();
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      this.saveToStorage('products', products);
+    }
+
+    return updated;
   }
 }

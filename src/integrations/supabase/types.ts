@@ -237,6 +237,7 @@ export type Database = {
           updated_at: string
           video_type: string | null
           video_url: string | null
+          wildberries_sku: string | null
           wildberries_url: string | null
         }
         Insert: {
@@ -269,6 +270,7 @@ export type Database = {
           updated_at?: string
           video_type?: string | null
           video_url?: string | null
+          wildberries_sku?: string | null
           wildberries_url?: string | null
         }
         Update: {
@@ -301,6 +303,7 @@ export type Database = {
           updated_at?: string
           video_type?: string | null
           video_url?: string | null
+          wildberries_sku?: string | null
           wildberries_url?: string | null
         }
         Relationships: [

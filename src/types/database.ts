@@ -1,3 +1,4 @@
+
 // Интерфейсы для базы данных
 
 export interface Customer {
@@ -32,6 +33,7 @@ export interface Product {
   updatedAt: string;
   ozonSynced: boolean;
   wbSynced: boolean;
+  wildberries_sku?: string; // Добавляем SKU для Wildberries
 }
 
 export interface OrderStatusHistory {
@@ -92,6 +94,7 @@ export interface InventoryItem {
   supplier: string;
   lastRestocked: string;
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  wildberries_sku?: string; // Добавляем SKU для Wildberries
 }
 
 export interface InventoryHistory {

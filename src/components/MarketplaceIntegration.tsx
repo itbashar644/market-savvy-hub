@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -88,127 +89,6 @@ const MarketplaceIntegration = () => {
     }
   ];
 
-  // Новая функция для прямой проверки подключения к Wildberries
-  const checkWildberriesConnectionDirect = async (apiKey: string) => {
-    try {
-      console.log('Direct connection check to Wildberries...');
-      
-      // Пробуем несколько эндпоинтов
-      const endpoints = [
-        'https://suppliers-api.wildberries.ru/api/v3/warehouses',
-        'https://suppliers-api.wildberries.ru/public/api/v1/info'
-      ];
-
-      for (const endpoint of endpoints) {
-        try {
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-              'Authorization': apiKey,
-              'Accept': 'application/json',
-            },
-            mode: 'cors'
-          });
-
-          console.log(`Response from ${endpoint}:`, response.status);
-          
-          if (response.ok || response.status === 401 || response.status === 403) {
-            // Даже если получили 401/403, это означает что API доступен
-            if (response.status === 401 || response.status === 403) {
-              return { success: false, error: 'Неверный API ключ или недостаточно прав доступа' };
-            }
-            return { success: true, message: 'Подключение к Wildberries успешно установлено' };
-          }
-        } catch (err) {
-          console.log(`Error with ${endpoint}:`, err);
-          continue;
-        }
-      }
-      
-      throw new Error('Все эндпоинты недоступны');
-    } catch (error: any) {
-      console.error('Direct connection error:', error);
-      return { 
-        success: false, 
-        error: 'Не удается подключиться к API Wildberries. Возможно, проблема с CORS или сетью.' 
-      };
-    }
-  };
-
-  // Функция для прямой синхронизации с Wildberries
-  const syncWildberriesDirect = async (stocks: any[], apiKey: string) => {
-    try {
-      console.log('Direct sync to Wildberries with stocks:', stocks);
-
-      // Сначала получаем список складов
-      const warehousesResponse = await fetch('https://suppliers-api.wildberries.ru/api/v3/warehouses', {
-        method: 'GET',
-        headers: {
-          'Authorization': apiKey,
-          'Accept': 'application/json',
-        },
-        mode: 'cors'
-      });
-
-      if (!warehousesResponse.ok) {
-        throw new Error(`Ошибка получения складов: ${warehousesResponse.status}`);
-      }
-
-      const warehouses = await warehousesResponse.json();
-      if (!warehouses || warehouses.length === 0) {
-        throw new Error('Склады не найдены');
-      }
-
-      const warehouseId = warehouses[0].id;
-      console.log('Using warehouse:', warehouseId);
-
-      // Обновляем остатки
-      const stocksPayload = {
-        stocks: stocks.map(item => ({
-          sku: item.offer_id,
-          amount: item.stock,
-          warehouseId: warehouseId
-        }))
-      };
-
-      const stocksResponse = await fetch(`https://suppliers-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiKey,
-        },
-        body: JSON.stringify(stocksPayload),
-        mode: 'cors'
-      });
-
-      if (!stocksResponse.ok) {
-        throw new Error(`Ошибка обновления остатков: ${stocksResponse.status}`);
-      }
-
-      // Формируем результат
-      return {
-        result: stocks.map(item => ({
-          offer_id: item.offer_id,
-          updated: true,
-          errors: []
-        }))
-      };
-
-    } catch (error: any) {
-      console.error('Direct sync error:', error);
-      return {
-        result: stocks.map(item => ({
-          offer_id: item.offer_id,
-          updated: false,
-          errors: [{
-            code: 'DIRECT_SYNC_ERROR',
-            message: error.message
-          }]
-        }))
-      };
-    }
-  };
-
   const handleSync = async (marketplace: string) => {
     console.log(`Starting sync with ${marketplace}`);
     console.log('Current inventory:', inventory);
@@ -232,11 +112,24 @@ const MarketplaceIntegration = () => {
         return;
       }
 
+      // Фильтруем только товары с настроенным wildberries_sku
+      const itemsWithWbSku = inventory.filter(item => item.wildberries_sku);
+      
+      if (itemsWithWbSku.length === 0) {
+        toast({
+          title: "Не настроены SKU Wildberries",
+          description: "Нет товаров с настроенным SKU для Wildberries. Настройте SKU в разделе 'Управление товарами'.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setSyncInProgress(true);
       setSyncingMarketplace(marketplace);
 
-      const stocks = inventory.map(item => ({
-        offer_id: item.sku,
+      // Используем wildberries_sku вместо обычного sku
+      const stocks = itemsWithWbSku.map(item => ({
+        offer_id: item.wildberries_sku!, // Используем WB SKU
         stock: item.currentStock,
       }));
 

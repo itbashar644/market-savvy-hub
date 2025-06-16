@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload, Filter, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ExternalLink, Upload, Filter, X, Settings } from 'lucide-react';
 import { useProducts } from '@/hooks/useDatabase';
 import ProductImport from './ProductImport';
 import ProductStockEditor from './products/ProductStockEditor';
+import WildberriesSkuImport from './products/WildberriesSkuImport';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -15,6 +17,7 @@ import { Label } from '@/components/ui/label';
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
+  const [showWbSkuImport, setShowWbSkuImport] = useState(false);
   const { products, loading } = useProducts();
   const [filters, setFilters] = useState<{ status: string[]; category: string[] }>({
     status: [],
@@ -95,6 +98,24 @@ const ProductsManager = () => {
           <p className="text-gray-600 mt-1">Каталог товаров и синхронизация с маркетплейсами</p>
         </div>
         <div className="flex space-x-2">
+          <Dialog open={showWbSkuImport} onOpenChange={setShowWbSkuImport}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Settings className="w-4 h-4" />
+                <span>SKU WB</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Настройка SKU Wildberries</DialogTitle>
+                <DialogDescription>
+                  Импорт соответствий между внутренними артикулами и SKU Wildberries
+                </DialogDescription>
+              </DialogHeader>
+              <WildberriesSkuImport />
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={showImport} onOpenChange={setShowImport}>
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center space-x-2">
@@ -250,6 +271,11 @@ const ProductsManager = () => {
                   <div>
                     <CardTitle className="text-lg">{product.name}</CardTitle>
                     <CardDescription>Артикул: {product.sku}</CardDescription>
+                    {product.wildberries_sku && (
+                      <CardDescription className="text-purple-600">
+                        WB SKU: {product.wildberries_sku}
+                      </CardDescription>
+                    )}
                   </div>
                 </div>
                 <Badge className={getStatusColor(product.status)}>
@@ -287,6 +313,9 @@ const ProductsManager = () => {
                     </Badge>
                     <Badge className={product.wbSynced ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
                       WB {product.wbSynced ? '✓' : '✗'}
+                      {!product.wildberries_sku && (
+                        <span className="ml-1 text-red-500" title="SKU Wildberries не настроен">⚠</span>
+                      )}
                     </Badge>
                   </div>
                 </div>
@@ -315,7 +344,7 @@ const ProductsManager = () => {
           <CardDescription>Массовые операции с товарами</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
               variant="outline" 
               className="p-4 h-auto flex flex-col items-center space-y-2"
@@ -323,6 +352,14 @@ const ProductsManager = () => {
             >
               <Package className="w-6 h-6" />
               <span>Импорт товаров</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="p-4 h-auto flex flex-col items-center space-y-2"
+              onClick={() => setShowWbSkuImport(true)}
+            >
+              <Settings className="w-6 h-6" />
+              <span>Настройка SKU WB</span>
             </Button>
             <Button variant="outline" className="p-4 h-auto flex flex-col items-center space-y-2">
               <ExternalLink className="w-6 h-6" />
