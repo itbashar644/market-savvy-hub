@@ -54,7 +54,8 @@ const MarketplaceIntegration = () => {
           throw new Error('Необходимо указать API ключ для Wildberries');
         }
 
-        const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
+        // Используем новую функцию для проверки подключения
+        const { data, error } = await supabase.functions.invoke('wb-test-connection', {
           body: {
             apiKey: wbCreds.api_key
           }
@@ -97,20 +98,16 @@ const MarketplaceIntegration = () => {
       if (wbCreds?.api_key) {
         try {
           console.log('Starting Wildberries products sync...');
-          await new Promise((resolve, reject) => {
-            syncProducts(wbCreds.api_key);
-            // Даем время на завершение синхронизации
-            setTimeout(resolve, 2000);
-          });
+          syncProducts(wbCreds.api_key);
           syncCount++;
-          console.log('Wildberries products sync completed');
+          console.log('Wildberries products sync initiated');
         } catch (error: any) {
           errors.push(`Wildberries: ${error.message}`);
           console.error('Wildberries sync error:', error);
         }
       }
       
-      // Пока только проверяем подключение к Ozon (синхронизация товаров будет добавлена позже)
+      // Проверка подключения к Ozon
       if (ozonCreds?.api_key && ozonCreds?.client_id) {
         try {
           const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
@@ -134,8 +131,8 @@ const MarketplaceIntegration = () => {
       
       if (syncCount > 0) {
         toast({
-          title: "Синхронизация завершена",
-          description: `Синхронизировано ${syncCount} маркетплейса(-ов)`,
+          title: "Синхронизация запущена",
+          description: `Начата синхронизация с ${syncCount} маркетплейсом(-ами)`,
         });
       } 
       

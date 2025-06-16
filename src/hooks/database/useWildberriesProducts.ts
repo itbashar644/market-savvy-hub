@@ -38,35 +38,43 @@ export const useWildberriesProducts = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
-  // Получение списка товаров WB из базы данных
+  // Получение списка товаров из базы данных
   const { data: products = [], isLoading, error } = useQuery({
     queryKey: ['wildberries-products'],
     queryFn: async () => {
+      console.log('Fetching WB products from database...');
+      
       const { data, error } = await supabase
         .from('wildberries_products')
         .select('*')
         .order('synced_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched products count:', data?.length || 0);
       return data as WildberriesProduct[];
     }
   });
 
-  // Синхронизация товаров с Wildberries API
+  // Синхронизация товаров с Wildberries
   const syncProductsMutation = useMutation({
     mutationFn: async (apiKey: string) => {
       setLoading(true);
+      console.log('Starting WB products sync...');
       
-      // Получаем пользователя заранее
+      // Получаем текущего пользователя
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) {
         throw new Error('Пользователь не авторизован');
       }
       
-      console.log('Calling wildberries-products-list function...');
+      console.log('Calling wb-get-products function...');
       
-      // Вызываем edge function для получения товаров
-      const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
+      // Вызываем новую функцию для получения товаров
+      const { data, error } = await supabase.functions.invoke('wb-get-products', {
         body: { apiKey }
       });
 
@@ -74,7 +82,7 @@ export const useWildberriesProducts = () => {
 
       if (error) {
         console.error('Function error:', error);
-        throw new Error(`Ошибка при вызове функции: ${error.message}`);
+        throw new Error(`Ошибка функции: ${error.message}`);
       }
       
       if (data?.error) {
@@ -91,10 +99,11 @@ export const useWildberriesProducts = () => {
           .upsert(
             data.products.map((product: any) => ({
               ...product,
-              user_id: userData.user.id
+              user_id: userData.user.id,
+              synced_at: new Date().toISOString()
             })),
             { 
-              onConflict: 'nm_id',
+              onConflict: 'nm_id,sku',
               ignoreDuplicates: false 
             }
           );
@@ -118,7 +127,7 @@ export const useWildberriesProducts = () => {
       setLoading(false);
     },
     onError: (error: any) => {
-      console.error('Sync error details:', error);
+      console.error('Sync error:', error);
       toast({
         title: "Ошибка синхронизации",
         description: error.message || "Не удалось синхронизировать товары",
@@ -131,6 +140,8 @@ export const useWildberriesProducts = () => {
   // Удаление товара
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
+      console.log('Deleting product:', productId);
+      
       const { error } = await supabase
         .from('wildberries_products')
         .delete()
@@ -146,6 +157,7 @@ export const useWildberriesProducts = () => {
       });
     },
     onError: (error: any) => {
+      console.error('Delete error:', error);
       toast({
         title: "Ошибка удаления",
         description: error.message,
@@ -155,7 +167,7 @@ export const useWildberriesProducts = () => {
   });
 
   const syncProducts = useCallback((apiKey: string) => {
-    console.log('Starting sync with API key length:', apiKey?.length);
+    console.log('Starting sync with API key present:', !!apiKey);
     syncProductsMutation.mutate(apiKey);
   }, [syncProductsMutation]);
 
