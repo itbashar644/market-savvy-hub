@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ const MarketplaceIntegration = () => {
   const { syncProducts, testConnection } = useWildberriesProducts();
   const { 
     logs, 
+    addLog,
     addWildberriesConnectionTest, 
     addWildberriesSync,
     clearLogs 
@@ -44,14 +46,41 @@ const MarketplaceIntegration = () => {
           }
         });
         
-        if (error) throw error;
+        const duration = Date.now() - startTime;
+        
+        if (error) {
+          addLog({
+            marketplace: 'Ozon',
+            action: 'Проверка подключения',
+            status: 'error',
+            details: `Ошибка функции: ${error.message}`,
+            duration
+          });
+          throw error;
+        }
         
         if (data.success) {
+          addLog({
+            marketplace: 'Ozon',
+            action: 'Проверка подключения',
+            status: 'success',
+            details: `Подключение к Ozon API успешно установлено`,
+            duration,
+            metadata: { warehousesCount: data?.warehouses?.length || 0 }
+          });
+          
           toast({
             title: "Соединение установлено",
             description: "Подключение к Ozon API успешно",
           });
         } else {
+          addLog({
+            marketplace: 'Ozon',
+            action: 'Проверка подключения',
+            status: 'error',
+            details: `Ошибка подключения: ${data.error}`,
+            duration
+          });
           throw new Error(data.error || 'Ошибка подключения к Ozon');
         }
       } else if (marketplace === 'Wildberries') {
@@ -67,14 +96,19 @@ const MarketplaceIntegration = () => {
 
         // Используем новую функцию для проверки подключения
         testConnection(wbCreds.api_key, wbCreds.warehouse_id);
-        addWildberriesConnectionTest(true, undefined, wbCreds.warehouse_id);
       }
     } catch (error: any) {
       console.error('Connection check error:', error);
       
-      if (marketplace === 'Wildberries') {
-        const wbCreds = credentials.Wildberries;
-        addWildberriesConnectionTest(false, error.message, wbCreds?.warehouse_id);
+      if (marketplace === 'Ozon') {
+        const duration = Date.now() - startTime;
+        addLog({
+          marketplace: 'Ozon',
+          action: 'Проверка подключения',
+          status: 'error',
+          details: `Ошибка подключения: ${error.message}`,
+          duration
+        });
       }
       
       toast({
@@ -105,13 +139,9 @@ const MarketplaceIntegration = () => {
           syncProducts(wbCreds.api_key, wbCreds.warehouse_id);
           syncCount++;
           console.log('Wildberries products sync initiated');
-          
-          // Добавляем лог о начале синхронизации
-          addWildberriesSync(true, undefined, undefined, Date.now() - startTime);
         } catch (error: any) {
           errors.push(`Wildberries: ${error.message}`);
           console.error('Wildberries sync error:', error);
-          addWildberriesSync(false, undefined, error.message, Date.now() - startTime);
         }
       }
       
@@ -125,14 +155,47 @@ const MarketplaceIntegration = () => {
             }
           });
           
-          if (error) throw error;
+          const duration = Date.now() - startTime;
+          
+          if (error) {
+            addLog({
+              marketplace: 'Ozon',
+              action: 'Синхронизация товаров',
+              status: 'error',
+              details: `Ошибка функции: ${error.message}`,
+              duration
+            });
+            throw error;
+          }
           
           if (data.success) {
+            addLog({
+              marketplace: 'Ozon',
+              action: 'Синхронизация товаров',
+              status: 'success',
+              details: 'Подключение к Ozon проверено успешно',
+              duration
+            });
             console.log('Ozon connection verified');
           } else {
+            addLog({
+              marketplace: 'Ozon',
+              action: 'Синхронизация товаров',
+              status: 'error',
+              details: `Ошибка: ${data.error}`,
+              duration
+            });
             errors.push(`Ozon: ${data.error}`);
           }
         } catch (error: any) {
+          const duration = Date.now() - startTime;
+          addLog({
+            marketplace: 'Ozon',
+            action: 'Синхронизация товаров',
+            status: 'error',
+            details: `Ошибка: ${error.message}`,
+            duration
+          });
           errors.push(`Ozon: ${error.message}`);
         }
       }

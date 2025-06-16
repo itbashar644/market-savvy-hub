@@ -1,8 +1,8 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useSyncLogs } from './useSyncLogs';
 
 export interface WildberriesProduct {
   id: string;
@@ -37,6 +37,11 @@ export const useWildberriesProducts = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const { 
+    addWildberriesConnectionTest, 
+    addWildberriesSync, 
+    addWildberriesStockUpdate 
+  } = useSyncLogs();
 
   // Получение списка товаров из базы данных
   const { data: products = [], isLoading, error } = useQuery({
@@ -62,6 +67,7 @@ export const useWildberriesProducts = () => {
   // Тестирование подключения к WB
   const testConnectionMutation = useMutation({
     mutationFn: async ({ apiKey, warehouseId }: { apiKey: string; warehouseId: string }) => {
+      const startTime = Date.now();
       console.log('Testing WB connection...');
       
       const { data, error } = await supabase.functions.invoke('wb-connection-test', {
@@ -69,15 +75,21 @@ export const useWildberriesProducts = () => {
       });
 
       if (error) {
+        const duration = Date.now() - startTime;
         console.error('Connection test function error:', error);
+        addWildberriesConnectionTest(false, error.message, warehouseId);
         throw new Error(`Ошибка функции: ${error.message}`);
       }
       
       if (data?.error) {
+        const duration = Date.now() - startTime;
         console.error('Connection test API error:', data.error);
+        addWildberriesConnectionTest(false, data.error, warehouseId);
         throw new Error(data.error);
       }
 
+      const duration = Date.now() - startTime;
+      addWildberriesConnectionTest(true, undefined, warehouseId);
       return data;
     },
     onSuccess: (data) => {
@@ -100,11 +112,14 @@ export const useWildberriesProducts = () => {
   const syncProductsMutation = useMutation({
     mutationFn: async ({ apiKey, warehouseId }: { apiKey: string; warehouseId: string }) => {
       setLoading(true);
+      const startTime = Date.now();
       console.log('Starting WB products sync...');
       
       // Получаем текущего пользователя
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) {
+        const duration = Date.now() - startTime;
+        addWildberriesSync(false, undefined, 'Пользователь не авторизован', duration);
         throw new Error('Пользователь не авторизован');
       }
       
@@ -118,14 +133,25 @@ export const useWildberriesProducts = () => {
       console.log('Function response:', { data, error });
 
       if (error) {
+        const duration = Date.now() - startTime;
         console.error('Function error:', error);
+        addWildberriesSync(false, undefined, `Ошибка функции: ${error.message}`, duration);
         throw new Error(`Ошибка функции: ${error.message}`);
       }
       
       if (data?.error) {
+        const duration = Date.now() - startTime;
         console.error('API error:', data.error);
+        addWildberriesSync(false, undefined, data.error, duration);
         throw new Error(data.error);
       }
+
+      const duration = Date.now() - startTime;
+      let metadata = {
+        originalCount: data?.total || 0,
+        validCount: data?.products?.length || 0,
+        updatedCount: 0
+      };
 
       // Сохраняем товары в базу данных
       if (data?.products && data.products.length > 0) {
@@ -147,12 +173,15 @@ export const useWildberriesProducts = () => {
 
         if (insertError) {
           console.error('Insert error:', insertError);
+          addWildberriesSync(false, metadata, `Ошибка сохранения в БД: ${insertError.message}`, duration);
           throw insertError;
         }
         
+        metadata.updatedCount = data.products.length;
         console.log('Products saved successfully');
       }
 
+      addWildberriesSync(true, metadata, undefined, duration);
       return data;
     },
     onSuccess: (data) => {
@@ -181,22 +210,34 @@ export const useWildberriesProducts = () => {
       warehouseId: string;
       stocks: Array<{ sku: string; amount: number }>;
     }) => {
+      const startTime = Date.now();
       console.log('Updating WB stocks...');
       
       const { data, error } = await supabase.functions.invoke('wb-update-stocks', {
         body: { apiKey, warehouseId, stocks }
       });
 
+      const duration = Date.now() - startTime;
+
       if (error) {
         console.error('Update stocks function error:', error);
+        addWildberriesStockUpdate(false, undefined, `Ошибка функции: ${error.message}`, duration);
         throw new Error(`Ошибка функции: ${error.message}`);
       }
       
       if (data?.error) {
         console.error('Update stocks API error:', data.error);
+        addWildberriesStockUpdate(false, undefined, data.error, duration);
         throw new Error(data.error);
       }
 
+      const metadata = {
+        originalCount: data?.originalCount || stocks.length,
+        validCount: data?.validCount || stocks.length,
+        updatedCount: data?.updatedCount || 0
+      };
+
+      addWildberriesStockUpdate(true, metadata, undefined, duration);
       return data;
     },
     onSuccess: (data) => {
