@@ -37,13 +37,45 @@ serve(async (req) => {
       });
     }
 
-    console.log('Updating stocks for warehouse:', warehouseId, 'stocks count:', stocks.length);
+    console.log('Updating stocks for warehouse:', warehouseId, 'original stocks count:', stocks.length);
+    console.log('Original stocks data:', stocks);
 
-    // Формируем данные в формате WB API - используем валидные баркоды
-    const stocksData = stocks.map((stock: any) => ({
-      sku: stock.sku || stock.barcode, // Используем баркод как SKU
-      amount: stock.amount
-    }));
+    // Добавляем валидацию и логирование
+    const validStocks = stocks
+      .filter((stock: any) => {
+        const barcode = stock.sku || stock.barcode;
+        const isValid = Boolean(barcode) && Number.isInteger(stock.amount);
+        
+        if (!isValid) {
+          console.warn('Invalid stock item:', stock);
+        }
+        
+        return isValid;
+      })
+      .map((stock: any) => ({
+        sku: stock.sku || stock.barcode,
+        amount: Number(stock.amount)
+      }));
+
+    // Логируем итоговые данные для запроса
+    console.log('Prepared stocks for WB API:', validStocks);
+    console.log('Valid stocks count:', validStocks.length, 'from original:', stocks.length);
+
+    if (validStocks.length === 0) {
+      return new Response(JSON.stringify({ 
+        error: 'Нет валидных товаров для обновления остатков' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    // Формируем тело запроса
+    const body = {
+      stocks: validStocks
+    };
+
+    console.log('Request body for WB API:', JSON.stringify(body, null, 2));
 
     // Обновляем остатки на складе (PUT метод к правильному endpoint)
     const response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
@@ -52,10 +84,11 @@ serve(async (req) => {
         'Authorization': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ stocks: stocksData }),
+      body: JSON.stringify(body),
     });
 
     console.log('WB stocks update response status:', response.status);
+    console.log('WB stocks update response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -75,7 +108,9 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true,
       message: 'Остатки успешно обновлены',
-      updatedCount: stocks.length,
+      originalCount: stocks.length,
+      validCount: validStocks.length,
+      updatedCount: validStocks.length,
       result
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
