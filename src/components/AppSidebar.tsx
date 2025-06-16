@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
 // Menu items with keys that match the routing logic
@@ -82,6 +83,9 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="sidebar-modern" {...props}>
+      <SidebarHeader className="flex flex-row items-center justify-between p-4">
+        <SidebarTrigger />
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium text-xs uppercase tracking-wider px-4">
