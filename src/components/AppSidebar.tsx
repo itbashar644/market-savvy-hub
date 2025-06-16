@@ -1,6 +1,8 @@
 
 import * as React from "react"
-import { Package, Users, ShoppingCart, BarChart3, Settings, FileText, Package2, MessageSquare, ExternalLink, Store } from "lucide-react"
+import { Package, Users, ShoppingCart, BarChart3, Settings, FileText, Package2, MessageSquare, ExternalLink, Store, LogOut } from "lucide-react"
+import { useAuth } from '@/hooks/useAuth'
+import { Button } from "@/components/ui/button"
 
 import {
   Sidebar,
@@ -76,8 +78,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps) {
+  const { signOut } = useAuth();
+
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader className="bg-sidebar">
         <div className="flex items-center gap-2 px-4 py-2">
           <Store className="h-6 w-6 text-sidebar-foreground" />
@@ -94,6 +98,7 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
                   <SidebarMenuButton 
                     onClick={() => onTabChange(item.key)}
                     isActive={activeTab === item.key}
+                    tooltip={item.title}
                   >
                     <item.icon />
                     <span>{item.title}</span>
@@ -104,6 +109,19 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={() => signOut()}
+              tooltip="Выйти"
+            >
+              <LogOut />
+              <span>Выйти</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
