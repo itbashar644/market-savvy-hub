@@ -7,9 +7,11 @@ import { AlertCircle } from 'lucide-react';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import { MarketplaceConnectionChecker } from './marketplace/MarketplaceConnectionChecker';
+import { useSyncLogs } from '@/hooks/useDatabase';
 
 const MarketplaceIntegration = () => {
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
+  const { logs } = useSyncLogs();
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
@@ -58,7 +60,7 @@ const MarketplaceIntegration = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <SyncLogs />
+              <SyncLogs logs={logs} />
             </CardContent>
           </Card>
         </TabsContent>
