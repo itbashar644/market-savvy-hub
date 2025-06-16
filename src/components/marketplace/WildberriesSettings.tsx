@@ -7,8 +7,8 @@ import { RefreshCw, Save } from 'lucide-react';
 import { MarketplaceCredential } from '@/hooks/useDatabase';
 
 interface WildberriesSettingsProps {
-  creds: Partial<MarketplaceCredential & { warehouse_id?: string }>;
-  updateField: (field: 'api_key' | 'warehouse_id', value: string) => void;
+  creds: Partial<MarketplaceCredential>;
+  updateField: (field: 'api_key', value: string) => void;
   onCheckConnection: () => void;
   onSave: () => void;
   loading: boolean;
@@ -45,24 +45,11 @@ const WildberriesSettings: React.FC<WildberriesSettingsProps> = ({
             disabled={loading || saving}
           />
         </div>
-        <div>
-          <label className="text-sm font-medium text-gray-700">ID склада</label>
-          <Input
-            type="text"
-            placeholder="Введите ID склада (например: 7963)"
-            value={creds.warehouse_id || ''}
-            onChange={(e) => updateField('warehouse_id', e.target.value)}
-            disabled={loading || saving}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            ID склада можно найти в личном кабинете Wildberries в разделе "Склады"
-          </p>
-        </div>
         <div className="flex space-x-2">
            <Button
             className="flex-1"
             onClick={onCheckConnection}
-            disabled={!creds.api_key || !creds.warehouse_id || checkingConnection || saving || loading}
+            disabled={!creds.api_key || checkingConnection || saving || loading}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${checkingConnection ? 'animate-spin' : ''}`} />
             {checkingConnection ? 'Проверка...' : 'Проверить'}

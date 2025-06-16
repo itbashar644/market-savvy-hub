@@ -1,5 +1,5 @@
 
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,26 +7,19 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { apiKey, clientId } = body;
-
-    console.log('Received request body:', body);
-    console.log('API key present:', !!apiKey);
-    console.log('Client ID present:', !!clientId);
+    const { apiKey, clientId } = await req.json();
 
     if (!apiKey || !clientId) {
       return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'API ключ и Client ID обязательны' 
-        }),
+        JSON.stringify({ error: 'API ключ и Client ID обязательны' }),
         { 
-          status: 200, 
+          status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
