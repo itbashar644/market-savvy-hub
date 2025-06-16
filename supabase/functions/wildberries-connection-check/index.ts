@@ -25,18 +25,56 @@ serve(async (req) => {
       );
     }
 
-    console.log('Checking Wildberries connection');
+    console.log('Checking Wildberries connection with API key length:', apiKey.length);
 
-    // Используем более надежный способ проверки с правильными заголовками
-    const response = await fetch('https://suppliers-api.wildberries.ru/api/v3/warehouses', {
-      method: 'GET',
-      headers: {
-        'Authorization': apiKey,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(10000) // 10 секунд таймаут
-    });
+    // Попробуем использовать более простой endpoint для проверки
+    let response;
+    try {
+      console.log('Attempting to connect to Wildberries API...');
+      
+      response = await fetch('https://suppliers-api.wildberries.ru/api/v3/warehouses', {
+        method: 'GET',
+        headers: {
+          'Authorization': apiKey,
+          'Accept': 'application/json',
+          'User-Agent': 'Supabase-Edge-Function/1.0',
+        },
+        signal: AbortSignal.timeout(30000) // Увеличиваем таймаут до 30 секунд
+      });
+
+      console.log('Response received with status:', response.status);
+      
+    } catch (fetchError) {
+      console.error('Network error during fetch:', fetchError);
+      
+      // Попробуем альтернативный подход - проверим другой endpoint
+      try {
+        console.log('Trying alternative endpoint...');
+        response = await fetch('https://suppliers-api.wildberries.ru/public/api/v1/info', {
+          method: 'GET',
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+            'User-Agent': 'Supabase-Edge-Function/1.0',
+          },
+          signal: AbortSignal.timeout(30000)
+        });
+        console.log('Alternative endpoint response status:', response.status);
+      } catch (altError) {
+        console.error('Alternative endpoint also failed:', altError);
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Не удается подключиться к серверам Wildberries. Возможно, проблема с сетью или API временно недоступен.'
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -64,13 +102,12 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Wildberries connection successful, warehouses found:', data?.length || 0);
+    console.log('Wildberries connection successful, response data:', data);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Подключение к Wildberries успешно установлено',
-        warehouses: data?.length || 0
+        message: 'Подключение к Wildberries успешно установлено'
       }),
       { 
         status: 200, 
