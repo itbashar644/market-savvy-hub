@@ -13,10 +13,10 @@ const MarketplaceIntegration = () => {
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
   const { logs } = useSyncLogs();
 
-  const handleCheckConnection = async (marketplace: string, apiKey?: string) => {
+  const handleCheckConnection = async (marketplace: string, apiKey?: string, clientId?: string) => {
     setCheckingConnection(marketplace);
     try {
-      await MarketplaceConnectionChecker.checkConnection(marketplace, apiKey);
+      await MarketplaceConnectionChecker.checkConnection(marketplace, apiKey, clientId);
     } finally {
       setCheckingConnection(null);
     }

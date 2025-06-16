@@ -5,7 +5,7 @@ import WildberriesSettings from './WildberriesSettings';
 import { useMarketplaceCredentials } from '@/hooks/useDatabase';
 
 interface MarketplaceSettingsProps {
-    handleCheckConnection: (marketplace: string, apiKey?: string) => Promise<void>;
+    handleCheckConnection: (marketplace: string, apiKey?: string, clientId?: string) => Promise<void>;
     checkingConnection: string | null;
 }
 
@@ -19,7 +19,7 @@ const MarketplaceSettings: React.FC<MarketplaceSettingsProps> = ({ handleCheckCo
             <OzonSettings
                 creds={ozonCreds}
                 updateField={(field, value) => updateCredentialField('Ozon', field, value)}
-                onCheckConnection={() => handleCheckConnection('Ozon', ozonCreds.api_key || '')}
+                onCheckConnection={() => handleCheckConnection('Ozon', ozonCreds.api_key || '', ozonCreds.client_id || '')}
                 onSave={() => saveCredentials('Ozon')}
                 loading={loading}
                 saving={saving}

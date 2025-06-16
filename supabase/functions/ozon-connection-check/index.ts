@@ -13,19 +13,38 @@ serve(async (req) => {
   }
 
   try {
-    const { apiKey, clientId } = await req.json();
+    console.log('=== Ozon Connection Check Started ===');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+
+    const requestBody = await req.json();
+    console.log('Request body received:', requestBody);
+
+    const { marketplace, apiKey } = requestBody;
+    console.log('Marketplace:', marketplace);
+    console.log('API key provided:', apiKey ? 'YES (length: ' + apiKey.length + ')' : 'NO');
+
+    // Получаем Client ID из тела запроса
+    const clientId = requestBody.clientId;
+    console.log('Client ID provided:', clientId ? 'YES (length: ' + clientId.length + ')' : 'NO');
 
     if (!apiKey || !clientId) {
+      console.log('ERROR: Missing required credentials');
       return new Response(
-        JSON.stringify({ error: 'API ключ и Client ID обязательны' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'API ключ и Client ID обязательны' 
+        }),
         { 
-          status: 400, 
+          status: 200, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    console.log('Checking Ozon connection with clientId:', clientId);
+    console.log('Making request to Ozon API...');
+    console.log('Using Client-Id:', clientId.substring(0, 10) + '...');
+    console.log('Using Api-Key:', apiKey.substring(0, 10) + '...');
 
     // Используем endpoint для получения складов - базовый endpoint для всех продавцов
     const response = await fetch('https://api-seller.ozon.ru/v1/warehouse/list', {
@@ -39,6 +58,7 @@ serve(async (req) => {
     });
 
     console.log('Ozon API response status:', response.status);
+    console.log('Ozon API response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -48,7 +68,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Неверный API ключ или Client ID' 
+            error: 'Неверный API ключ или Client ID. Проверьте правильность введенных данных.' 
           }),
           { 
             status: 200, 
@@ -59,7 +79,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Недостаточно прав доступа. Проверьте права API ключа.' 
+            error: 'Недостаточно прав доступа. Проверьте права API ключа в личном кабинете Ozon.' 
           }),
           { 
             status: 200, 

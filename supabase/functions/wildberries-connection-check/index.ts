@@ -19,11 +19,8 @@ serve(async (req) => {
     const requestBody = await req.json();
     console.log('Request body:', requestBody);
 
-    const { marketplace } = requestBody;
+    const { marketplace, apiKey } = requestBody;
     console.log('Marketplace from body:', marketplace);
-
-    // Получаем API ключ из тела запроса
-    const apiKey = requestBody.apiKey;
     console.log('API key received:', apiKey ? 'YES (length: ' + apiKey.length + ')' : 'NO');
 
     if (!apiKey) {
@@ -41,16 +38,13 @@ serve(async (req) => {
     }
 
     console.log('Attempting to connect to Wildberries API...');
-    
-    // Используем правильный домен API
-    const warehouseId = 7963; // Ваш ID склада
+    console.log('API key being used:', apiKey.substring(0, 10) + '...');
     
     let response;
     try {
       console.log('Making API request to Wildberries...');
-      console.log('API key being used:', apiKey.substring(0, 10) + '...');
       
-      // Пробуем получить информацию о складах через новый API
+      // Пробуем получить информацию о складах через API v3
       response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/warehouses`, {
         method: 'GET',
         headers: {
@@ -79,31 +73,19 @@ serve(async (req) => {
       );
     }
 
-    if (response.status === 200) {
-      const data = await response.json();
-      console.log('Wildberries connection successful, warehouses:', data);
+    const responseText = await response.text();
+    console.log('Raw response text:', responseText);
 
-      // Проверяем, есть ли нужный склад
-      const hasWarehouse = data.some((warehouse: any) => warehouse.id === warehouseId);
-      
-      if (hasWarehouse) {
-        console.log('Warehouse found successfully');
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: `Подключение к Wildberries успешно установлено. Найден склад с ID ${warehouseId}.`
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      } else {
-        console.log('Warehouse not found in response');
+    if (response.status === 200) {
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Склад с ID ${warehouseId} не найден в вашем аккаунте. Проверьте настройки склада в личном кабинете Wildberries.`
+            error: 'Получен некорректный ответ от API Wildberries'
           }),
           { 
             status: 200, 
@@ -111,9 +93,21 @@ serve(async (req) => {
           }
         );
       }
+
+      console.log('Wildberries connection successful, warehouses:', data);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Подключение к Wildberries успешно установлено. Найдено складов: ${Array.isArray(data) ? data.length : 0}.`
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     } else if (response.status === 401 || response.status === 403) {
-      const errorText = await response.text();
-      console.error('Wildberries API authentication error:', response.status, errorText);
+      console.error('Wildberries API authentication error:', response.status, responseText);
       
       return new Response(
         JSON.stringify({ 
@@ -138,8 +132,7 @@ serve(async (req) => {
         }
       );
     } else {
-      const errorText = await response.text();
-      console.error('Wildberries API error:', response.status, errorText);
+      console.error('Wildberries API error:', response.status, responseText);
       
       return new Response(
         JSON.stringify({ 

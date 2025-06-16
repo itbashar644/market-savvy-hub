@@ -2,14 +2,22 @@
 import { toast } from "sonner";
 
 export class MarketplaceConnectionChecker {
-  static async checkConnection(marketplace: string, apiKey?: string): Promise<void> {
+  static async checkConnection(marketplace: string, apiKey?: string, clientId?: string): Promise<void> {
     try {
       console.log(`=== Starting ${marketplace} connection check ===`);
       console.log('API key provided:', apiKey ? 'YES' : 'NO');
+      console.log('Client ID provided:', clientId ? 'YES' : 'NO');
       
       if (!apiKey) {
         toast.error(`❌ Ошибка проверки ${marketplace}`, {
           description: 'API ключ не найден. Сначала сохраните настройки.'
+        });
+        return;
+      }
+
+      if (marketplace === 'Ozon' && !clientId) {
+        toast.error(`❌ Ошибка проверки ${marketplace}`, {
+          description: 'Client ID не найден. Сначала сохраните настройки.'
         });
         return;
       }
@@ -21,6 +29,14 @@ export class MarketplaceConnectionChecker {
 
       console.log('Making request to:', endpoint);
 
+      const requestBody = {
+        marketplace: marketplace,
+        apiKey: apiKey,
+        ...(marketplace === 'Ozon' && { clientId: clientId })
+      };
+
+      console.log('Request body:', requestBody);
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -28,10 +44,7 @@ export class MarketplaceConnectionChecker {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'apikey': `${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({
-          marketplace: marketplace,
-          apiKey: apiKey
-        })
+        body: JSON.stringify(requestBody)
       });
 
       console.log('Response status:', response.status);
