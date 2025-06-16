@@ -12,20 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    let body;
-    const text = await req.text();
-    
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = {};
-      }
-    } else {
-      body = {};
-    }
-
+    const body = await req.json();
     const apiKey = body.apiKey;
+
+    console.log('Received request body:', body);
+    console.log('API key present:', !!apiKey);
 
     if (!apiKey) {
       return new Response(

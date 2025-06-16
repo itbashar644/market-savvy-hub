@@ -22,8 +22,17 @@ const MarketplaceIntegration = () => {
     
     try {
       if (marketplace === 'Ozon') {
+        const ozonCreds = credentials.Ozon;
+        
+        if (!ozonCreds?.api_key || !ozonCreds?.client_id) {
+          throw new Error('Необходимо указать API ключ и Client ID для Ozon');
+        }
+
         const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
-          body: {}
+          body: {
+            apiKey: ozonCreds.api_key,
+            clientId: ozonCreds.client_id
+          }
         });
         
         if (error) throw error;
@@ -37,8 +46,16 @@ const MarketplaceIntegration = () => {
           throw new Error(data.error || 'Ошибка подключения к Ozon');
         }
       } else if (marketplace === 'Wildberries') {
+        const wbCreds = credentials.Wildberries;
+        
+        if (!wbCreds?.api_key) {
+          throw new Error('Необходимо указать API ключ для Wildberries');
+        }
+
         const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
-          body: {}
+          body: {
+            apiKey: wbCreds.api_key
+          }
         });
         
         if (error) throw error;
@@ -53,6 +70,7 @@ const MarketplaceIntegration = () => {
         }
       }
     } catch (error: any) {
+      console.error('Connection check error:', error);
       toast({
         title: "Ошибка подключения",
         description: error.message || `Не удалось подключиться к ${marketplace}`,
@@ -71,29 +89,46 @@ const MarketplaceIntegration = () => {
       const ozonCreds = credentials.Ozon;
       
       let syncCount = 0;
+      const errors = [];
       
       // Синхронизация Wildberries
       if (wbCreds?.api_key) {
-        const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
-          body: { apiKey: wbCreds.api_key }
-        });
-        
-        if (!error && data.success) {
-          syncCount++;
+        try {
+          const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
+            body: { apiKey: wbCreds.api_key }
+          });
+          
+          if (error) throw error;
+          
+          if (data.success) {
+            syncCount++;
+          } else {
+            errors.push(`Wildberries: ${data.error}`);
+          }
+        } catch (error: any) {
+          errors.push(`Wildberries: ${error.message}`);
         }
       }
       
       // Синхронизация Ozon
       if (ozonCreds?.api_key && ozonCreds?.client_id) {
-        const { data, error } = await supabase.functions.invoke('ozon-products-list', {
-          body: { 
-            apiKey: ozonCreds.api_key,
-            clientId: ozonCreds.client_id 
+        try {
+          const { data, error } = await supabase.functions.invoke('ozon-products-list', {
+            body: { 
+              apiKey: ozonCreds.api_key,
+              clientId: ozonCreds.client_id 
+            }
+          });
+          
+          if (error) throw error;
+          
+          if (data.success) {
+            syncCount++;
+          } else {
+            errors.push(`Ozon: ${data.error}`);
           }
-        });
-        
-        if (!error && data.success) {
-          syncCount++;
+        } catch (error: any) {
+          errors.push(`Ozon: ${error.message}`);
         }
       }
       
@@ -102,7 +137,17 @@ const MarketplaceIntegration = () => {
           title: "Синхронизация завершена",
           description: `Синхронизировано ${syncCount} маркетплейса(-ов)`,
         });
-      } else {
+      } 
+      
+      if (errors.length > 0) {
+        toast({
+          title: "Частичная синхронизация",
+          description: `Ошибки: ${errors.join(', ')}`,
+          variant: "destructive",
+        });
+      }
+      
+      if (syncCount === 0 && errors.length === 0) {
         toast({
           title: "Нет данных для синхронизации",
           description: "Убедитесь, что API ключи настроены правильно",
@@ -110,6 +155,7 @@ const MarketplaceIntegration = () => {
         });
       }
     } catch (error: any) {
+      console.error('Sync error:', error);
       toast({
         title: "Ошибка синхронизации",
         description: error.message || "Не удалось выполнить синхронизацию",
