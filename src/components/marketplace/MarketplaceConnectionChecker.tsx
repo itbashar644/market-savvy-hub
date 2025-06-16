@@ -14,10 +14,16 @@ export class MarketplaceConnectionChecker {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': `${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
+        body: JSON.stringify({
+          marketplace: marketplace
+        })
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

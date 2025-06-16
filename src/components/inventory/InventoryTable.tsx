@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Search, Plus, Package, History } from 'lucide-react';
 import { InventoryItem, InventoryHistory } from '@/types/database';
 import InventoryHistoryComponent from '../InventoryHistory';
 import StockEditor from './StockEditor';
+import SortableTableHeader from './SortableTableHeader';
 
 interface InventoryTableProps {
   inventory: InventoryItem[];
@@ -30,6 +31,8 @@ const InventoryTable = ({
   setEditingStock, 
   onStockUpdate 
 }: InventoryTableProps) => {
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
   const getStatusColor = (status: InventoryItem['status']) => {
     switch (status) {
       case 'in_stock': return 'bg-green-100 text-green-800';
@@ -67,11 +70,52 @@ const InventoryTable = ({
     }
   };
 
-  const filteredInventory = inventory.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedAndFilteredInventory = useMemo(() => {
+    // Сначала фильтруем
+    let filtered = inventory.filter(item =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Затем сортируем
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any = a[sortConfig.key as keyof InventoryItem];
+        let bValue: any = b[sortConfig.key as keyof InventoryItem];
+
+        // Специальная обработка для разных типов данных
+        if (sortConfig.key === 'currentStock' || sortConfig.key === 'price') {
+          aValue = Number(aValue) || 0;
+          bValue = Number(bValue) || 0;
+        } else if (sortConfig.key === 'lastRestocked') {
+          aValue = new Date(aValue || 0);
+          bValue = new Date(bValue || 0);
+        } else {
+          aValue = String(aValue).toLowerCase();
+          bValue = String(bValue).toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [inventory, searchTerm, sortConfig]);
 
   return (
     <Card>
@@ -90,7 +134,7 @@ const InventoryTable = ({
         </div>
       </CardHeader>
       <CardContent>
-        {filteredInventory.length === 0 ? (
+        {sortedAndFilteredInventory.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Нет товаров</h3>
@@ -104,18 +148,53 @@ const InventoryTable = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Текущий остаток</TableHead>
-                <TableHead>Товар</TableHead>
-                <TableHead>Категория</TableHead>
-                <TableHead>Цена</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Последнее изменение</TableHead>
+                <SortableTableHeader
+                  title="SKU"
+                  sortKey="sku"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Текущий остаток"
+                  sortKey="currentStock"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Товар"
+                  sortKey="name"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Категория"
+                  sortKey="category"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Цена"
+                  sortKey="price"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Статус"
+                  sortKey="status"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
+                <SortableTableHeader
+                  title="Последнее изменение"
+                  sortKey="lastRestocked"
+                  currentSort={sortConfig}
+                  onSort={handleSort}
+                />
                 <TableHead>Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInventory.map((item) => (
+              {sortedAndFilteredInventory.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.sku}</TableCell>
                   <TableCell>
