@@ -12,26 +12,43 @@ serve(async (req) => {
   }
 
   try {
-    const { apiKey } = await req.json();
+    console.log('=== Wildberries Connection Check Started ===');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+
+    const requestBody = await req.json();
+    console.log('Request body:', requestBody);
+
+    const { marketplace } = requestBody;
+    console.log('Marketplace from body:', marketplace);
+
+    // Получаем API ключ из тела запроса
+    const apiKey = requestBody.apiKey;
+    console.log('API key received:', apiKey ? 'YES (length: ' + apiKey.length + ')' : 'NO');
 
     if (!apiKey) {
+      console.log('ERROR: API ключ не предоставлен');
       return new Response(
-        JSON.stringify({ error: 'API ключ обязателен' }),
+        JSON.stringify({ 
+          success: false, 
+          error: 'API ключ обязателен для проверки подключения' 
+        }),
         { 
-          status: 400, 
+          status: 200, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    console.log('Checking Wildberries connection with API key length:', apiKey.length);
-
+    console.log('Attempting to connect to Wildberries API...');
+    
     // Используем правильный домен API
     const warehouseId = 7963; // Ваш ID склада
     
     let response;
     try {
-      console.log('Attempting to connect to Wildberries marketplace API...');
+      console.log('Making API request to Wildberries...');
+      console.log('API key being used:', apiKey.substring(0, 10) + '...');
       
       // Пробуем получить информацию о складах через новый API
       response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/warehouses`, {
@@ -44,7 +61,8 @@ serve(async (req) => {
         signal: AbortSignal.timeout(30000)
       });
 
-      console.log('Response received with status:', response.status);
+      console.log('API Response status:', response.status);
+      console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
       
     } catch (fetchError) {
       console.error('Network error during fetch:', fetchError);
@@ -69,6 +87,7 @@ serve(async (req) => {
       const hasWarehouse = data.some((warehouse: any) => warehouse.id === warehouseId);
       
       if (hasWarehouse) {
+        console.log('Warehouse found successfully');
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -80,6 +99,7 @@ serve(async (req) => {
           }
         );
       } else {
+        console.log('Warehouse not found in response');
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -106,6 +126,7 @@ serve(async (req) => {
         }
       );
     } else if (response.status === 429) {
+      console.error('Rate limit exceeded');
       return new Response(
         JSON.stringify({ 
           success: false, 

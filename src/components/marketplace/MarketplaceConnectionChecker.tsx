@@ -2,12 +2,24 @@
 import { toast } from "sonner";
 
 export class MarketplaceConnectionChecker {
-  static async checkConnection(marketplace: string): Promise<void> {
+  static async checkConnection(marketplace: string, apiKey?: string): Promise<void> {
     try {
+      console.log(`=== Starting ${marketplace} connection check ===`);
+      console.log('API key provided:', apiKey ? 'YES' : 'NO');
+      
+      if (!apiKey) {
+        toast.error(`❌ Ошибка проверки ${marketplace}`, {
+          description: 'API ключ не найден. Сначала сохраните настройки.'
+        });
+        return;
+      }
+
       // Используем правильные пути для Supabase Edge Functions
       const endpoint = marketplace === 'Ozon' 
         ? 'https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-connection-check'
         : 'https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-connection-check';
+
+      console.log('Making request to:', endpoint);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -17,9 +29,12 @@ export class MarketplaceConnectionChecker {
           'apikey': `${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-          marketplace: marketplace
+          marketplace: marketplace,
+          apiKey: apiKey
         })
       });
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -28,6 +43,7 @@ export class MarketplaceConnectionChecker {
       }
 
       const result = await response.json();
+      console.log('Response result:', result);
       
       if (result.success) {
         toast.success(`✅ Подключение к ${marketplace} успешно!`, {
