@@ -27,14 +27,15 @@ serve(async (req) => {
 
     console.log('Checking Wildberries connection');
 
-    // Проверяем подключение к Wildberries API через получение информации о складах
+    // Используем более надежный способ проверки с правильными заголовками
     const response = await fetch('https://suppliers-api.wildberries.ru/api/v3/warehouses', {
       method: 'GET',
       headers: {
         'Authorization': apiKey,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-      }
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000) // 10 секунд таймаут
     });
 
     if (!response.ok) {
@@ -42,10 +43,12 @@ serve(async (req) => {
       console.error('Wildberries API error:', response.status, errorText);
       
       let errorMessage = 'Ошибка подключения к Wildberries API';
-      if (response.status === 401) {
-        errorMessage = 'Неверный API ключ';
-      } else if (response.status === 403) {
-        errorMessage = 'Недостаточно прав доступа';
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Неверный API ключ или недостаточно прав доступа';
+      } else if (response.status === 429) {
+        errorMessage = 'Слишком много запросов. Попробуйте позже';
+      } else if (response.status >= 500) {
+        errorMessage = 'Сервер Wildberries временно недоступен';
       }
       
       return new Response(
@@ -60,12 +63,14 @@ serve(async (req) => {
       );
     }
 
-    console.log('Wildberries connection successful');
+    const data = await response.json();
+    console.log('Wildberries connection successful, warehouses found:', data?.length || 0);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Подключение к Wildberries успешно установлено' 
+        message: 'Подключение к Wildberries успешно установлено',
+        warehouses: data?.length || 0
       }),
       { 
         status: 200, 
@@ -75,10 +80,20 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Full error in Wildberries connection check:', error);
+    
+    let errorMessage = 'Внутренняя ошибка сервера';
+    if (error.name === 'TimeoutError') {
+      errorMessage = 'Таймаут подключения к Wildberries API';
+    } else if (error.message?.includes('network')) {
+      errorMessage = 'Ошибка сети при подключении к Wildberries';
+    } else if (error.message?.includes('fetch')) {
+      errorMessage = 'Не удается подключиться к серверам Wildberries';
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Внутренняя ошибка сервера: ' + error.message 
+        error: errorMessage
       }),
       { 
         status: 200, 
