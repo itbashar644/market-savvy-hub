@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
 
@@ -7,6 +6,7 @@ export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
 
   const refreshProducts = useCallback(async () => {
     try {
@@ -24,17 +24,16 @@ export const useProducts = () => {
         return;
       }
 
-      // Transform Supabase data to match our Product type
       const transformedData: Product[] = (data || []).map(item => ({
         id: item.id,
         title: item.title,
-        name: item.title, // Backwards compatibility
+        name: item.title,
         description: item.description,
         price: Number(item.price),
         discountPrice: item.discount_price ? Number(item.discount_price) : undefined,
         category: item.category,
         imageUrl: item.image_url,
-        image: item.image_url, // Backwards compatibility
+        image: item.image_url,
         additionalImages: Array.isArray(item.additional_images) ? item.additional_images : [],
         rating: Number(item.rating),
         inStock: item.in_stock,
@@ -44,12 +43,12 @@ export const useProducts = () => {
         isNew: item.is_new || false,
         isBestseller: item.is_bestseller || false,
         stockQuantity: item.stock_quantity || 0,
-        stock: item.stock_quantity || 0, // Backwards compatibility
+        stock: item.stock_quantity || 0,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
         archived: item.archived || false,
         articleNumber: item.article_number,
-        sku: item.article_number || item.id, // Backwards compatibility
+        sku: item.article_number || item.id,
         barcode: item.barcode,
         countryOfOrigin: item.country_of_origin,
         material: item.material,
@@ -61,7 +60,6 @@ export const useProducts = () => {
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
         colorVariants: Array.isArray(item.color_variants) ? item.color_variants : [],
-        // Additional backwards compatibility fields
         status: item.stock_quantity <= 0 ? 'out_of_stock' : 
                 item.stock_quantity <= 5 ? 'low_stock' : 'active',
         minStock: 5,
@@ -82,7 +80,6 @@ export const useProducts = () => {
 
   useEffect(() => {
     let mounted = true;
-    let channel: any = null;
 
     const setupSubscription = async () => {
       await refreshProducts();
@@ -90,9 +87,15 @@ export const useProducts = () => {
       if (!mounted) return;
 
       try {
-        // Create a single channel for products updates
-        channel = supabase
-          .channel('products_updates')
+        if (channelRef.current) {
+          await supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        channelRef.current = supabase
+          .channel(`products_updates_${Date.now()}`)
           .on(
             'postgres_changes',
             {
@@ -108,7 +111,7 @@ export const useProducts = () => {
             }
           );
 
-        await channel.subscribe();
+        await channelRef.current.subscribe();
         console.log('Products subscription established');
       } catch (error) {
         console.error('Error setting up products subscription:', error);
@@ -119,8 +122,9 @@ export const useProducts = () => {
 
     return () => {
       mounted = false;
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
         console.log('Products subscription cleaned up');
       }
     };
@@ -179,7 +183,6 @@ export const useProducts = () => {
     try {
       const updateData: any = {};
       
-      // Map Product fields to database fields
       if (updates.title !== undefined) updateData.title = updates.title;
       if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.price !== undefined) updateData.price = updates.price;
@@ -209,7 +212,6 @@ export const useProducts = () => {
       if (updates.wildberriesSku !== undefined) updateData.wildberries_sku = updates.wildberriesSku;
       if (updates.colorVariants !== undefined) updateData.color_variants = updates.colorVariants;
       
-      // Handle backwards compatibility fields
       if (updates.stock !== undefined) updateData.stock_quantity = updates.stock;
 
       const { data, error } = await supabase
@@ -250,6 +252,25 @@ export const useProducts = () => {
     }
   };
 
+  const deleteProducts = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+
+      if (error) {
+        console.error('Error deleting products:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in deleteProducts:', error);
+      return false;
+    }
+  };
+
   return {
     products,
     loading,
@@ -257,6 +278,7 @@ export const useProducts = () => {
     addProduct,
     updateProduct,
     deleteProduct,
+    deleteProducts,
     refreshProducts,
   };
 };

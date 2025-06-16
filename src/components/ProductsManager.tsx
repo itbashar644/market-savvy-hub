@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,12 +12,15 @@ import WildberriesSkuImport from './products/WildberriesSkuImport';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 const ProductsManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [showWbSkuImport, setShowWbSkuImport] = useState(false);
-  const { products, loading } = useProducts();
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const { products, loading, deleteProducts } = useProducts();
+  const { toast } = useToast();
   const [filters, setFilters] = useState<{ status: string[]; category: string[] }>({
     status: [],
     category: [],
@@ -79,6 +81,42 @@ const ProductsManager = () => {
     return searchTermMatch && statusMatch && categoryMatch;
   });
 
+  // Массовое удаление товаров
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) return;
+    
+    const success = await deleteProducts(selectedProducts);
+    if (success) {
+      toast({
+        title: "Товары удалены",
+        description: `Удалено товаров: ${selectedProducts.length}`,
+      });
+      setSelectedProducts([]);
+    } else {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить товары",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -98,6 +136,17 @@ const ProductsManager = () => {
           <p className="text-gray-600 mt-1">Каталог товаров и синхронизация с маркетплейсами</p>
         </div>
         <div className="flex space-x-2">
+          {selectedProducts.length > 0 && (
+            <Button 
+              variant="destructive" 
+              onClick={handleBulkDelete}
+              className="flex items-center space-x-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Удалить ({selectedProducts.length})</span>
+            </Button>
+          )}
+          
           <Dialog open={showWbSkuImport} onOpenChange={setShowWbSkuImport}>
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center space-x-2">
@@ -220,6 +269,40 @@ const ProductsManager = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk Actions Bar */}
+      {filteredProducts.length > 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Checkbox
+                  checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <Label className="cursor-pointer">
+                  Выбрать все ({filteredProducts.length})
+                </Label>
+              </div>
+              {selectedProducts.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">
+                    Выбрано: {selectedProducts.length}
+                  </span>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={handleBulkDelete}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Удалить выбранные
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Empty State */}
       {filteredProducts.length === 0 && (
         <Card>
@@ -263,6 +346,10 @@ const ProductsManager = () => {
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-3">
+                  <Checkbox
+                    checked={selectedProducts.includes(product.id)}
+                    onCheckedChange={() => handleSelectProduct(product.id)}
+                  />
                   <img
                     src={product.image}
                     alt={product.name}

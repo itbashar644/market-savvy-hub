@@ -14,10 +14,12 @@ import AnalyticsManager from '@/components/AnalyticsManager';
 import SettingsManager from '@/components/SettingsManager';
 import { MarketplaceCredentialsProvider } from '@/hooks/useDatabase';
 import { useDataSync } from '@/hooks/useDataSync';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { isOnline, lastSync } = useDataSync();
+  const isMobile = useIsMobile();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -48,11 +50,11 @@ const Index = () => {
 
   return (
     <MarketplaceCredentialsProvider>
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider defaultOpen={!isMobile}>
         <div className="min-h-screen flex w-full">
           <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <SidebarInset className="flex-1">
-            <main className="flex-1 overflow-auto p-6">
+            <main className={`flex-1 overflow-auto p-6 ${isMobile ? 'pt-16' : ''}`}>
               {renderContent()}
             </main>
           </SidebarInset>
