@@ -88,18 +88,145 @@ const MarketplaceIntegration = () => {
     }
   ];
 
+  // Новая функция для прямой проверки подключения к Wildberries
+  const checkWildberriesConnectionDirect = async (apiKey: string) => {
+    try {
+      console.log('Direct connection check to Wildberries...');
+      
+      // Пробуем несколько эндпоинтов
+      const endpoints = [
+        'https://suppliers-api.wildberries.ru/api/v3/warehouses',
+        'https://suppliers-api.wildberries.ru/public/api/v1/info'
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: {
+              'Authorization': apiKey,
+              'Accept': 'application/json',
+            },
+            mode: 'cors'
+          });
+
+          console.log(`Response from ${endpoint}:`, response.status);
+          
+          if (response.ok || response.status === 401 || response.status === 403) {
+            // Даже если получили 401/403, это означает что API доступен
+            if (response.status === 401 || response.status === 403) {
+              return { success: false, error: 'Неверный API ключ или недостаточно прав доступа' };
+            }
+            return { success: true, message: 'Подключение к Wildberries успешно установлено' };
+          }
+        } catch (err) {
+          console.log(`Error with ${endpoint}:`, err);
+          continue;
+        }
+      }
+      
+      throw new Error('Все эндпоинты недоступны');
+    } catch (error: any) {
+      console.error('Direct connection error:', error);
+      return { 
+        success: false, 
+        error: 'Не удается подключиться к API Wildberries. Возможно, проблема с CORS или сетью.' 
+      };
+    }
+  };
+
+  // Функция для прямой синхронизации с Wildberries
+  const syncWildberriesDirect = async (stocks: any[], apiKey: string) => {
+    try {
+      console.log('Direct sync to Wildberries with stocks:', stocks);
+
+      // Сначала получаем список складов
+      const warehousesResponse = await fetch('https://suppliers-api.wildberries.ru/api/v3/warehouses', {
+        method: 'GET',
+        headers: {
+          'Authorization': apiKey,
+          'Accept': 'application/json',
+        },
+        mode: 'cors'
+      });
+
+      if (!warehousesResponse.ok) {
+        throw new Error(`Ошибка получения складов: ${warehousesResponse.status}`);
+      }
+
+      const warehouses = await warehousesResponse.json();
+      if (!warehouses || warehouses.length === 0) {
+        throw new Error('Склады не найдены');
+      }
+
+      const warehouseId = warehouses[0].id;
+      console.log('Using warehouse:', warehouseId);
+
+      // Обновляем остатки
+      const stocksPayload = {
+        stocks: stocks.map(item => ({
+          sku: item.offer_id,
+          amount: item.stock,
+          warehouseId: warehouseId
+        }))
+      };
+
+      const stocksResponse = await fetch(`https://suppliers-api.wildberries.ru/api/v3/stocks/${warehouseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': apiKey,
+        },
+        body: JSON.stringify(stocksPayload),
+        mode: 'cors'
+      });
+
+      if (!stocksResponse.ok) {
+        throw new Error(`Ошибка обновления остатков: ${stocksResponse.status}`);
+      }
+
+      // Формируем результат
+      return {
+        result: stocks.map(item => ({
+          offer_id: item.offer_id,
+          updated: true,
+          errors: []
+        }))
+      };
+
+    } catch (error: any) {
+      console.error('Direct sync error:', error);
+      return {
+        result: stocks.map(item => ({
+          offer_id: item.offer_id,
+          updated: false,
+          errors: [{
+            code: 'DIRECT_SYNC_ERROR',
+            message: error.message
+          }]
+        }))
+      };
+    }
+  };
+
   const handleSync = async (marketplace: string) => {
     console.log(`Starting sync with ${marketplace}`);
     console.log('Current inventory:', inventory);
-    console.log('Credentials:', marketplace === 'Ozon' ? ozonCreds : wbCreds);
 
     if (marketplace === 'Wildberries') {
-      console.log('Wildberries credentials check:', wbCreds);
-
       if (!wbCreds.api_key) {
         toast({
           title: "Не указан API ключ",
           description: "Пожалуйста, укажите и сохраните API ключ в настройках Wildberries.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!inventory || inventory.length === 0) {
+        toast({
+          title: "Нет товаров для синхронизации",
+          description: "В инвентаре нет товаров для отправки на Wildberries.",
           variant: "destructive",
         });
         return;
@@ -113,26 +240,16 @@ const MarketplaceIntegration = () => {
         stock: item.currentStock,
       }));
 
-      console.log('Sending Wildberries request with stocks:', stocks);
+      console.log('Syncing stocks to Wildberries:', stocks);
 
       try {
-        const { data, error } = await supabase.functions.invoke('wildberries-stock-sync', {
-          body: { 
-            stocks, 
-            apiKey: wbCreds.api_key,
-          },
-        });
-
-        console.log('Wildberries function response:', { data, error });
-
-        if (error) throw error;
-        
-        const wbResult = data.result;
-        const failedUpdates = wbResult.filter((r: { updated: boolean; }) => !r.updated);
+        // Используем прямую синхронизацию
+        const result = await syncWildberriesDirect(stocks, wbCreds.api_key);
+        const failedUpdates = result.result.filter((r: { updated: boolean; }) => !r.updated);
 
         if (failedUpdates.length > 0) {
           console.error('Failed Wildberries updates:', failedUpdates);
-          setSyncResults(wbResult);
+          setSyncResults(result.result);
           setSelectedMarketplace(marketplace);
           setShowSyncResultModal(true);
           toast({
@@ -149,22 +266,9 @@ const MarketplaceIntegration = () => {
 
       } catch (error: any) {
         console.error('Error syncing with Wildberries:', error);
-        let description = "Произошла неизвестная ошибка.";
-
-        if (error instanceof FunctionsHttpError) {
-          try {
-            const errorJson = await error.context.json();
-            description = errorJson.error || JSON.stringify(errorJson);
-          } catch {
-            description = error.context.statusText || 'Не удалось получить детали ошибки от сервера.';
-          }
-        } else {
-          description = error.message;
-        }
-
         toast({
           title: "Ошибка синхронизации с Wildberries",
-          description,
+          description: error.message || "Произошла неизвестная ошибка.",
           variant: "destructive"
         });
       } finally {
@@ -346,7 +450,7 @@ const MarketplaceIntegration = () => {
           });
         }
       } else if (marketplace === 'Wildberries') {
-        apiKey = wbCreds.api_key;
+        const apiKey = wbCreds.api_key;
         if (!apiKey) {
           toast({
             title: "Не указан API ключ",
@@ -357,22 +461,19 @@ const MarketplaceIntegration = () => {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
-          body: { apiKey },
-        });
+        // Используем прямую проверку подключения
+        const result = await checkWildberriesConnectionDirect(apiKey);
 
-        if (error) throw error;
-
-        if (data.success) {
+        if (result.success) {
           toast({
             title: "Подключение к Wildberries",
-            description: data.message,
+            description: result.message,
             variant: "default",
           });
         } else {
           toast({
             title: "Ошибка подключения к Wildberries",
-            description: data.error,
+            description: result.error,
             variant: "destructive",
           });
         }
