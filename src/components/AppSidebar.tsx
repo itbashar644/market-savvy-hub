@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { Package, Users, ShoppingCart, BarChart3, Settings, FileText, Package2, MessageSquare, ExternalLink, Store, LogOut } from "lucide-react"
+import { Package, Users, ShoppingCart, BarChart3, Settings, FileText, Package2, MessageSquare, ExternalLink, LogOut } from "lucide-react"
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from "@/components/ui/button"
 
@@ -82,14 +82,6 @@ export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="sidebar-modern" {...props}>
-      <SidebarHeader className="px-4 py-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600">
-            <Store className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-bold sidebar-header-modern">CRM Store</span>
-        </div>
-      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium text-xs uppercase tracking-wider px-4">
