@@ -24,8 +24,8 @@ const WildberriesProductsList = () => {
   );
 
   const handleSync = () => {
-    if (wbCreds?.api_key) {
-      syncProducts(wbCreds.api_key);
+    if (wbCreds?.api_key && wbCreds?.warehouse_id) {
+      syncProducts(wbCreds.api_key, wbCreds.warehouse_id);
     }
   };
 
