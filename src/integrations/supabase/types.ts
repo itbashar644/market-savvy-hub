@@ -92,6 +92,112 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          category: string
+          current_stock: number | null
+          id: string
+          last_restocked: string | null
+          max_stock: number | null
+          min_stock: number | null
+          name: string
+          price: number
+          product_id: string
+          sku: string
+          status: string | null
+          supplier: string | null
+        }
+        Insert: {
+          category: string
+          current_stock?: number | null
+          id?: string
+          last_restocked?: string | null
+          max_stock?: number | null
+          min_stock?: number | null
+          name: string
+          price: number
+          product_id: string
+          sku: string
+          status?: string | null
+          supplier?: string | null
+        }
+        Update: {
+          category?: string
+          current_stock?: number | null
+          id?: string
+          last_restocked?: string | null
+          max_stock?: number | null
+          min_stock?: number | null
+          name?: string
+          price?: number
+          product_id?: string
+          sku?: string
+          status?: string | null
+          supplier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_history: {
+        Row: {
+          change_amount: number
+          change_type: string
+          id: string
+          new_stock: number
+          previous_stock: number
+          product_id: string
+          product_name: string
+          reason: string | null
+          sku: string
+          timestamp: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          change_amount: number
+          change_type: string
+          id?: string
+          new_stock: number
+          previous_stock: number
+          product_id: string
+          product_name: string
+          reason?: string | null
+          sku: string
+          timestamp?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          change_amount?: number
+          change_type?: string
+          id?: string
+          new_stock?: number
+          previous_stock?: number
+          product_id?: string
+          product_name?: string
+          reason?: string | null
+          sku?: string
+          timestamp?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketplace_credentials: {
         Row: {
           api_key: string | null

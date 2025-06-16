@@ -100,30 +100,29 @@ class LocalDatabase {
     return this.orderDb.getOrderStatusHistory();
   }
 
-  // Inventory methods - now using Supabase through the hook
+  // Legacy inventory methods - now deprecated, use useInventory hook instead
   getInventory(): InventoryItem[] {
-    // This method is now deprecated in favor of useInventory hook
     console.warn('getInventory is deprecated. Use useInventory hook instead.');
     return [];
   }
 
   updateInventoryStock(productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string): InventoryItem | null {
-    // This method is now deprecated in favor of useInventory hook
     console.warn('updateInventoryStock is deprecated. Use useInventory hook instead.');
     return null;
   }
 
   bulkUpdateInventoryStock(updates: { sku: string; newStock: number }[]): void {
-    // This method is now deprecated in favor of useInventory hook
     console.warn('bulkUpdateInventoryStock is deprecated. Use useInventory hook instead.');
   }
 
   getInventoryHistory(): InventoryHistory[] {
-    return this.inventoryDb.getInventoryHistory();
+    console.warn('getInventoryHistory is deprecated. Use useInventoryHistory hook instead.');
+    return [];
   }
 
   addInventoryHistory(historyRecord: Omit<InventoryHistory, 'id'>): InventoryHistory {
-    return this.inventoryDb.addInventoryHistory(historyRecord);
+    console.warn('addInventoryHistory is deprecated. Use useInventoryHistory hook instead.');
+    return { ...historyRecord, id: '' };
   }
 
   // Analytics methods
