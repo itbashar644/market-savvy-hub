@@ -16,61 +16,66 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Menu items.
+// Menu items with keys that match the routing logic
 const items = [
   {
     title: "Панель управления",
-    url: "/",
+    key: "dashboard",
     icon: BarChart3,
   },
   {
     title: "Заказы",
-    url: "/orders",
+    key: "orders",
     icon: ShoppingCart,
   },
   {
     title: "Товары",
-    url: "/products",
+    key: "products",
     icon: Package,
   },
   {
     title: "Остатки",
-    url: "/inventory",
+    key: "inventory",
     icon: Package2,
   },
   {
     title: "Клиенты",
-    url: "/customers",
+    key: "customers",
     icon: Users,
   },
   {
     title: "Аналитика",
-    url: "/analytics",
+    key: "analytics",
     icon: BarChart3,
   },
   {
     title: "Отчеты",
-    url: "/reports",
+    key: "reports",
     icon: FileText,
   },
   {
     title: "Интеграции",
-    url: "/marketplace",
+    key: "marketplaces",
     icon: ExternalLink,
   },
   {
     title: "Чат поддержка",
-    url: "/chat",
+    key: "chat",
     icon: MessageSquare,
   },
   {
     title: "Настройки",
-    url: "/settings",
+    key: "settings",
     icon: Settings,
   },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+export function AppSidebar({ activeTab, onTabChange, ...props }: AppSidebarProps) {
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader className="bg-sidebar">
@@ -86,11 +91,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  <SidebarMenuButton 
+                    onClick={() => onTabChange(item.key)}
+                    isActive={activeTab === item.key}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
