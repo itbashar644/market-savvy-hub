@@ -8,3 +8,7 @@ export { useOrderStatusHistory } from './database/useOrderStatusHistory';
 export { useAnalytics } from './database/useAnalytics';
 export { useMarketplaceCredentials, MarketplaceCredentialsProvider, type MarketplaceCredential } from './database/useMarketplaceCredentials';
 export { useDatabase } from './database/useDatabase';
+export { useWildberriesProducts } from './database/useWildberriesProducts';
+export { useWildberriesSync } from './database/useWildberriesSync';
+export { useWildberriesStockUpdate } from './database/useWildberriesStockUpdate';
+export { useSyncLogs, type SyncLog, type DetailedSyncLog } from './database/useSyncLogs';
