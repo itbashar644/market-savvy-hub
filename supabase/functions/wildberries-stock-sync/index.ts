@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const WB_API_URL = 'https://suppliers-api.wildberries.ru';
+const WB_API_URL = 'https://marketplace-api.wildberries.ru';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -29,94 +29,10 @@ serve(async (req) => {
 
     console.log('Syncing stocks to Wildberries for', stocks.length, 'items');
 
-    // Получаем список складов с улучшенной обработкой ошибок
-    let warehousesResponse;
-    try {
-      console.log('Fetching warehouses list...');
-      warehousesResponse = await fetch(`${WB_API_URL}/api/v3/warehouses`, {
-        method: 'GET',
-        headers: {
-          'Authorization': apiKey,
-          'Accept': 'application/json',
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-        },
-        signal: AbortSignal.timeout(30000) // Увеличиваем таймаут
-      });
-      
-      console.log('Warehouses response status:', warehousesResponse.status);
-      
-    } catch (fetchError) {
-      console.error('Network error while fetching warehouses:', fetchError);
-      
-      const allErrors = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: false,
-        errors: [
-          {
-            code: 'NETWORK_ERROR',
-            message: 'Не удается подключиться к серверам Wildberries. Проверьте подключение к интернету.',
-          },
-        ],
-      }));
-      
-      return new Response(JSON.stringify({ result: allErrors }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
+    // Используем ваш ID склада
+    const warehouseId = 7963;
 
-    if (!warehousesResponse.ok) {
-      const errorText = await warehousesResponse.text();
-      console.error('Wildberries Warehouses API Error:', warehousesResponse.status, errorText);
-      
-      let errorMessage = 'Ошибка получения списка складов';
-      if (warehousesResponse.status === 401 || warehousesResponse.status === 403) {
-        errorMessage = 'Неверный API ключ или недостаточно прав доступа';
-      } else if (warehousesResponse.status === 429) {
-        errorMessage = 'Слишком много запросов. Попробуйте позже';
-      }
-      
-      const allErrors = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: false,
-        errors: [
-          {
-            code: 'API_ERROR',
-            message: errorMessage,
-          },
-        ],
-      }));
-      
-      return new Response(JSON.stringify({ result: allErrors }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
-    const warehousesData = await warehousesResponse.json();
-    console.log('Wildberries warehouses:', warehousesData);
-
-    if (!warehousesData || warehousesData.length === 0) {
-      const allErrors = stocks.map(item => ({
-        offer_id: item.offer_id,
-        updated: false,
-        errors: [
-          {
-            code: 'NO_WAREHOUSES',
-            message: 'В аккаунте Wildberries не найдено активных складов',
-          },
-        ],
-      }));
-      
-      return new Response(JSON.stringify({ result: allErrors }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
-    const warehouseId = warehousesData[0].id;
-
-    // Обновляем остатки
+    // Обновляем остатки с правильной структурой данных
     const wbPayload = {
       stocks: stocks.map(item => ({
         sku: item.offer_id,
@@ -162,19 +78,51 @@ serve(async (req) => {
       });
     }
 
-    const responseData = await response.json();
-    console.log('Wildberries stock update response:', responseData);
-
-    if (!response.ok) {
-      console.error('Wildberries Stock Update Error:', responseData);
+    // Проверяем статус ответа
+    if (response.status === 204) {
+      // Успешное обновление - Wildberries возвращает 204 No Content при успехе
+      console.log('Stocks updated successfully');
+      
+      const result = stocks.map(item => ({
+        offer_id: item.offer_id,
+        updated: true,
+        errors: []
+      }));
+      
+      return new Response(JSON.stringify({ result }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } else if (response.status === 409) {
+      // Конфликт - возможно, неправильные параметры
+      console.error('Wildberries returned 409 - Conflict');
+      
+      const allErrors = stocks.map(item => ({
+        offer_id: item.offer_id,
+        updated: false,
+        errors: [
+          {
+            code: 'CONFLICT_ERROR',
+            message: 'Конфликт данных. Проверьте правильность SKU товаров и настройки склада.',
+          },
+        ],
+      }));
+      
+      return new Response(JSON.stringify({ result: allErrors }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } else if (!response.ok) {
+      const responseText = await response.text();
+      console.error('Wildberries Stock Update Error:', response.status, responseText);
       
       let errorMessage = 'Ошибка обновления остатков';
       if (response.status === 401 || response.status === 403) {
         errorMessage = 'Неверный API ключ или недостаточно прав доступа';
       } else if (response.status === 429) {
-        errorMessage = 'Слишком много запросов. Попробуйте позже';
-      } else if (responseData.errorText) {
-        errorMessage = responseData.errorText;
+        errorMessage = 'Превышен лимит запросов. Попробуйте позже';
+      } else if (response.status === 400) {
+        errorMessage = 'Неправильный формат данных или параметров запроса';
       }
       
       const allErrors = stocks.map(item => ({
@@ -182,7 +130,7 @@ serve(async (req) => {
         updated: false,
         errors: [
           {
-            code: responseData.errorText || 'API_ERROR',
+            code: `HTTP_${response.status}`,
             message: errorMessage,
           },
         ],
@@ -194,7 +142,10 @@ serve(async (req) => {
       });
     }
 
-    // Формируем результат в формате, совместимом с Ozon
+    // Неожиданный успешный статус
+    const responseText = await response.text();
+    console.log('Unexpected successful response:', response.status, responseText);
+    
     const result = stocks.map(item => ({
       offer_id: item.offer_id,
       updated: true,
@@ -209,7 +160,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error syncing stocks to Wildberries:', error);
     
-    // Формируем ответ с ошибками для всех товаров
     const { stocks } = await req.json().catch(() => ({ stocks: [] }));
     const allErrors = (stocks || []).map((item: any) => ({
       offer_id: item?.offer_id || 'unknown',
