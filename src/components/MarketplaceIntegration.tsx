@@ -5,8 +5,55 @@ import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import UpdateRules from './marketplace/UpdateRules';
 import WildberriesProductsList from './marketplace/WildberriesProductsList';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const MarketplaceIntegration = () => {
+  const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleCheckConnection = async (marketplace: string) => {
+    setCheckingConnection(marketplace);
+    
+    try {
+      if (marketplace === 'Ozon') {
+        const { data, error } = await supabase.functions.invoke('ozon-connection-check');
+        
+        if (error) throw error;
+        
+        if (data.success) {
+          toast({
+            title: "Соединение установлено",
+            description: "Подключение к Ozon API успешно",
+          });
+        } else {
+          throw new Error(data.error || 'Ошибка подключения к Ozon');
+        }
+      } else if (marketplace === 'Wildberries') {
+        const { data, error } = await supabase.functions.invoke('wildberries-connection-check');
+        
+        if (error) throw error;
+        
+        if (data.success) {
+          toast({
+            title: "Соединение установлено",
+            description: "Подключение к Wildberries API успешно",
+          });
+        } else {
+          throw new Error(data.error || 'Ошибка подключения к Wildberries');
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Ошибка подключения",
+        description: error.message || `Не удалось подключиться к ${marketplace}`,
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingConnection(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -25,7 +72,10 @@ const MarketplaceIntegration = () => {
         </TabsList>
 
         <TabsContent value="settings">
-          <MarketplaceSettings />
+          <MarketplaceSettings 
+            handleCheckConnection={handleCheckConnection}
+            checkingConnection={checkingConnection}
+          />
         </TabsContent>
 
         <TabsContent value="products">
@@ -37,7 +87,7 @@ const MarketplaceIntegration = () => {
         </TabsContent>
 
         <TabsContent value="logs">
-          <SyncLogs />
+          <SyncLogs logs={[]} />
         </TabsContent>
       </Tabs>
     </div>

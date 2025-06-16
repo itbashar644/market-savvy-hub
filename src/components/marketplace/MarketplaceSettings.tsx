@@ -11,8 +11,8 @@ interface MarketplaceSettingsProps {
 
 const MarketplaceSettings: React.FC<MarketplaceSettingsProps> = ({ handleCheckConnection, checkingConnection }) => {
     const { credentials, loading, saving, updateCredentialField, saveCredentials } = useMarketplaceCredentials();
-    const ozonCreds = credentials['Ozon'] || {};
-    const wbCreds = credentials['Wildberries'] || {};
+    const ozonCreds = credentials.Ozon || {};
+    const wbCreds = credentials.Wildberries || {};
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, Download, Search, Trash2, ExternalLink } from 'lucide-react';
+import { RefreshCw, Download, Search, Trash2, ExternalLink, Settings } from 'lucide-react';
 import { useWildberriesProducts } from '@/hooks/database/useWildberriesProducts';
 import { useMarketplaceCredentials } from '@/hooks/useDatabase';
 
@@ -77,9 +77,17 @@ const WildberriesProductsList = () => {
       <CardContent className="space-y-4">
         {!wbCreds?.api_key && (
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800">
-              Для синхронизации товаров необходимо настроить API ключ Wildberries в разделе настроек.
-            </p>
+            <div className="flex items-center space-x-2">
+              <Settings className="w-5 h-5 text-yellow-600" />
+              <div>
+                <p className="text-yellow-800 font-medium">
+                  Необходимо настроить API ключ Wildberries
+                </p>
+                <p className="text-yellow-700 text-sm mt-1">
+                  Перейдите на вкладку "Настройки" и введите API ключ Wildberries для синхронизации товаров.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -102,7 +110,7 @@ const WildberriesProductsList = () => {
           <div className="text-center py-8 text-gray-500">
             <p>Товары не найдены</p>
             <p className="text-sm mt-1">
-              {wbCreds?.api_key ? 'Нажмите "Синхронизировать" для загрузки товаров' : 'Настройте API ключ для начала работы'}
+              {wbCreds?.api_key ? 'Нажмите "Синхронизировать" для загрузки товаров' : 'Настройте API ключ на вкладке "Настройки" для начала работы'}
             </p>
           </div>
         ) : (
