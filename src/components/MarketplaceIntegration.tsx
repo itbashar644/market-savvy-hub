@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
+import ManualSyncControls from './marketplace/ManualSyncControls';
+import AutoSyncSettings from './marketplace/AutoSyncSettings';
 import { MarketplaceConnectionChecker } from './marketplace/MarketplaceConnectionChecker';
 import { useSyncLogs } from '@/hooks/useDatabase';
 
@@ -39,9 +41,11 @@ const MarketplaceIntegration = () => {
       </Alert>
 
       <Tabs defaultValue="settings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="settings">Настройки</TabsTrigger>
-          <TabsTrigger value="logs">Логи синхронизации</TabsTrigger>
+          <TabsTrigger value="sync">Синхронизация</TabsTrigger>
+          <TabsTrigger value="auto-sync">Автосинхронизация</TabsTrigger>
+          <TabsTrigger value="logs">Логи</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="space-y-6">
@@ -49,6 +53,14 @@ const MarketplaceIntegration = () => {
             handleCheckConnection={handleCheckConnection}
             checkingConnection={checkingConnection}
           />
+        </TabsContent>
+
+        <TabsContent value="sync" className="space-y-6">
+          <ManualSyncControls />
+        </TabsContent>
+
+        <TabsContent value="auto-sync" className="space-y-6">
+          <AutoSyncSettings />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
