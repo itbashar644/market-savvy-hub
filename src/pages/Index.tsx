@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
+import Sidebar from '@/components/Sidebar';
 import Dashboard from '@/components/Dashboard';
 import ProductsManager from '@/components/ProductsManager';
 import MarketplaceIntegration from '@/components/MarketplaceIntegration';
@@ -46,16 +45,12 @@ const Index = () => {
 
   return (
     <MarketplaceCredentialsProvider>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-          <SidebarInset className="flex-1">
-            <main className="flex-1 overflow-auto p-4">
-              {renderContent()}
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <main className="flex-1 overflow-auto p-4">
+          {renderContent()}
+        </main>
+      </div>
     </MarketplaceCredentialsProvider>
   );
 };
