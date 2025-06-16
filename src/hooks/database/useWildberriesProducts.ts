@@ -63,19 +63,29 @@ export const useWildberriesProducts = () => {
         throw new Error('Пользователь не авторизован');
       }
       
+      console.log('Calling wildberries-products-list function...');
+      
       // Вызываем edge function для получения товаров
       const { data, error } = await supabase.functions.invoke('wildberries-products-list', {
         body: { apiKey }
       });
 
-      if (error) throw error;
+      console.log('Function response:', { data, error });
+
+      if (error) {
+        console.error('Function error:', error);
+        throw new Error(`Ошибка при вызове функции: ${error.message}`);
+      }
       
-      if (data.error) {
+      if (data?.error) {
+        console.error('API error:', data.error);
         throw new Error(data.error);
       }
 
       // Сохраняем товары в базу данных
-      if (data.products && data.products.length > 0) {
+      if (data?.products && data.products.length > 0) {
+        console.log('Saving products to database:', data.products.length);
+        
         const { error: insertError } = await supabase
           .from('wildberries_products')
           .upsert(
@@ -89,7 +99,12 @@ export const useWildberriesProducts = () => {
             }
           );
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw insertError;
+        }
+        
+        console.log('Products saved successfully');
       }
 
       return data;
@@ -98,12 +113,12 @@ export const useWildberriesProducts = () => {
       queryClient.invalidateQueries({ queryKey: ['wildberries-products'] });
       toast({
         title: "Товары синхронизированы",
-        description: `Загружено ${data.products?.length || 0} товаров из Wildberries`,
+        description: `Загружено ${data?.products?.length || 0} товаров из Wildberries`,
       });
       setLoading(false);
     },
     onError: (error: any) => {
-      console.error('Sync error:', error);
+      console.error('Sync error details:', error);
       toast({
         title: "Ошибка синхронизации",
         description: error.message || "Не удалось синхронизировать товары",
@@ -140,6 +155,7 @@ export const useWildberriesProducts = () => {
   });
 
   const syncProducts = useCallback((apiKey: string) => {
+    console.log('Starting sync with API key length:', apiKey?.length);
     syncProductsMutation.mutate(apiKey);
   }, [syncProductsMutation]);
 
