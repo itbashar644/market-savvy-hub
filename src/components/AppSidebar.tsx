@@ -13,6 +13,7 @@ import {
   FileText,
   LogOut
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from "@/components/ui/button";
 import {
@@ -51,35 +52,39 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
   ];
 
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="border-b p-4">
+    <Sidebar className="border-r-0 bg-slate-900 text-white">
+      <SidebarHeader className="border-b border-slate-700 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
               CRM Store
             </h1>
-            <p className="text-sm text-muted-foreground">Управление магазином</p>
+            <p className="text-slate-400 text-sm mt-1">Управление магазином</p>
           </div>
-          <SidebarTrigger className="md:hidden" />
+          <SidebarTrigger className="md:hidden text-white hover:bg-slate-800" />
         </div>
       </SidebarHeader>
       
-      <SidebarContent>
+      <SidebarContent className="bg-slate-900">
         <SidebarGroup>
-          <SidebarGroupLabel>Навигация</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
+          <SidebarGroupLabel className="text-slate-400 px-6 py-4">Навигация</SidebarGroupLabel>
+          <SidebarGroupContent className="px-4">
+            <SidebarMenu className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton 
                       onClick={() => onTabChange(item.id)}
-                      isActive={activeTab === item.id}
-                      className="w-full"
+                      className={cn(
+                        "w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-left hover:bg-slate-800",
+                        activeTab === item.id
+                          ? "bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg text-white"
+                          : "text-slate-300 hover:text-white"
+                      )}
                     >
                       <Icon size={20} />
-                      <span>{item.label}</span>
+                      <span className="font-medium">{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -89,11 +94,10 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
       
-      <SidebarFooter className="border-t p-4 space-y-4">
+      <SidebarFooter className="border-t border-slate-700 p-4 bg-slate-900 space-y-4">
         <Button 
           onClick={() => signOut()} 
-          variant="outline" 
-          className="w-full flex items-center justify-center space-x-2"
+          className="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 text-white border-0"
         >
           <LogOut size={16} />
           <span>Выйти</span>
