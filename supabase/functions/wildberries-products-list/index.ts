@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const WB_API_URL = 'https://marketplace-api.wildberries.ru';
+const WB_API_URL = 'https://suppliers-api.wildberries.ru';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,7 +18,7 @@ serve(async (req) => {
 
     console.log('Fetching products from Wildberries...');
 
-    // Получаем список карточек товаров через Content API
+    // Получаем список карточек товаров через Suppliers API
     const response = await fetch(`${WB_API_URL}/content/v2/get/cards/list`, {
       method: 'POST',
       headers: {
@@ -39,11 +39,11 @@ serve(async (req) => {
       signal: AbortSignal.timeout(30000)
     });
 
-    console.log('Content API response status:', response.status);
+    console.log('Suppliers API response status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.log('Content API error:', response.status, errorText);
+      console.log('Suppliers API error:', response.status, errorText);
       
       return new Response(JSON.stringify({ 
         error: `Ошибка API Wildberries: ${response.status}`,
@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Content API response received, cards count:', data.cards?.length || 0);
+    console.log('Suppliers API response received, cards count:', data.cards?.length || 0);
 
     if (!data.cards || !Array.isArray(data.cards)) {
       return new Response(JSON.stringify({ 

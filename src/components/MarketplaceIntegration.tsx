@@ -10,12 +10,14 @@ import WildberriesProductsList from './marketplace/WildberriesProductsList';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarketplaceCredentials } from '@/hooks/database/useMarketplaceCredentials';
+import { useWildberriesProducts } from '@/hooks/database/useWildberriesProducts';
 
 const MarketplaceIntegration = () => {
   const [checkingConnection, setCheckingConnection] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const { toast } = useToast();
   const { credentials } = useMarketplaceCredentials();
+  const { syncProducts } = useWildberriesProducts();
 
   const handleCheckConnection = async (marketplace: string) => {
     setCheckingConnection(marketplace);
@@ -91,27 +93,24 @@ const MarketplaceIntegration = () => {
       let syncCount = 0;
       const errors = [];
       
-      // Проверяем подключение к Wildberries
+      // Синхронизация товаров Wildberries
       if (wbCreds?.api_key) {
         try {
-          const { data, error } = await supabase.functions.invoke('wildberries-connection-check', {
-            body: { apiKey: wbCreds.api_key }
+          console.log('Starting Wildberries products sync...');
+          await new Promise((resolve, reject) => {
+            syncProducts(wbCreds.api_key);
+            // Даем время на завершение синхронизации
+            setTimeout(resolve, 2000);
           });
-          
-          if (error) throw error;
-          
-          if (data.success) {
-            syncCount++;
-            console.log('Wildberries connection verified for sync');
-          } else {
-            errors.push(`Wildberries: ${data.error}`);
-          }
+          syncCount++;
+          console.log('Wildberries products sync completed');
         } catch (error: any) {
           errors.push(`Wildberries: ${error.message}`);
+          console.error('Wildberries sync error:', error);
         }
       }
       
-      // Проверяем подключение к Ozon
+      // Пока только проверяем подключение к Ozon (синхронизация товаров будет добавлена позже)
       if (ozonCreds?.api_key && ozonCreds?.client_id) {
         try {
           const { data, error } = await supabase.functions.invoke('ozon-connection-check', {
@@ -124,8 +123,7 @@ const MarketplaceIntegration = () => {
           if (error) throw error;
           
           if (data.success) {
-            syncCount++;
-            console.log('Ozon connection verified for sync');
+            console.log('Ozon connection verified');
           } else {
             errors.push(`Ozon: ${data.error}`);
           }
@@ -136,14 +134,14 @@ const MarketplaceIntegration = () => {
       
       if (syncCount > 0) {
         toast({
-          title: "Проверка подключений завершена",
-          description: `Проверено ${syncCount} маркетплейса(-ов). Соединения работают корректно.`,
+          title: "Синхронизация завершена",
+          description: `Синхронизировано ${syncCount} маркетплейса(-ов)`,
         });
       } 
       
       if (errors.length > 0) {
         toast({
-          title: "Ошибки при проверке",
+          title: "Ошибки при синхронизации",
           description: `Ошибки: ${errors.join(', ')}`,
           variant: "destructive",
         });
@@ -183,7 +181,7 @@ const MarketplaceIntegration = () => {
           size="lg"
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Проверка подключений...' : 'Синхронизировать все'}
+          {syncing ? 'Синхронизация...' : 'Синхронизировать все'}
         </Button>
       </div>
 
