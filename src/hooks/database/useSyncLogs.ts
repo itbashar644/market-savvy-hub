@@ -15,6 +15,7 @@ export interface DetailedSyncLog extends SyncLog {
     originalCount?: number;
     validCount?: number;
     updatedCount?: number;
+    warehousesCount?: number;
   };
 }
 
