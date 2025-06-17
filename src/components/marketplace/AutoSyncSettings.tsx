@@ -18,33 +18,28 @@ const AutoSyncSettings = () => {
     updateIntervals,
   } = useAutoSync();
 
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(status.isRunning);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [productSyncInterval, setProductSyncInterval] = useState('60');
   const [stockUpdateInterval, setStockUpdateInterval] = useState('30');
 
-  // Sync local state with auto-sync status
-  useEffect(() => {
-    setAutoSyncEnabled(status.isRunning);
-  }, [status.isRunning]);
-
-  // Load saved settings on initialization
+  // Load saved settings on initialization and sync with status
   useEffect(() => {
     const savedSettings = localStorage.getItem('autoSyncSettings');
     if (savedSettings) {
       const settings = JSON.parse(savedSettings);
+      setAutoSyncEnabled(settings.autoSyncEnabled || false);
       setProductSyncInterval(settings.productSyncInterval || '60');
       setStockUpdateInterval(settings.stockUpdateInterval || '30');
-      
-      // If auto sync was enabled and settings exist, start it
-      if (settings.autoSyncEnabled && !status.isRunning) {
-        updateIntervals(
-          settings.productSyncInterval === 'never' ? 0 : parseInt(settings.productSyncInterval), 
-          parseInt(settings.stockUpdateInterval)
-        );
-        setTimeout(() => startAutoSync(), 500);
-      }
     }
+    
+    // Sync the enabled state with actual running status
+    setAutoSyncEnabled(status.isRunning);
   }, []);
+
+  // Sync autoSyncEnabled with actual running status
+  useEffect(() => {
+    setAutoSyncEnabled(status.isRunning);
+  }, [status.isRunning]);
 
   const handleSaveSettings = () => {
     const settings = {
@@ -53,18 +48,21 @@ const AutoSyncSettings = () => {
       stockUpdateInterval,
     };
     
+    console.log('💾 Сохранение настроек автосинхронизации:', settings);
     localStorage.setItem('autoSyncSettings', JSON.stringify(settings));
     
-    // Update intervals without restarting if already running
+    // Update intervals immediately
     updateIntervals(
       productSyncInterval === 'never' ? 0 : parseInt(productSyncInterval), 
       parseInt(stockUpdateInterval)
     );
     
-    // Only toggle auto-sync if the enabled state changed
+    // Control auto-sync based on enabled state WITHOUT restarting if already running properly
     if (autoSyncEnabled && !status.isRunning) {
-      startAutoSync();
+      console.log('▶️ Запуск автосинхронизации');
+      setTimeout(() => startAutoSync(), 500);
     } else if (!autoSyncEnabled && status.isRunning) {
+      console.log('⏸️ Остановка автосинхронизации');
       stopAutoSync();
     }
     
@@ -72,12 +70,15 @@ const AutoSyncSettings = () => {
   };
 
   const toggleAutoSync = () => {
-    if (status.isRunning) {
-      stopAutoSync();
-      setAutoSyncEnabled(false);
-    } else {
+    const newState = !autoSyncEnabled;
+    setAutoSyncEnabled(newState);
+    
+    if (newState && !status.isRunning) {
+      console.log('🚀 Включение автосинхронизации через toggle');
       startAutoSync();
-      setAutoSyncEnabled(true);
+    } else if (!newState && status.isRunning) {
+      console.log('⏸️ Выключение автосинхронизации через toggle');
+      stopAutoSync();
     }
   };
 
@@ -104,7 +105,7 @@ const AutoSyncSettings = () => {
               </div>
               <Switch 
                 checked={autoSyncEnabled}
-                onCheckedChange={setAutoSyncEnabled}
+                onCheckedChange={toggleAutoSync}
               />
             </div>
 
