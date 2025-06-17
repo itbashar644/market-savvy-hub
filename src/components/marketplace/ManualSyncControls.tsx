@@ -57,9 +57,9 @@ const ManualSyncControls = () => {
 
     return itemsWithWbSku.map(item => ({
       nm_id: parseInt(item.wildberries_sku!),
-      warehouse_id: 1, // По умолчанию склад 1
-      stock: item.currentStock,
-      offer_id: item.sku, // Для Ozon
+      warehouse_id: 1,
+      stock: item.current_stock,
+      offer_id: item.sku,
       sku: item.sku
     }));
   };
@@ -99,13 +99,12 @@ const ManualSyncControls = () => {
     }
   };
 
-  // Подсчитываем статистику товаров
   const totalItems = inventory.length;
   const itemsWithWbSku = inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '').length;
 
   return (
     <div className="space-y-6">
-      {/* Информационная панель */}
+      {/* Statistics panel */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
