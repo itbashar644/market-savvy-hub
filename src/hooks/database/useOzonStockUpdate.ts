@@ -24,15 +24,26 @@ export const useOzonStockUpdate = () => {
         throw new Error('Ozon warehouse ID not configured');
       }
 
-      // Логируем каждый SKU отдельно для Ozon
-      const skuDetails = products.map(p => {
+      // Логируем КАЖДЫЙ SKU отдельно для Ozon с подробными данными
+      const allSkuDetails = products.map(p => {
         const offerId = p.offer_id || p.sku;
         const stock = p.stock || p.currentStock || 0;
-        console.log(`📋 Ozon SKU: ${offerId}, остаток: ${stock}`);
-        return { offerId, stock };
+        const productName = p.name || 'N/A';
+        const category = p.category || 'N/A';
+        console.log(`📋 Ozon SKU: ${offerId}, остаток: ${stock}, название: ${productName}, категория: ${category}`);
+        return { 
+          offerId, 
+          stock, 
+          productName, 
+          category,
+          originalData: p
+        };
       });
 
-      console.log(`📤 Отправляем ${skuDetails.length} SKU в Ozon API:`, skuDetails.map(s => `${s.offerId}(${s.stock})`).join(', '));
+      console.log(`📤 Отправляем ${allSkuDetails.length} SKU в Ozon API:`);
+      allSkuDetails.forEach((item, index) => {
+        console.log(`  ${index + 1}. SKU ${item.offerId} - остаток: ${item.stock} - ${item.productName}`);
+      });
 
       const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
         method: 'POST',
@@ -64,14 +75,30 @@ export const useOzonStockUpdate = () => {
         const successCount = result.result.filter((r: any) => r.updated).length;
         const errorCount = result.result.filter((r: any) => !r.updated).length;
 
-        // Логируем результат для каждого SKU в Ozon
-        result.result.forEach((item: any) => {
-          const skuDetail = skuDetails.find(s => s.offerId === item.offer_id);
+        // Логируем РЕЗУЛЬТАТ для каждого SKU в Ozon с подробной информацией
+        const skuResults = result.result.map((item: any) => {
+          const skuDetail = allSkuDetails.find(s => s.offerId === item.offer_id);
           if (item.updated) {
-            console.log(`✅ Ozon SKU ${item.offer_id}: успешно обновлен, остаток ${skuDetail?.stock}`);
+            console.log(`✅ Ozon SKU ${item.offer_id}: успешно обновлен, остаток ${skuDetail?.stock} - ${skuDetail?.productName}`);
+            return {
+              offerId: item.offer_id,
+              productName: skuDetail?.productName || 'N/A',
+              category: skuDetail?.category || 'N/A',
+              stock: skuDetail?.stock || 0,
+              status: 'updated',
+              error: null
+            };
           } else {
             const errors = item.errors?.map((e: any) => e.code).join(', ') || 'Unknown error';
-            console.log(`❌ Ozon SKU ${item.offer_id}: ошибка - ${errors}`);
+            console.log(`❌ Ozon SKU ${item.offer_id}: ошибка - ${errors} - ${skuDetail?.productName}`);
+            return {
+              offerId: item.offer_id,
+              productName: skuDetail?.productName || 'N/A',
+              category: skuDetail?.category || 'N/A',
+              stock: skuDetail?.stock || 0,
+              status: 'error',
+              error: errors
+            };
           }
         });
 
@@ -85,7 +112,8 @@ export const useOzonStockUpdate = () => {
             updatedCount: successCount,
             errorCount: errorCount,
             productsCount: products.length,
-            skuDetails: skuDetails,
+            allSkuDetails: allSkuDetails,
+            skuResults: skuResults,
             detailedResults: result.result
           }
         });

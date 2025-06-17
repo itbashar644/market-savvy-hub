@@ -30,14 +30,11 @@ serve(async (req) => {
     console.log('Syncing stocks to Wildberries for', stocks.length, 'items');
     console.log('Sample stocks data:', stocks.slice(0, 3));
 
-    // Специальная диагностика для SKU 2041589280948
-    const testSku = "2041589280948";
-    const hasTestSku = stocks.some(item => item.offer_id === testSku);
-    if (hasTestSku) {
-      console.log(`🔍 ДИАГНОСТИКА: Найден тестовый SKU ${testSku} в запросе`);
-      const testItem = stocks.find(item => item.offer_id === testSku);
-      console.log(`🔍 ДИАГНОСТИКА: Данные для ${testSku}:`, testItem);
-    }
+    // Логируем КАЖДЫЙ полученный SKU
+    console.log('📋 Все полученные SKU для обновления:');
+    stocks.forEach((item, index) => {
+      console.log(`  ${index + 1}. SKU: ${item.offer_id}, остаток: ${item.stock}`);
+    });
 
     // Используем ваш ID склада
     const warehouseId = 7963;
@@ -78,150 +75,8 @@ serve(async (req) => {
       console.error('🏢 Warehouses API request failed:', warehouseError);
     }
 
-    // Попробуем получить остатки с текущего склада для диагностики
-    console.log(`📦 Проверка текущих остатков на складе ${warehouseId}...`);
-    
-    try {
-      const currentStocksResponse = await fetch(`${WB_API_URL}/api/v3/stocks/${warehouseId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': apiKey,
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-        },
-        signal: AbortSignal.timeout(30000)
-      });
-
-      console.log('📦 Current stocks response status:', currentStocksResponse.status);
-      
-      if (currentStocksResponse.ok) {
-        const currentStocks = await currentStocksResponse.json();
-        console.log('📦 Current stocks response structure:', Object.keys(currentStocks));
-        
-        if (currentStocks.stocks && Array.isArray(currentStocks.stocks)) {
-          const totalStocks = currentStocks.stocks.length;
-          console.log(`📦 Найдено товаров с остатками: ${totalStocks}`);
-          console.log('📦 Примеры SKU с остатками:', currentStocks.stocks.slice(0, 10).map(s => s.sku));
-          
-          // Проверяем наш тестовый SKU
-          if (hasTestSku) {
-            const testSkuStock = currentStocks.stocks.find(s => s.sku === testSku);
-            if (testSkuStock) {
-              console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} найден в остатках:`, testSkuStock);
-            } else {
-              console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} НЕ найден в текущих остатках склада`);
-            }
-          }
-          
-          // Проверяем сколько из наших SKU есть в остатках
-          const ourSkus = stocks.map(item => item.offer_id);
-          const existingSkus = currentStocks.stocks.map(s => s.sku);
-          const matchingSkus = ourSkus.filter(sku => existingSkus.includes(sku));
-          console.log(`📊 Из наших ${ourSkus.length} SKU, ${matchingSkus.length} найдены в остатках склада`);
-          
-          if (matchingSkus.length > 0) {
-            console.log('✅ Найденные SKU:', matchingSkus.slice(0, 5));
-          }
-        }
-      } else {
-        const errorText = await currentStocksResponse.text();
-        console.log('📦 Current stocks error:', currentStocksResponse.status, errorText);
-      }
-    } catch (stocksError) {
-      console.error('📦 Current stocks request failed:', stocksError);
-    }
-
-    // Попробуем получить информацию о товарах через Content API v1
-    console.log('📝 Проверка товаров через Content API v1...');
-    
-    try {
-      const contentResponse = await fetch(`${WB_API_URL}/content/v1/cards/cursor/list`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': apiKey,
-          'User-Agent': 'Supabase-Edge-Function/1.0',
-        },
-        body: JSON.stringify({
-          sort: {
-            cursor: {
-              limit: 1000
-            }
-          }
-        }),
-        signal: AbortSignal.timeout(30000)
-      });
-
-      console.log('📝 Content API v1 response status:', contentResponse.status);
-      
-      if (contentResponse.ok) {
-        const contentData = await contentResponse.json();
-        console.log('📝 Content API v1 response received');
-        console.log('📝 Response structure:', Object.keys(contentData));
-        
-        if (contentData.cards && Array.isArray(contentData.cards)) {
-          console.log('📝 Найдено карточек товаров:', contentData.cards.length);
-          
-          // Собираем все SKU из карточек
-          let allSkus = new Set();
-          contentData.cards.forEach((card: any) => {
-            if (card.sizes && Array.isArray(card.sizes)) {
-              card.sizes.forEach((size: any) => {
-                if (size.skus && Array.isArray(size.skus)) {
-                  size.skus.forEach((sku: string) => {
-                    allSkus.add(sku);
-                  });
-                }
-              });
-            }
-          });
-          
-          console.log('📝 Общее количество SKU в каталоге:', allSkus.size);
-          console.log('📝 Примеры SKU из каталога:', Array.from(allSkus).slice(0, 10));
-          
-          // Проверяем наш тестовый SKU
-          if (hasTestSku) {
-            if (allSkus.has(testSku)) {
-              console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} найден в каталоге товаров!`);
-            } else {
-              console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} НЕ найден в каталоге товаров`);
-            }
-          }
-          
-          // Проверяем сколько из наших SKU есть в каталоге
-          const ourSkus = stocks.map(item => item.offer_id);
-          const foundInCatalog = ourSkus.filter(sku => allSkus.has(sku));
-          console.log(`📊 Из наших ${ourSkus.length} SKU, ${foundInCatalog.length} найдены в каталоге`);
-          
-          if (foundInCatalog.length > 0) {
-            console.log('✅ SKU найденные в каталоге:', foundInCatalog.slice(0, 5));
-          }
-        }
-      } else {
-        const errorText = await contentResponse.text();
-        console.log('📝 Content API v1 error:', contentResponse.status, errorText);
-      }
-    } catch (contentError) {
-      console.error('📝 Content API v1 request failed:', contentError);
-    }
-
-    // Теперь попробуем обновить остатки с добавленным тестовым SKU
-    let finalStocks = [...stocks];
-    
-    // Если тестового SKU нет в списке, добавляем его
-    if (!hasTestSku) {
-      console.log(`🔍 ДИАГНОСТИКА: Добавляем тестовый SKU ${testSku} с остатком 3`);
-      finalStocks.push({
-        offer_id: testSku,
-        stock: 3
-      });
-    } else {
-      // Обновляем остаток для тестового SKU
-      const testIndex = finalStocks.findIndex(item => item.offer_id === testSku);
-      if (testIndex !== -1) {
-        finalStocks[testIndex].stock = 3;
-        console.log(`🔍 ДИАГНОСТИКА: Обновлен остаток для SKU ${testSku} на 3`);
-      }
-    }
+    // НЕ ДОБАВЛЯЕМ тестовый SKU - используем только переданные данные
+    const finalStocks = [...stocks];
 
     const wbPayload = {
       stocks: finalStocks.map(item => ({
@@ -234,11 +89,11 @@ serve(async (req) => {
     console.log('📤 Отправка обновления остатков в Wildberries...');
     console.log('📤 Количество товаров:', wbPayload.stocks.length);
     
-    // Показываем данные для тестового SKU
-    const testSkuInPayload = wbPayload.stocks.find(s => s.sku === testSku);
-    if (testSkuInPayload) {
-      console.log(`🔍 ДИАГНОСТИКА: Данные для отправки SKU ${testSku}:`, testSkuInPayload);
-    }
+    // Логируем все SKU, которые отправляем
+    console.log('📤 Все SKU для отправки:');
+    wbPayload.stocks.forEach((item, index) => {
+      console.log(`  ${index + 1}. SKU: ${item.sku}, остаток: ${item.amount}, склад: ${item.warehouseId}`);
+    });
 
     let response;
     let responseText = '';
@@ -285,10 +140,10 @@ serve(async (req) => {
     if (response.status === 204) {
       console.log('✅ Остатки обновлены успешно');
       
-      // Специальная проверка для тестового SKU
-      if (testSkuInPayload) {
-        console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} успешно обновлен до ${testSkuInPayload.amount}`);
-      }
+      // Логируем успех для всех SKU
+      finalStocks.forEach(item => {
+        console.log(`✅ SKU ${item.offer_id}: успешно обновлен до ${item.stock}`);
+      });
       
       const result = finalStocks.map(item => ({
         offer_id: item.offer_id,
@@ -341,18 +196,20 @@ serve(async (req) => {
         conflictData = JSON.parse(responseText);
         console.log('❌ Detailed 409 error:', conflictData);
         
-        // Специальная диагностика для тестового SKU
-        if (testSkuInPayload && Array.isArray(conflictData)) {
-          const testSkuError = conflictData.find((err: any) => 
-            err.data && Array.isArray(err.data) && 
-            err.data.some((d: any) => d.sku === testSku)
-          );
-          
-          if (testSkuError) {
-            console.log(`🔍 ДИАГНОСТИКА: Ошибка для SKU ${testSku}:`, testSkuError);
-          } else {
-            console.log(`🔍 ДИАГНОСТИКА: SKU ${testSku} не найден в списке ошибок - возможно обновлен успешно`);
-          }
+        // Логируем ошибки для всех SKU
+        if (Array.isArray(conflictData)) {
+          finalStocks.forEach(item => {
+            const errorForSku = conflictData.find((err: any) => 
+              err.data && Array.isArray(err.data) && 
+              err.data.some((d: any) => d.sku === item.offer_id)
+            );
+            
+            if (errorForSku) {
+              console.log(`❌ SKU ${item.offer_id}: ${errorForSku.message || 'NotFound'} - товар не найден в каталоге`);
+            } else {
+              console.log(`🔍 SKU ${item.offer_id}: не найден в списке ошибок - возможно обновлен успешно`);
+            }
+          });
         }
         
         // Если ответ - массив ошибок

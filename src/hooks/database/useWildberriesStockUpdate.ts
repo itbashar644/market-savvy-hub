@@ -41,24 +41,33 @@ export const useWildberriesStockUpdate = () => {
 
       console.log(`📋 Товары для обновления: ${validProducts.length} из ${products.length}`);
 
-      // Логируем каждый SKU отдельно
-      const skuDetails = validProducts.map(p => {
+      // Логируем КАЖДЫЙ SKU отдельно с подробными данными
+      const allSkuDetails = validProducts.map(p => {
         const wbSku = p.wildberries_sku || p.nm_id;
         const stock = p.stock || p.currentStock || 0;
-        console.log(`📋 WB SKU: ${wbSku}, исходный SKU: ${p.sku || p.offer_id}, остаток: ${stock}`);
-        return { wbSku, originalSku: p.sku || p.offer_id, stock };
+        const originalSku = p.sku || p.offer_id;
+        console.log(`📋 WB SKU: ${wbSku}, исходный SKU: ${originalSku}, остаток: ${stock}, название: ${p.name || 'N/A'}`);
+        return { 
+          wbSku, 
+          originalSku, 
+          stock, 
+          productName: p.name || 'N/A',
+          category: p.category || 'N/A'
+        };
       });
 
-      console.log(`📤 Отправляем ${skuDetails.length} SKU в Wildberries API:`, skuDetails.map(s => `${s.wbSku}(${s.stock})`).join(', '));
+      console.log(`📤 Отправляем ${allSkuDetails.length} SKU в Wildberries API:`);
+      allSkuDetails.forEach((item, index) => {
+        console.log(`  ${index + 1}. SKU ${item.wbSku} (${item.originalSku}) - остаток: ${item.stock} - ${item.productName}`);
+      });
 
       const requestData = { 
         stocks: validProducts.map(p => {
           const wbSku = p.wildberries_sku || p.nm_id;
-          const mappedProduct = {
+          return {
             offer_id: String(wbSku),
             stock: p.stock || p.currentStock || 0
           };
-          return mappedProduct;
         }),
         apiKey: wbCreds.api_key
       };
@@ -81,25 +90,32 @@ export const useWildberriesStockUpdate = () => {
         console.error('❌ HTTP error response:', errorText);
         
         if (response.status === 409) {
-          console.error('🚫 Wildberries API rejected the request - все товары не найдены в каталоге');
+          console.error('🚫 Wildberries API rejected the request - товары не найдены в каталоге');
           
-          // Логируем каждый SKU как ошибку
-          skuDetails.forEach(sku => {
-            console.log(`❌ SKU ${sku.wbSku} (исходный: ${sku.originalSku}): NotFound в каталоге Wildberries`);
+          // Логируем РЕЗУЛЬТАТ для каждого SKU при 409 ошибке
+          allSkuDetails.forEach(sku => {
+            console.log(`❌ SKU ${sku.wbSku} (исходный: ${sku.originalSku}): NotFound в каталоге Wildberries - ${sku.productName}`);
           });
           
           await addSyncLog({
             marketplace: 'Wildberries',
             operation: 'stock_update',
             status: 'error',
-            message: `Все товары не найдены в каталоге: ${skuDetails.map(s => s.wbSku).join(', ')}`,
+            message: `Все товары не найдены в каталоге Wildberries`,
             executionTime: Date.now() - startTime,
             metadata: {
               updatedCount: 0,
               errorCount: validProducts.length,
               productsCount: validProducts.length,
               httpStatus: response.status,
-              skuDetails: skuDetails,
+              allSkuDetails: allSkuDetails,
+              skuResults: allSkuDetails.map(sku => ({
+                wbSku: sku.wbSku,
+                originalSku: sku.originalSku,
+                productName: sku.productName,
+                status: 'NotFound',
+                error: 'Товар не найден в каталоге Wildberries'
+              })),
               reason: 'All products not found in Wildberries catalog'
             }
           });
@@ -125,14 +141,30 @@ export const useWildberriesStockUpdate = () => {
         
         console.log('📊 Update results:', { successCount, errorCount, total: result.result.length });
 
-        // Логируем результат для каждого SKU
-        result.result.forEach((item: any, index: number) => {
-          const skuDetail = skuDetails.find(s => s.wbSku === item.offer_id);
+        // Логируем РЕЗУЛЬТАТ для каждого SKU с подробной информацией
+        const skuResults = result.result.map((item: any) => {
+          const skuDetail = allSkuDetails.find(s => s.wbSku === item.offer_id);
           if (item.updated) {
-            console.log(`✅ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): успешно обновлен, остаток ${skuDetail?.stock}`);
+            console.log(`✅ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): успешно обновлен, остаток ${skuDetail?.stock} - ${skuDetail?.productName}`);
+            return {
+              wbSku: item.offer_id,
+              originalSku: skuDetail?.originalSku || 'N/A',
+              productName: skuDetail?.productName || 'N/A',
+              stock: skuDetail?.stock || 0,
+              status: 'updated',
+              error: null
+            };
           } else {
             const errors = item.errors?.map((e: any) => e.code).join(', ') || 'Unknown error';
-            console.log(`❌ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): ошибка - ${errors}`);
+            console.log(`❌ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): ошибка - ${errors} - ${skuDetail?.productName}`);
+            return {
+              wbSku: item.offer_id,
+              originalSku: skuDetail?.originalSku || 'N/A',
+              productName: skuDetail?.productName || 'N/A',
+              stock: skuDetail?.stock || 0,
+              status: 'error',
+              error: errors
+            };
           }
         });
 
@@ -152,7 +184,8 @@ export const useWildberriesStockUpdate = () => {
             errorCount: errorCount,
             productsCount: validProducts.length,
             filteredOutCount: products.length - validProducts.length,
-            skuDetails: skuDetails,
+            allSkuDetails: allSkuDetails,
+            skuResults: skuResults,
             detailedResults: result.result,
             details: result.result
           }
