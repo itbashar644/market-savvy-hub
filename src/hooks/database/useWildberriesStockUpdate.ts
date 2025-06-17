@@ -11,7 +11,7 @@ export const useWildberriesStockUpdate = () => {
     const startTime = Date.now();
     
     console.log('🚀 Starting Wildberries stock update with products:', products.length);
-    console.log('📦 Products data:', products);
+    console.log('📦 Products data sample:', products.slice(0, 3));
     
     try {
       const wbCreds = credentials['Wildberries'];
@@ -24,13 +24,32 @@ export const useWildberriesStockUpdate = () => {
 
       console.log('🔑 Wildberries API key found, preparing request...');
 
+      // Фильтруем и правильно маппим товары с Wildberries SKU
+      const validProducts = products.filter(p => {
+        const hasWbSku = p.wildberries_sku || p.nm_id;
+        if (!hasWbSku) {
+          console.log(`⚠️ Пропускаем товар ${p.sku || p.offer_id} - нет Wildberries SKU`);
+        }
+        return hasWbSku;
+      });
+
+      if (validProducts.length === 0) {
+        console.log('❌ Нет товаров с Wildberries SKU для обновления');
+        toast.error('❌ Нет товаров с Wildberries SKU для обновления остатков');
+        return;
+      }
+
+      console.log(`📋 Товары для обновления: ${validProducts.length} из ${products.length}`);
+
       const requestData = { 
-        stocks: products.map(p => {
+        stocks: validProducts.map(p => {
+          // Используем Wildberries SKU, а не обычный SKU
+          const wbSku = p.wildberries_sku || p.nm_id;
           const mappedProduct = {
-            offer_id: p.sku,
-            stock: p.stock
+            offer_id: String(wbSku), // Wildberries требует строку
+            stock: p.stock || p.currentStock || 0
           };
-          console.log('📋 Mapping product:', p.sku || p.offer_id, '->', mappedProduct);
+          console.log(`📋 Mapping product: ${p.sku || p.offer_id} -> WB SKU: ${wbSku}, stock: ${mappedProduct.stock}`);
           return mappedProduct;
         }),
         apiKey: wbCreds.api_key
@@ -39,7 +58,8 @@ export const useWildberriesStockUpdate = () => {
       console.log('📤 Making request to Wildberries stock sync function...');
       console.log('📝 Request data summary:', {
         stocksCount: requestData.stocks.length,
-        apiKeyLength: requestData.apiKey ? requestData.apiKey.length : 0
+        apiKeyLength: requestData.apiKey ? requestData.apiKey.length : 0,
+        sampleStocks: requestData.stocks.slice(0, 3)
       });
 
       const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-sync', {
@@ -87,7 +107,8 @@ export const useWildberriesStockUpdate = () => {
           metadata: {
             updatedCount: successCount,
             errorCount: errorCount,
-            productsCount: products.length,
+            productsCount: validProducts.length,
+            filteredOutCount: products.length - validProducts.length,
             details: result.result
           }
         });
@@ -100,10 +121,10 @@ export const useWildberriesStockUpdate = () => {
           );
           
           console.log('❌ Товары не найдены в каталоге Wildberries:', notFoundItems.length);
-          console.log('📋 Примеры не найденных SKU:', notFoundItems.slice(0, 5).map(item => item.offer_id));
+          console.log('📋 Примеры не найденных WB SKU:', notFoundItems.slice(0, 5).map(item => item.offer_id));
           
           toast.error('❌ Остатки Wildberries НЕ обновлены', {
-            description: `Все товары (${errorCount}) не найдены в каталоге Wildberries. Проверьте правильность SKU и убедитесь, что товары добавлены в личный кабинет.`
+            description: `Все товары (${errorCount}) не найдены в каталоге Wildberries. Убедитесь, что у товаров правильно заполнены Wildberries SKU в инвентаре.`
           });
         } else if (successCount > 0) {
           toast.success(`✅ Остатки Wildberries обновлены! (${successCount} из ${result.result.length} товаров)`, {

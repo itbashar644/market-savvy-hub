@@ -81,18 +81,21 @@ export const useAutoSync = () => {
         const hasWbSku = item.wildberries_sku && item.wildberries_sku.trim() !== '';
         if (hasWbSku) {
           console.log(`Item ${item.sku}: WB SKU = ${item.wildberries_sku}, stock = ${item.currentStock}`);
+        } else {
+          console.log(`Item ${item.sku}: NO WB SKU - skipping`);
         }
         return hasWbSku;
       })
       .map(item => ({
-        nm_id: parseInt(item.wildberries_sku!),
-        warehouse_id: 1,
+        wildberries_sku: item.wildberries_sku,
         stock: item.currentStock,
         offer_id: item.sku,
-        sku: item.sku
+        sku: item.sku,
+        currentStock: item.currentStock
       }));
     
     console.log('Prepared stock updates for WB:', updates.length, 'items');
+    console.log('Sample updates:', updates.slice(0, 3));
     return updates;
   }, [inventory]);
 
