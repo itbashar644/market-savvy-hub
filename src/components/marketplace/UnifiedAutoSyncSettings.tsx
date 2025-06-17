@@ -42,7 +42,10 @@ const UnifiedAutoSyncSettings = () => {
     };
     
     localStorage.setItem('unifiedAutoSyncSettings', JSON.stringify(settings));
-    updateIntervals(parseInt(productSyncInterval), parseInt(stockUpdateInterval));
+    updateIntervals(
+      productSyncInterval === 'never' ? 0 : parseInt(productSyncInterval), 
+      parseInt(stockUpdateInterval)
+    );
     toast.success('✅ Настройки автоматической синхронизации сохранены');
   };
 
@@ -59,6 +62,7 @@ const UnifiedAutoSyncSettings = () => {
       await performProductSync();
     } catch (error) {
       console.error('Manual product sync error:', error);
+      toast.error('❌ Ошибка ручной синхронизации товаров');
     }
   };
 
@@ -67,6 +71,7 @@ const UnifiedAutoSyncSettings = () => {
       await performStockUpdate();
     } catch (error) {
       console.error('Manual stock update error:', error);
+      toast.error('❌ Ошибка ручного обновления остатков');
     }
   };
 
@@ -87,10 +92,10 @@ const UnifiedAutoSyncSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Timer className="w-5 h-5" />
-            Unified управление автосинхронизацией
+            Автосинхронизация
           </CardTitle>
           <CardDescription>
-            Единое управление автоматической синхронизацией товаров и остатков
+            Управление автоматической синхронизацией товаров и остатков
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -105,7 +110,7 @@ const UnifiedAutoSyncSettings = () => {
               </div>
               <div className="space-y-1 text-xs text-gray-600">
                 <div>Товаров с WB SKU: {stockUpdatesCount}</div>
-                <div>Интервал синхронизации: {status.productSyncInterval} мин</div>
+                <div>Интервал синхронизации: {productSyncInterval === 'never' ? 'Отключено' : `${status.productSyncInterval} мин`}</div>
                 <div>Интервал остатков: {status.stockUpdateInterval} мин</div>
               </div>
             </div>
@@ -117,7 +122,7 @@ const UnifiedAutoSyncSettings = () => {
               </div>
               <div className="space-y-1 text-xs text-gray-600">
                 <div>Последняя: {formatTime(status.lastProductSyncTime)}</div>
-                <div>Следующая: {formatTime(status.nextProductSyncTime)}</div>
+                <div>Следующая: {productSyncInterval === 'never' ? 'Отключено' : formatTime(status.nextProductSyncTime)}</div>
               </div>
             </div>
           </div>
@@ -183,6 +188,7 @@ const UnifiedAutoSyncSettings = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="never">Никогда</SelectItem>
                         <SelectItem value="30">Каждые 30 минут</SelectItem>
                         <SelectItem value="60">Каждый час</SelectItem>
                         <SelectItem value="180">Каждые 3 часа</SelectItem>

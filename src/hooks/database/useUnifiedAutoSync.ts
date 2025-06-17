@@ -13,7 +13,7 @@ interface SyncStatus {
   lastStockUpdateTime: Date | null;
   nextProductSyncTime: Date | null;
   nextStockUpdateTime: Date | null;
-  productSyncInterval: number; // в минутах
+  productSyncInterval: number; // в минутах, 0 означает отключено
   stockUpdateInterval: number; // в минутах
 }
 
@@ -52,22 +52,34 @@ export const useUnifiedAutoSync = () => {
 
   // Выполнение синхронизации товаров
   const performProductSync = useCallback(async () => {
-    if (!status.isRunning) return;
+    if (!status.isRunning || status.productSyncInterval === 0) return;
 
     try {
       console.log('Выполняется автосинхронизация товаров...');
       
       // Синхронизируем Wildberries
-      await syncWbProducts();
+      try {
+        await syncWbProducts();
+        console.log('Wildberries синхронизация завершена');
+      } catch (error) {
+        console.error('Ошибка синхронизации Wildberries:', error);
+        toast.error('❌ Ошибка синхронизации Wildberries: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      }
       
       // Синхронизируем Ozon
-      await syncOzonProducts();
+      try {
+        await syncOzonProducts();
+        console.log('Ozon синхронизация завершена');
+      } catch (error) {
+        console.error('Ошибка синхронизации Ozon:', error);
+        // Не показываем ошибку для Ozon, так как это может быть нормально если нет настроек
+      }
       
       const now = new Date();
       setStatus(prev => ({
         ...prev,
         lastProductSyncTime: now,
-        nextProductSyncTime: new Date(now.getTime() + prev.productSyncInterval * 60 * 1000)
+        nextProductSyncTime: prev.productSyncInterval > 0 ? new Date(now.getTime() + prev.productSyncInterval * 60 * 1000) : null
       }));
 
       toast.success('✅ Автосинхронизация товаров выполнена');
@@ -75,7 +87,7 @@ export const useUnifiedAutoSync = () => {
       console.error('Ошибка автосинхронизации товаров:', error);
       toast.error('❌ Ошибка автосинхронизации товаров: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
-  }, [status.isRunning, syncWbProducts, syncOzonProducts]);
+  }, [status.isRunning, status.productSyncInterval, syncWbProducts, syncOzonProducts]);
 
   // Выполнение обновления остатков
   const performStockUpdate = useCallback(async () => {
@@ -91,10 +103,22 @@ export const useUnifiedAutoSync = () => {
       }
 
       // Обновляем остатки на Wildberries
-      await updateWbStock(stockUpdates);
+      try {
+        await updateWbStock(stockUpdates);
+        console.log('Остатки Wildberries обновлены');
+      } catch (error) {
+        console.error('Ошибка обновления остатков Wildberries:', error);
+        toast.error('❌ Ошибка обновления остатков Wildberries: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
+      }
       
       // Обновляем остатки на Ozon
-      await updateOzonStock(stockUpdates);
+      try {
+        await updateOzonStock(stockUpdates);
+        console.log('Остатки Ozon обновлены');
+      } catch (error) {
+        console.error('Ошибка обновления остатков Ozon:', error);
+        // Не показываем ошибку для Ozon, так как это может быть нормально если нет настроек
+      }
       
       const now = new Date();
       setStatus(prev => ({
@@ -114,18 +138,22 @@ export const useUnifiedAutoSync = () => {
   const startAutoSync = useCallback(() => {
     if (status.isRunning) return;
 
-    console.log('Запуск unified автосинхронизации...');
+    console.log('Запуск автосинхронизации...');
     setStatus(prev => ({ ...prev, isRunning: true }));
 
-    // Выполняем первую синхронизацию сразу
-    performProductSync();
+    // Выполняем первые синхронизации сразу
+    if (status.productSyncInterval > 0) {
+      performProductSync();
+    }
     performStockUpdate();
 
     // Устанавливаем интервалы
-    productSyncIntervalRef.current = setInterval(
-      performProductSync,
-      status.productSyncInterval * 60 * 1000
-    );
+    if (status.productSyncInterval > 0) {
+      productSyncIntervalRef.current = setInterval(
+        performProductSync,
+        status.productSyncInterval * 60 * 1000
+      );
+    }
 
     stockUpdateIntervalRef.current = setInterval(
       performStockUpdate,
@@ -136,16 +164,16 @@ export const useUnifiedAutoSync = () => {
     const now = new Date();
     setStatus(prev => ({
       ...prev,
-      nextProductSyncTime: new Date(now.getTime() + prev.productSyncInterval * 60 * 1000),
+      nextProductSyncTime: prev.productSyncInterval > 0 ? new Date(now.getTime() + prev.productSyncInterval * 60 * 1000) : null,
       nextStockUpdateTime: new Date(now.getTime() + prev.stockUpdateInterval * 60 * 1000)
     }));
 
-    toast.success('✅ Unified автосинхронизация запущена');
+    toast.success('✅ Автосинхронизация запущена');
   }, [status.isRunning, status.productSyncInterval, status.stockUpdateInterval, performProductSync, performStockUpdate]);
 
   // Остановка автосинхронизации
   const stopAutoSync = useCallback(() => {
-    console.log('Остановка unified автосинхронизации...');
+    console.log('Остановка автосинхронизации...');
     
     if (productSyncIntervalRef.current) {
       clearInterval(productSyncIntervalRef.current);
@@ -164,7 +192,7 @@ export const useUnifiedAutoSync = () => {
       nextStockUpdateTime: null
     }));
 
-    toast.info('⏸️ Unified автосинхронизация остановлена');
+    toast.info('⏸️ Автосинхронизация остановлена');
   }, []);
 
   // Обновление интервалов
