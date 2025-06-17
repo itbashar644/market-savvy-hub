@@ -58,7 +58,7 @@ const ManualSyncControls = () => {
     return itemsWithWbSku.map(item => ({
       nm_id: parseInt(item.wildberries_sku!),
       warehouse_id: 1,
-      stock: item.current_stock,
+      stock: item.currentStock,
       offer_id: item.sku,
       sku: item.sku
     }));
