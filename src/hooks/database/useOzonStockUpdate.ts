@@ -10,6 +10,9 @@ export const useOzonStockUpdate = () => {
   const updateStock = async (products: any[]) => {
     const startTime = Date.now();
     
+    console.log('🚀 Starting Ozon stock update with products:', products.length);
+    console.log('📦 Products data sample:', products.slice(0, 3));
+    
     try {
       const ozonCreds = credentials['Ozon'];
       
@@ -20,6 +23,16 @@ export const useOzonStockUpdate = () => {
       if (!ozonCreds?.warehouse_id) {
         throw new Error('Ozon warehouse ID not configured');
       }
+
+      // Логируем каждый SKU отдельно для Ozon
+      const skuDetails = products.map(p => {
+        const offerId = p.offer_id || p.sku;
+        const stock = p.stock || p.currentStock || 0;
+        console.log(`📋 Ozon SKU: ${offerId}, остаток: ${stock}`);
+        return { offerId, stock };
+      });
+
+      console.log(`📤 Отправляем ${skuDetails.length} SKU в Ozon API:`, skuDetails.map(s => `${s.offerId}(${s.stock})`).join(', '));
 
       const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
         method: 'POST',
@@ -38,6 +51,8 @@ export const useOzonStockUpdate = () => {
         }),
       });
 
+      console.log('📡 Ozon API response status:', response.status);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -46,19 +61,39 @@ export const useOzonStockUpdate = () => {
       const executionTime = Date.now() - startTime;
 
       if (result.result) {
+        const successCount = result.result.filter((r: any) => r.updated).length;
+        const errorCount = result.result.filter((r: any) => !r.updated).length;
+
+        // Логируем результат для каждого SKU в Ozon
+        result.result.forEach((item: any) => {
+          const skuDetail = skuDetails.find(s => s.offerId === item.offer_id);
+          if (item.updated) {
+            console.log(`✅ Ozon SKU ${item.offer_id}: успешно обновлен, остаток ${skuDetail?.stock}`);
+          } else {
+            const errors = item.errors?.map((e: any) => e.code).join(', ') || 'Unknown error';
+            console.log(`❌ Ozon SKU ${item.offer_id}: ошибка - ${errors}`);
+          }
+        });
+
         await addSyncLog({
           marketplace: 'Ozon',
           operation: 'stock_update',
           status: 'success',
-          message: `Обновление остатков завершено успешно`,
+          message: `Обновление остатков Ozon: успешно ${successCount}, ошибок ${errorCount}`,
           executionTime,
           metadata: {
-            updatedCount: result.result.filter((r: any) => r.updated).length,
+            updatedCount: successCount,
+            errorCount: errorCount,
             productsCount: products.length,
+            skuDetails: skuDetails,
+            detailedResults: result.result
           }
         });
 
-        toast.success('✅ Остатки Ozon обновлены!');
+        console.log(`📊 Ozon update results: успешно ${successCount}, ошибок ${errorCount}`);
+        toast.success(`✅ Остатки Ozon обновлены! (${successCount} из ${result.result.length} товаров)`, {
+          description: errorCount > 0 ? `Ошибок: ${errorCount}` : 'Все товары обновлены успешно'
+        });
       } else {
         throw new Error(result.error || 'Unknown error');
       }
@@ -75,7 +110,7 @@ export const useOzonStockUpdate = () => {
         metadata: { error: errorMessage, productsCount: products.length }
       });
 
-      console.error('Ozon stock update error:', error);
+      console.error('💥 Ozon stock update error:', error);
       toast.error('❌ Ошибка обновления остатков Ozon', {
         description: errorMessage
       });
