@@ -8,19 +8,19 @@ import InventoryTable from './inventory/InventoryTable';
 import { InventoryHistory, InventoryItem } from '@/types/database';
 
 const InventoryManager = () => {
-  const { inventory, loading, updateStock, bulkUpdateStock } = useInventory();
+  const { inventory, loading, updateInventoryStock, bulkUpdateInventoryStock } = useInventory();
   const { history } = useInventoryHistory();
   const [searchTerm, setSearchTerm] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [editingStock, setEditingStock] = useState<{ productId: string; newStock: number } | null>(null);
 
   const handleStockUpdate = (productId: string, newStock: number) => {
-    updateStock(productId, newStock, 'manual', 'Ручное изменение остатка');
+    updateInventoryStock(productId, newStock, 'manual', 'Ручное изменение остатка');
     setEditingStock(null);
   };
   
   const handleBulkStockUpdate = (updates: { sku: string; newStock: number }[]) => {
-    bulkUpdateStock(updates);
+    bulkUpdateInventoryStock(updates);
   };
 
   if (loading) {
@@ -43,7 +43,7 @@ const InventoryManager = () => {
         </div>
         <InventoryActions
           inventory={inventory}
-          onStockUpdate={updateStock}
+          onStockUpdate={updateInventoryStock}
           onBulkStockUpdate={handleBulkStockUpdate}
           history={history}
           showHistory={showHistory}
