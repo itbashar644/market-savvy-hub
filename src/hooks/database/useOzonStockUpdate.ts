@@ -11,7 +11,7 @@ export const useOzonStockUpdate = () => {
     const startTime = Date.now();
     
     try {
-      const ozonCreds = credentials.find(c => c.marketplace === 'Ozon');
+      const ozonCreds = credentials['Ozon'];
       
       if (!ozonCreds?.api_key || !ozonCreds?.client_id) {
         throw new Error('Ozon API credentials not found');

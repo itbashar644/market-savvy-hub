@@ -11,7 +11,7 @@ export const useWildberriesStockUpdate = () => {
     const startTime = Date.now();
     
     try {
-      const wbCreds = credentials.find(c => c.marketplace === 'Wildberries');
+      const wbCreds = credentials['Wildberries'];
       
       if (!wbCreds?.api_key) {
         throw new Error('Wildberries API key not found');
