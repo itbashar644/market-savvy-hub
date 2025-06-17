@@ -1,140 +1,167 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InventoryItem, InventoryHistory } from '@/types/database';
-import { useAuth } from '@/hooks/useAuth';
 
 export const useInventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
 
-  const refreshInventory = async () => {
+  const refreshInventory = useCallback(async () => {
     try {
-      // Получаем данные из таблицы products для создания инвентаря
-      const { data: productsData, error: productsError } = await supabase
+      setLoading(true);
+      setError(null);
+      
+      // Получаем данные из products таблицы и формируем inventory
+      const { data: products, error: productsError } = await supabase
         .from('products')
         .select('*')
-        .order('title');
+        .order('created_at', { ascending: false });
 
       if (productsError) {
         console.error('Error fetching products for inventory:', productsError);
+        setError('Ошибка загрузки товаров');
         return;
       }
 
-      // Преобразуем данные продуктов в формат InventoryItem
-      const transformedData: InventoryItem[] = productsData.map(product => {
-        let status: InventoryItem['status'] = 'in_stock';
-        if (product.stock_quantity <= 0) {
-          status = 'out_of_stock';
-        } else if (product.stock_quantity <= 5) {
-          status = 'low_stock';
-        }
+      // Преобразуем products в InventoryItem формат
+      const inventoryItems: InventoryItem[] = (products || []).map(product => ({
+        id: product.id,
+        productId: product.id,
+        name: product.title,
+        sku: product.article_number || product.id,
+        category: product.category,
+        currentStock: product.stock_quantity || 0,
+        minStock: 5, // Значение по умолчанию
+        maxStock: 100, // Значение по умолчанию
+        price: Number(product.price),
+        supplier: 'Default', // Значение по умолчанию
+        lastRestocked: product.updated_at,
+        status: product.stock_quantity <= 0 ? 'out_of_stock' : 
+                product.stock_quantity <= 5 ? 'low_stock' : 'in_stock',
+        wildberries_sku: product.wildberries_sku || undefined,
+      }));
 
-        return {
-          id: product.id,
-          productId: product.id,
-          name: product.title,
-          sku: product.article_number || product.id, // Используем article_number как SKU
-          category: product.category || 'Без категории',
-          currentStock: product.stock_quantity || 0,
-          minStock: 5, // Минимальный остаток по умолчанию
-          maxStock: 100, // Максимальный остаток по умолчанию
-          price: product.price || 0,
-          supplier: 'По умолчанию',
-          lastRestocked: product.updated_at,
-          status: status,
-        };
-      });
-
-      setInventory(transformedData);
+      console.log('Inventory items loaded:', inventoryItems);
+      console.log('Items with Wildberries SKU:', inventoryItems.filter(item => item.wildberries_sku));
+      
+      setInventory(inventoryItems);
     } catch (error) {
       console.error('Error in refreshInventory:', error);
+      setError('Ошибка подключения к серверу');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    refreshInventory();
   }, []);
 
-  const updateStock = async (productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string) => {
+  useEffect(() => {
+    let mounted = true;
+
+    const setupSubscription = async () => {
+      await refreshInventory();
+      
+      if (!mounted) return;
+
+      try {
+        if (channelRef.current) {
+          await supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        channelRef.current = supabase
+          .channel(`inventory_updates_${Date.now()}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'products'
+            },
+            () => {
+              if (mounted) {
+                console.log('Products updated, refreshing inventory...');
+                refreshInventory();
+              }
+            }
+          );
+
+        await channelRef.current.subscribe();
+        console.log('Inventory subscription established');
+      } catch (error) {
+        console.error('Error setting up inventory subscription:', error);
+      }
+    };
+
+    setupSubscription();
+
+    return () => {
+      mounted = false;
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        console.log('Inventory subscription cleaned up');
+      }
+    };
+  }, [refreshInventory]);
+
+  const updateInventoryStock = async (productId: string, newStock: number, changeType: InventoryHistory['changeType'] = 'manual', reason?: string) => {
     try {
-      // Обновляем остаток в таблице products
-      const { data, error } = await supabase
+      // Обновляем stock_quantity в products таблице
+      const { error } = await supabase
         .from('products')
-        .update({ 
-          stock_quantity: newStock,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', productId)
-        .select()
-        .single();
+        .update({ stock_quantity: newStock })
+        .eq('id', productId);
 
       if (error) {
-        console.error('Error updating product stock:', error);
+        console.error('Error updating inventory stock:', error);
         return null;
       }
 
-      // Добавляем запись в историю изменений
-      const inventoryItem = inventory.find(item => item.productId === productId);
-      if (inventoryItem) {
-        await supabase
-          .from('inventory_history')
-          .insert({
-            product_id: productId,
-            product_name: inventoryItem.name,
-            sku: inventoryItem.sku,
-            previous_stock: inventoryItem.currentStock,
-            new_stock: newStock,
-            change_amount: newStock - inventoryItem.currentStock,
-            change_type: changeType,
-            reason: reason,
-            user_id: user?.email || 'система',
-            user_name: user?.user_metadata?.full_name || user?.email || 'Администратор',
-          });
-      }
-
       // Обновляем локальное состояние
-      await refreshInventory();
+      setInventory(prev => prev.map(item => 
+        item.productId === productId 
+          ? { ...item, currentStock: newStock }
+          : item
+      ));
 
-      return data;
+      return true;
     } catch (error) {
-      console.error('Error in updateStock:', error);
+      console.error('Error in updateInventoryStock:', error);
       return null;
     }
   };
 
-  const bulkUpdateStock = async (updates: { sku: string; newStock: number }[]) => {
+  const bulkUpdateInventoryStock = async (updates: { sku: string; newStock: number }[]) => {
     try {
-      console.log('Bulk update received:', updates);
-      console.log('Current inventory:', inventory.map(i => ({ sku: i.sku, name: i.name })));
+      const results = [];
       
       for (const update of updates) {
-        const inventoryItem = inventory.find(item => 
-          item.sku === update.sku || 
-          item.sku === update.sku.toString() ||
-          item.productId === update.sku
-        );
-        
-        console.log(`Looking for SKU: ${update.sku}, found:`, inventoryItem);
-        
-        if (inventoryItem) {
-          await updateStock(inventoryItem.productId, update.newStock, 'manual', 'Массовое обновление');
-        } else {
-          console.warn(`Product with SKU ${update.sku} not found in inventory`);
+        const item = inventory.find(item => item.sku === update.sku);
+        if (item) {
+          const result = await updateInventoryStock(item.productId, update.newStock);
+          if (result) {
+            results.push(item);
+          }
         }
       }
+
+      return results;
     } catch (error) {
-      console.error('Error in bulkUpdateStock:', error);
+      console.error('Error in bulkUpdateInventoryStock:', error);
+      return [];
     }
   };
 
   return {
     inventory,
     loading,
-    updateStock,
-    bulkUpdateStock,
+    error,
+    updateInventoryStock,
+    bulkUpdateInventoryStock,
     refreshInventory,
   };
 };

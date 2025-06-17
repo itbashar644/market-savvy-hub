@@ -55,11 +55,19 @@ const UnifiedAutoSyncSettings = () => {
   };
 
   const handleManualProductSync = async () => {
-    await performProductSync();
+    try {
+      await performProductSync();
+    } catch (error) {
+      console.error('Manual product sync error:', error);
+    }
   };
 
   const handleManualStockUpdate = async () => {
-    await performStockUpdate();
+    try {
+      await performStockUpdate();
+    } catch (error) {
+      console.error('Manual stock update error:', error);
+    }
   };
 
   const formatTime = (date: Date | null) => {
@@ -133,6 +141,7 @@ const UnifiedAutoSyncSettings = () => {
                   size="sm"
                   variant="outline"
                   className="flex-1"
+                  disabled={status.isRunning}
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
                   Синхр. товары
@@ -142,6 +151,7 @@ const UnifiedAutoSyncSettings = () => {
                   size="sm"
                   variant="outline"
                   className="flex-1"
+                  disabled={status.isRunning}
                 >
                   <Upload className="w-3 h-3 mr-1" />
                   Обновить остатки
