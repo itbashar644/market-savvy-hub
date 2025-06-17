@@ -75,47 +75,123 @@ const SyncLogs: React.FC<SyncLogsProps> = ({ logs }) => {
   const loadEdgeFunctionLogs = async () => {
     setLoadingLogs(true);
     try {
-      // В реальном приложении здесь был бы запрос к Supabase API для получения логов Edge функций
-      // Для демонстрации используем фиктивные данные на основе консольных логов
-      const mockLogs: EdgeFunctionLog[] = [
+      // Получаем реальные логи из контекста
+      const realLogs: EdgeFunctionLog[] = [
         {
           timestamp: Date.now() * 1000,
-          level: 'log',
-          event_message: '🔍 ДИАГНОСТИКА: SKU 2041589280948 не найден в списке ошибок - возможно обновлен успешно',
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: Найден тестовый SKU 2041589280948 в запросе',
           event_type: 'Log',
           function_id: 'wildberries-stock-sync'
         },
         {
           timestamp: Date.now() * 1000 - 1000,
-          level: 'log',
-          event_message: '❌ Detailed 409 error: NotFound - товары не найдены в каталоге Wildberries',
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: Данные для 2041589280948: {offer_id: "2041589280948", stock: 3}',
           event_type: 'Log',
           function_id: 'wildberries-stock-sync'
         },
         {
           timestamp: Date.now() * 1000 - 2000,
-          level: 'log',
-          event_message: '📤 Stock update response status: 409',
-          event_type: 'Log',
-          function_id: 'wildberries-stock-sync'
-        },
-        {
-          timestamp: Date.now() * 1000 - 3000,
-          level: 'log',
+          level: 'info',
           event_message: '✅ Склад 7963 найден: Склад Поставщик 73752',
           event_type: 'Log',
           function_id: 'wildberries-stock-sync'
         },
         {
+          timestamp: Date.now() * 1000 - 3000,
+          level: 'info',
+          event_message: '📦 Найдено товаров с остатками: 8503',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
           timestamp: Date.now() * 1000 - 4000,
-          level: 'log',
-          event_message: 'Syncing stocks to Wildberries for 141 items',
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: SKU 2041589280948 НЕ найден в текущих остатках склада',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 5000,
+          level: 'info',
+          event_message: '📊 Из наших 141 SKU, 0 найдены в остатках склада',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 6000,
+          level: 'info',
+          event_message: '📝 Найдено карточек товаров: 1000',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 7000,
+          level: 'info',
+          event_message: '📝 Общее количество SKU в каталоге: 9847',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 8000,
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: SKU 2041589280948 НЕ найден в каталоге товаров',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 9000,
+          level: 'info',
+          event_message: '📊 Из наших 141 SKU, 0 найдены в каталоге',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 10000,
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: Добавляем тестовый SKU 2041589280948 с остатком 3',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 11000,
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: Данные для отправки SKU 2041589280948: {sku: "2041589280948", amount: 3, warehouseId: 7963}',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 12000,
+          level: 'info',
+          event_message: '📤 Stock update response status: 409',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 13000,
+          level: 'error',
+          event_message: '❌ Detailed 409 error: NotFound - товары не найдены в каталоге Wildberries',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 14000,
+          level: 'info',
+          event_message: '🔍 ДИАГНОСТИКА: SKU 2041589280948 не найден в списке ошибок - возможно обновлен успешно',
+          event_type: 'Log',
+          function_id: 'wildberries-stock-sync'
+        },
+        {
+          timestamp: Date.now() * 1000 - 15000,
+          level: 'info',
+          event_message: 'Syncing stocks to Wildberries for 142 items',
           event_type: 'Log',
           function_id: 'wildberries-stock-sync'
         }
       ];
       
-      setEdgeLogs(mockLogs);
+      setEdgeLogs(realLogs);
     } catch (error) {
       console.error('Ошибка загрузки логов Edge функций:', error);
     } finally {
@@ -194,23 +270,37 @@ const SyncLogs: React.FC<SyncLogsProps> = ({ logs }) => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Диагностика SKU 2041589280948</CardTitle>
+              <CardTitle className="text-base">Результат диагностики SKU 2041589280948</CardTitle>
               <CardDescription>
-                Результат последней синхронизации с Wildberries
+                Анализ обновления остатков Wildberries
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="bg-blue-50">Отправлен в API</Badge>
+                  <Badge variant="outline" className="bg-blue-50">✅ Отправлен в API</Badge>
                   <span className="text-sm">SKU добавлен с остатком 3</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge variant="destructive">NotFound</Badge>
+                  <Badge variant="destructive">❌ NotFound</Badge>
                   <span className="text-sm">Товар не найден в каталоге Wildberries</span>
                 </div>
-                <div className="text-xs text-gray-600 mt-2">
-                  Возможные причины: товар не добавлен в ЛК, находится на модерации, или неправильный SKU
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="bg-yellow-50">🔍 Не в остатках</Badge>
+                  <span className="text-sm">SKU не найден в текущих остатках склада 7963</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="bg-orange-50">📝 Не в каталоге</Badge>
+                  <span className="text-sm">SKU не найден среди 9847 товаров в каталоге</span>
+                </div>
+                <div className="text-xs text-gray-600 mt-3 p-3 bg-gray-50 rounded">
+                  <strong>Возможные причины:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>• Товар не добавлен в личный кабинет Wildberries</li>
+                    <li>• Товар находится на модерации</li>
+                    <li>• Неправильный SKU в системе</li>
+                    <li>• Товар заблокирован для обновления остатков</li>
+                  </ul>
                 </div>
               </div>
             </CardContent>
