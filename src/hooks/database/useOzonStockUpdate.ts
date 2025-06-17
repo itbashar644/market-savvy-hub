@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useSyncLogs } from './useSyncLogs';
 import { useMarketplaceCredentials } from './useMarketplaceCredentials';
 
-export const useWildberriesStockUpdate = () => {
+export const useOzonStockUpdate = () => {
   const { addSyncLog } = useSyncLogs();
   const { credentials } = useMarketplaceCredentials();
 
@@ -11,25 +11,30 @@ export const useWildberriesStockUpdate = () => {
     const startTime = Date.now();
     
     try {
-      const wbCreds = credentials.find(c => c.marketplace === 'Wildberries');
+      const ozonCreds = credentials.find(c => c.marketplace === 'Ozon');
       
-      if (!wbCreds?.api_key) {
-        throw new Error('Wildberries API key not found');
+      if (!ozonCreds?.api_key || !ozonCreds?.client_id) {
+        throw new Error('Ozon API credentials not found');
       }
 
-      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-update', {
+      if (!ozonCreds?.warehouse_id) {
+        throw new Error('Ozon warehouse ID not configured');
+      }
+
+      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
         },
-        body: JSON.stringify({ 
-          products: products.map(p => ({
-            nm_id: p.nm_id,
-            warehouse_id: p.warehouse_id || 1,
+        body: JSON.stringify({
+          stocks: products.map(p => ({
+            offer_id: p.offer_id || p.sku,
             stock: p.stock
           })),
-          apiKey: wbCreds.api_key
+          warehouseId: parseInt(ozonCreds.warehouse_id),
+          apiKey: ozonCreds.api_key,
+          clientId: ozonCreds.client_id
         }),
       });
 
@@ -40,43 +45,29 @@ export const useWildberriesStockUpdate = () => {
       const result = await response.json();
       const executionTime = Date.now() - startTime;
 
-      if (result.success) {
+      if (result.result) {
         await addSyncLog({
-          marketplace: 'Wildberries',
+          marketplace: 'Ozon',
           operation: 'stock_update',
           status: 'success',
-          message: result.message || 'Обновление остатков завершено успешно',
+          message: `Обновление остатков завершено успешно`,
           executionTime,
           metadata: {
-            updatedCount: result.updatedCount || 0,
+            updatedCount: result.result.filter((r: any) => r.updated).length,
             productsCount: products.length,
           }
         });
 
-        toast.success('✅ Остатки Wildberries обновлены!', {
-          description: result.message
-        });
+        toast.success('✅ Остатки Ozon обновлены!');
       } else {
-        await addSyncLog({
-          marketplace: 'Wildberries',
-          operation: 'stock_update',
-          status: 'error',
-          message: result.error || 'Ошибка обновления остатков',
-          executionTime,
-          metadata: result.details || {}
-        });
-
-        toast.error('❌ Ошибка обновления остатков Wildberries', {
-          description: result.error
-        });
-        throw new Error(result.error);
+        throw new Error(result.error || 'Unknown error');
       }
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
       
       await addSyncLog({
-        marketplace: 'Wildberries',
+        marketplace: 'Ozon',
         operation: 'stock_update',
         status: 'error',
         message: errorMessage,
@@ -84,8 +75,8 @@ export const useWildberriesStockUpdate = () => {
         metadata: { error: errorMessage, productsCount: products.length }
       });
 
-      console.error('Wildberries stock update error:', error);
-      toast.error('❌ Ошибка обновления остатков Wildberries', {
+      console.error('Ozon stock update error:', error);
+      toast.error('❌ Ошибка обновления остатков Ozon', {
         description: errorMessage
       });
       throw error;

@@ -11,5 +11,6 @@ export { useDatabase } from './database/useDatabase';
 export { useWildberriesProducts } from './database/useWildberriesProducts';
 export { useWildberriesSync } from './database/useWildberriesSync';
 export { useWildberriesStockUpdate } from './database/useWildberriesStockUpdate';
+export { useOzonStockUpdate } from './database/useOzonStockUpdate';
 export { useUnifiedAutoSync } from './database/useUnifiedAutoSync';
 export { useSyncLogs, type SyncLog, type DetailedSyncLog } from './database/useSyncLogs';

@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useWildberriesSync } from './useWildberriesSync';
 import { useWildberriesStockUpdate } from './useWildberriesStockUpdate';
+import { useOzonStockUpdate } from './useOzonStockUpdate';
 import { useInventory } from './useInventory';
 import { toast } from 'sonner';
 
@@ -27,20 +28,23 @@ export const useUnifiedAutoSync = () => {
   });
 
   const { syncProducts } = useWildberriesSync();
-  const { updateStock } = useWildberriesStockUpdate();
+  const { updateStock: updateWbStock } = useWildberriesStockUpdate();
+  const { updateStock: updateOzonStock } = useOzonStockUpdate();
   const { inventory } = useInventory();
 
   const productSyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stockUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Функция для получения остатков из inventory для отправки на маркетплейс
+  // Функция для получения остатков из inventory для отправки на маркетплейсы
   const getStockUpdatesFromInventory = useCallback(() => {
     return inventory
       .filter(item => item.wildberries_sku) // Только товары с Wildberries SKU
       .map(item => ({
         nm_id: parseInt(item.wildberries_sku!),
         warehouse_id: 1, // По умолчанию склад 1
-        stock: item.currentStock
+        stock: item.currentStock,
+        offer_id: item.sku, // Для Ozon
+        sku: item.sku
       }));
   }, [inventory]);
 
@@ -79,7 +83,11 @@ export const useUnifiedAutoSync = () => {
         return;
       }
 
-      await updateStock(stockUpdates);
+      // Обновляем остатки на Wildberries
+      await updateWbStock(stockUpdates);
+      
+      // Обновляем остатки на Ozon
+      await updateOzonStock(stockUpdates);
       
       const now = new Date();
       setStatus(prev => ({
@@ -93,7 +101,7 @@ export const useUnifiedAutoSync = () => {
       console.error('Ошибка автообновления остатков:', error);
       toast.error('❌ Ошибка автообновления остатков: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
-  }, [status.isRunning, getStockUpdatesFromInventory, updateStock]);
+  }, [status.isRunning, getStockUpdatesFromInventory, updateWbStock, updateOzonStock]);
 
   // Запуск автосинхронизации
   const startAutoSync = useCallback(() => {
