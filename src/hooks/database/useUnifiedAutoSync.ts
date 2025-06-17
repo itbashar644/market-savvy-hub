@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useWildberriesSync } from './useWildberriesSync';
+import { useOzonSync } from './useOzonSync';
 import { useWildberriesStockUpdate } from './useWildberriesStockUpdate';
 import { useOzonStockUpdate } from './useOzonStockUpdate';
 import { useInventory } from './useInventory';
@@ -27,7 +28,8 @@ export const useUnifiedAutoSync = () => {
     stockUpdateInterval: 30,
   });
 
-  const { syncProducts } = useWildberriesSync();
+  const { syncProducts: syncWbProducts } = useWildberriesSync();
+  const { syncProducts: syncOzonProducts } = useOzonSync();
   const { updateStock: updateWbStock } = useWildberriesStockUpdate();
   const { updateStock: updateOzonStock } = useOzonStockUpdate();
   const { inventory } = useInventory();
@@ -54,7 +56,12 @@ export const useUnifiedAutoSync = () => {
 
     try {
       console.log('Выполняется автосинхронизация товаров...');
-      await syncProducts();
+      
+      // Синхронизируем Wildberries
+      await syncWbProducts();
+      
+      // Синхронизируем Ozon
+      await syncOzonProducts();
       
       const now = new Date();
       setStatus(prev => ({
@@ -68,7 +75,7 @@ export const useUnifiedAutoSync = () => {
       console.error('Ошибка автосинхронизации товаров:', error);
       toast.error('❌ Ошибка автосинхронизации товаров: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
-  }, [status.isRunning, syncProducts]);
+  }, [status.isRunning, syncWbProducts, syncOzonProducts]);
 
   // Выполнение обновления остатков
   const performStockUpdate = useCallback(async () => {

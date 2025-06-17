@@ -10,6 +10,7 @@ export { useMarketplaceCredentials, MarketplaceCredentialsProvider, type Marketp
 export { useDatabase } from './database/useDatabase';
 export { useWildberriesProducts } from './database/useWildberriesProducts';
 export { useWildberriesSync } from './database/useWildberriesSync';
+export { useOzonSync } from './database/useOzonSync';
 export { useWildberriesStockUpdate } from './database/useWildberriesStockUpdate';
 export { useOzonStockUpdate } from './database/useOzonStockUpdate';
 export { useUnifiedAutoSync } from './database/useUnifiedAutoSync';

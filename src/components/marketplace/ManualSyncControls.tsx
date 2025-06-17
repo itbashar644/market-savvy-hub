@@ -2,15 +2,21 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Upload, AlertCircle } from 'lucide-react';
+import { RefreshCw, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWildberriesSync } from '@/hooks/database/useWildberriesSync';
+import { useOzonSync } from '@/hooks/database/useOzonSync';
 import { useWildberriesStockUpdate } from '@/hooks/database/useWildberriesStockUpdate';
+import { useOzonStockUpdate } from '@/hooks/database/useOzonStockUpdate';
+import { useInventory } from '@/hooks/database/useInventory';
 
 const ManualSyncControls = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
   const { syncProducts: syncWbProducts } = useWildberriesSync();
+  const { syncProducts: syncOzonProducts } = useOzonSync();
   const { updateStock: updateWbStock } = useWildberriesStockUpdate();
+  const { updateStock: updateOzonStock } = useOzonStockUpdate();
+  const { inventory } = useInventory();
 
   const handleWildberriesSync = async () => {
     setSyncing('wildberries-sync');
@@ -28,31 +34,8 @@ const ManualSyncControls = () => {
   const handleOzonSync = async () => {
     setSyncing('ozon-sync');
     try {
-      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
-        },
-        body: JSON.stringify({
-          stocks: [],
-          warehouseId: 1,
-          apiKey: process.env.OZON_API_KEY || '',
-          clientId: process.env.OZON_CLIENT_ID || ''
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-      }
-
-      const result = await response.json();
-      if (result.success !== false) {
-        toast.success('✅ Синхронизация Ozon завершена');
-      } else {
-        toast.error('❌ Ошибка синхронизации Ozon: ' + (result.error || 'Неизвестная ошибка'));
-      }
+      await syncOzonProducts();
+      toast.success('✅ Синхронизация Ozon завершена');
     } catch (error) {
       console.error('Ozon sync error:', error);
       toast.error('❌ Ошибка синхронизации Ozon: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
@@ -61,37 +44,34 @@ const ManualSyncControls = () => {
     }
   };
 
+  const getStockUpdatesFromInventory = () => {
+    return inventory
+      .filter(item => item.wildberries_sku) // Только товары с Wildberries SKU
+      .map(item => ({
+        nm_id: parseInt(item.wildberries_sku!),
+        warehouse_id: 1, // По умолчанию склад 1
+        stock: item.currentStock,
+        offer_id: item.sku, // Для Ozon
+        sku: item.sku
+      }));
+  };
+
   const handleStockUpdate = async (marketplace: 'wildberries' | 'ozon') => {
     setSyncing(`${marketplace}-stock`);
     try {
+      const stockUpdates = getStockUpdatesFromInventory();
+      
+      if (stockUpdates.length === 0) {
+        toast.warning('⚠️ Нет товаров с Wildberries SKU для обновления остатков');
+        return;
+      }
+
       if (marketplace === 'wildberries') {
-        // Пример данных для обновления остатков
-        const sampleProducts = [
-          { nm_id: 123456, warehouse_id: 1, stock: 10 }
-        ];
-        await updateWbStock(sampleProducts);
+        await updateWbStock(stockUpdates);
         toast.success('✅ Остатки Wildberries обновлены');
       } else {
-        // Для Ozon
-        const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/ozon-stock-sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
-          },
-          body: JSON.stringify({
-            stocks: [{ offer_id: 'test123', stock: 5 }],
-            warehouseId: 1,
-            apiKey: process.env.OZON_API_KEY || '',
-            clientId: process.env.OZON_CLIENT_ID || ''
-          })
-        });
-
-        if (response.ok) {
-          toast.success('✅ Остатки Ozon обновлены');
-        } else {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        await updateOzonStock(stockUpdates);
+        toast.success('✅ Остатки Ozon обновлены');
       }
     } catch (error) {
       console.error(`${marketplace} stock update error:`, error);
