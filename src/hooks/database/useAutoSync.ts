@@ -18,14 +18,29 @@ interface SyncStatus {
 }
 
 export const useAutoSync = () => {
-  const [status, setStatus] = useState<SyncStatus>({
-    isRunning: false,
-    lastProductSyncTime: null,
-    lastStockUpdateTime: null,
-    nextProductSyncTime: null,
-    nextStockUpdateTime: null,
-    productSyncInterval: 60,
-    stockUpdateInterval: 30,
+  const [status, setStatus] = useState<SyncStatus>(() => {
+    // Try to restore state from localStorage
+    const savedSettings = localStorage.getItem('autoSyncSettings');
+    const defaultStatus = {
+      isRunning: false,
+      lastProductSyncTime: null,
+      lastStockUpdateTime: null,
+      nextProductSyncTime: null,
+      nextStockUpdateTime: null,
+      productSyncInterval: 60,
+      stockUpdateInterval: 30,
+    };
+
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      return {
+        ...defaultStatus,
+        productSyncInterval: settings.productSyncInterval === 'never' ? 0 : parseInt(settings.productSyncInterval || '60'),
+        stockUpdateInterval: parseInt(settings.stockUpdateInterval || '30'),
+      };
+    }
+
+    return defaultStatus;
   });
 
   const { syncProducts: syncWbProducts } = useWildberriesSync();
@@ -36,11 +51,17 @@ export const useAutoSync = () => {
 
   const productSyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stockUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isRunningRef = useRef(false);
 
   // Function to get stock updates from inventory for sending to marketplaces
   const getStockUpdatesFromInventory = useCallback(() => {
-    return inventory
-      .filter(item => item.wildberries_sku)
+    console.log('Getting stock updates from inventory:', inventory);
+    const updates = inventory
+      .filter(item => {
+        const hasWbSku = item.wildberries_sku && item.wildberries_sku.trim() !== '';
+        console.log(`Item ${item.sku}: WB SKU = ${item.wildberries_sku}, hasWbSku = ${hasWbSku}, stock = ${item.currentStock}`);
+        return hasWbSku;
+      })
       .map(item => ({
         nm_id: parseInt(item.wildberries_sku!),
         warehouse_id: 1,
@@ -48,11 +69,17 @@ export const useAutoSync = () => {
         offer_id: item.sku,
         sku: item.sku
       }));
+    
+    console.log('Prepared stock updates:', updates);
+    return updates;
   }, [inventory]);
 
   // Perform product synchronization
   const performProductSync = useCallback(async () => {
-    if (!status.isRunning || status.productSyncInterval === 0) return;
+    if (!isRunningRef.current || status.productSyncInterval === 0) {
+      console.log('Product sync skipped - not running or interval is 0');
+      return;
+    }
 
     try {
       console.log('Выполняется автосинхронизация товаров...');
@@ -87,11 +114,14 @@ export const useAutoSync = () => {
       console.error('Ошибка автосинхронизации товаров:', error);
       toast.error('❌ Ошибка автосинхронизации товаров: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
-  }, [status.isRunning, status.productSyncInterval, syncWbProducts, syncOzonProducts]);
+  }, [status.productSyncInterval, syncWbProducts, syncOzonProducts]);
 
   // Perform stock update
   const performStockUpdate = useCallback(async () => {
-    if (!status.isRunning) return;
+    if (!isRunningRef.current) {
+      console.log('Stock update skipped - not running');
+      return;
+    }
 
     try {
       console.log('Выполняется автообновление остатков...');
@@ -99,8 +129,16 @@ export const useAutoSync = () => {
       
       if (stockUpdates.length === 0) {
         console.log('Нет товаров с Wildberries SKU для обновления остатков');
+        const now = new Date();
+        setStatus(prev => ({
+          ...prev,
+          lastStockUpdateTime: now,
+          nextStockUpdateTime: new Date(now.getTime() + prev.stockUpdateInterval * 60 * 1000)
+        }));
         return;
       }
+
+      console.log('Updating stock for items:', stockUpdates);
 
       // Update Wildberries stock
       try {
@@ -132,13 +170,17 @@ export const useAutoSync = () => {
       console.error('Ошибка автообновления остатков:', error);
       toast.error('❌ Ошибка автообновления остатков: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     }
-  }, [status.isRunning, getStockUpdatesFromInventory, updateWbStock, updateOzonStock]);
+  }, [getStockUpdatesFromInventory, updateWbStock, updateOzonStock]);
 
   // Start auto-sync
   const startAutoSync = useCallback(() => {
-    if (status.isRunning) return;
+    if (isRunningRef.current) {
+      console.log('Auto-sync already running');
+      return;
+    }
 
     console.log('Запуск автосинхронизации...');
+    isRunningRef.current = true;
     setStatus(prev => ({ ...prev, isRunning: true }));
 
     // Perform first syncs immediately
@@ -169,12 +211,14 @@ export const useAutoSync = () => {
     }));
 
     toast.success('✅ Автосинхронизация запущена');
-  }, [status.isRunning, status.productSyncInterval, status.stockUpdateInterval, performProductSync, performStockUpdate]);
+  }, [status.productSyncInterval, status.stockUpdateInterval, performProductSync, performStockUpdate]);
 
   // Stop auto-sync
   const stopAutoSync = useCallback(() => {
     console.log('Остановка автосинхронизации...');
     
+    isRunningRef.current = false;
+
     if (productSyncIntervalRef.current) {
       clearInterval(productSyncIntervalRef.current);
       productSyncIntervalRef.current = null;
@@ -197,6 +241,8 @@ export const useAutoSync = () => {
 
   // Update intervals
   const updateIntervals = useCallback((productInterval: number, stockInterval: number) => {
+    console.log('Updating intervals:', { productInterval, stockInterval });
+    
     setStatus(prev => ({
       ...prev,
       productSyncInterval: productInterval,
@@ -204,15 +250,20 @@ export const useAutoSync = () => {
     }));
 
     // If sync is running, restart with new intervals
-    if (status.isRunning) {
+    if (isRunningRef.current) {
+      console.log('Restarting auto-sync with new intervals');
       stopAutoSync();
-      setTimeout(() => startAutoSync(), 1000);
+      // Use setTimeout to ensure state updates properly
+      setTimeout(() => {
+        startAutoSync();
+      }, 1000);
     }
-  }, [status.isRunning, stopAutoSync, startAutoSync]);
+  }, [stopAutoSync, startAutoSync]);
 
   // Cleanup intervals on unmount
   useEffect(() => {
     return () => {
+      isRunningRef.current = false;
       if (productSyncIntervalRef.current) {
         clearInterval(productSyncIntervalRef.current);
       }

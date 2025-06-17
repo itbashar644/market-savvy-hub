@@ -18,18 +18,31 @@ const AutoSyncSettings = () => {
     updateIntervals,
   } = useAutoSync();
 
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(status.isRunning);
   const [productSyncInterval, setProductSyncInterval] = useState('60');
   const [stockUpdateInterval, setStockUpdateInterval] = useState('30');
+
+  // Sync local state with auto-sync status
+  useEffect(() => {
+    setAutoSyncEnabled(status.isRunning);
+  }, [status.isRunning]);
 
   // Load saved settings on initialization
   useEffect(() => {
     const savedSettings = localStorage.getItem('autoSyncSettings');
     if (savedSettings) {
       const settings = JSON.parse(savedSettings);
-      setAutoSyncEnabled(settings.autoSyncEnabled || false);
       setProductSyncInterval(settings.productSyncInterval || '60');
       setStockUpdateInterval(settings.stockUpdateInterval || '30');
+      
+      // If auto sync was enabled and settings exist, start it
+      if (settings.autoSyncEnabled && !status.isRunning) {
+        updateIntervals(
+          settings.productSyncInterval === 'never' ? 0 : parseInt(settings.productSyncInterval), 
+          parseInt(settings.stockUpdateInterval)
+        );
+        setTimeout(() => startAutoSync(), 500);
+      }
     }
   }, []);
 
@@ -41,18 +54,30 @@ const AutoSyncSettings = () => {
     };
     
     localStorage.setItem('autoSyncSettings', JSON.stringify(settings));
+    
+    // Update intervals without restarting if already running
     updateIntervals(
       productSyncInterval === 'never' ? 0 : parseInt(productSyncInterval), 
       parseInt(stockUpdateInterval)
     );
+    
+    // Only toggle auto-sync if the enabled state changed
+    if (autoSyncEnabled && !status.isRunning) {
+      startAutoSync();
+    } else if (!autoSyncEnabled && status.isRunning) {
+      stopAutoSync();
+    }
+    
     toast.success('✅ Настройки автоматической синхронизации сохранены');
   };
 
   const toggleAutoSync = () => {
     if (status.isRunning) {
       stopAutoSync();
+      setAutoSyncEnabled(false);
     } else {
       startAutoSync();
+      setAutoSyncEnabled(true);
     }
   };
 

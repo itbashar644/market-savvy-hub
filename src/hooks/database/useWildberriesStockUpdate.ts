@@ -10,12 +10,27 @@ export const useWildberriesStockUpdate = () => {
   const updateStock = async (products: any[]) => {
     const startTime = Date.now();
     
+    console.log('Starting Wildberries stock update with products:', products);
+    
     try {
       const wbCreds = credentials['Wildberries'];
       
       if (!wbCreds?.api_key) {
-        throw new Error('Wildberries API key not found');
+        throw new Error('Wildberries API key not found. Проверьте настройки подключения.');
       }
+
+      console.log('Making request to Wildberries stock update function...');
+
+      const requestData = { 
+        products: products.map(p => ({
+          nm_id: p.nm_id,
+          warehouse_id: p.warehouse_id || 1,
+          stock: p.stock
+        })),
+        apiKey: wbCreds.api_key
+      };
+
+      console.log('Request data:', requestData);
 
       const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-update', {
         method: 'POST',
@@ -23,21 +38,20 @@ export const useWildberriesStockUpdate = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxwd3ZoeWF3dnhpYnR1eGZoaXR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1MzIyOTUsImV4cCI6MjA2MjEwODI5NX0.-2aL1s3lUq4Oeos9jWoEd0Fn1g_-_oaQ_QWVEDByaOI`,
         },
-        body: JSON.stringify({ 
-          products: products.map(p => ({
-            nm_id: p.nm_id,
-            warehouse_id: p.warehouse_id || 1,
-            stock: p.stock
-          })),
-          apiKey: wbCreds.api_key
-        }),
+        body: JSON.stringify(requestData),
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('HTTP error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('Response result:', result);
+      
       const executionTime = Date.now() - startTime;
 
       if (result.success) {
@@ -53,6 +67,7 @@ export const useWildberriesStockUpdate = () => {
           }
         });
 
+        console.log('Stock update successful:', result.message);
         toast.success('✅ Остатки Wildberries обновлены!', {
           description: result.message
         });
@@ -66,6 +81,7 @@ export const useWildberriesStockUpdate = () => {
           metadata: result.details || {}
         });
 
+        console.error('Stock update failed:', result.error);
         toast.error('❌ Ошибка обновления остатков Wildberries', {
           description: result.error
         });
@@ -74,6 +90,8 @@ export const useWildberriesStockUpdate = () => {
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+      
+      console.error('Wildberries stock update error:', error);
       
       await addSyncLog({
         marketplace: 'Wildberries',
@@ -84,7 +102,6 @@ export const useWildberriesStockUpdate = () => {
         metadata: { error: errorMessage, productsCount: products.length }
       });
 
-      console.error('Wildberries stock update error:', error);
       toast.error('❌ Ошибка обновления остатков Wildberries', {
         description: errorMessage
       });
