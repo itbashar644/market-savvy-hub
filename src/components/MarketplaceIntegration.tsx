@@ -7,7 +7,7 @@ import { AlertCircle } from 'lucide-react';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import ManualSyncControls from './marketplace/ManualSyncControls';
-import AutoSyncSettings from './marketplace/AutoSyncSettings';
+import UnifiedAutoSyncSettings from './marketplace/UnifiedAutoSyncSettings';
 import { MarketplaceConnectionChecker } from './marketplace/MarketplaceConnectionChecker';
 import { useSyncLogs } from '@/hooks/useDatabase';
 
@@ -29,7 +29,7 @@ const MarketplaceIntegration = () => {
       <div className="flex flex-col space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Интеграция с маркетплейсами</h1>
         <p className="text-muted-foreground">
-          Управление подключениями к маркетплейсам и синхронизация данных
+          Управление подключениями к маркетплейсам и unified синхронизация данных
         </p>
       </div>
 
@@ -37,15 +37,16 @@ const MarketplaceIntegration = () => {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           Для корректной работы интеграции убедитесь, что все API ключи актуальны и имеют необходимые права доступа.
+          Система поддерживает автоматическую синхронизацию товаров и остатков с приоритизацией.
         </AlertDescription>
       </Alert>
 
       <Tabs defaultValue="settings" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="settings">Настройки</TabsTrigger>
-          <TabsTrigger value="sync">Синхронизация</TabsTrigger>
-          <TabsTrigger value="auto-sync">Автосинхронизация</TabsTrigger>
-          <TabsTrigger value="logs">Логи</TabsTrigger>
+          <TabsTrigger value="sync">Ручная синхронизация</TabsTrigger>
+          <TabsTrigger value="auto-sync">Unified автосинхронизация</TabsTrigger>
+          <TabsTrigger value="logs">Логи и мониторинг</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="space-y-6">
@@ -60,15 +61,15 @@ const MarketplaceIntegration = () => {
         </TabsContent>
 
         <TabsContent value="auto-sync" className="space-y-6">
-          <AutoSyncSettings />
+          <UnifiedAutoSyncSettings />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>История синхронизации</CardTitle>
+              <CardTitle>История синхронизации и мониторинг</CardTitle>
               <CardDescription>
-                Просмотр логов и статистики синхронизации с маркетплейсами
+                Просмотр логов синхронизации товаров и обновления остатков с детальной статистикой
               </CardDescription>
             </CardHeader>
             <CardContent>
