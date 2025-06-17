@@ -42,7 +42,7 @@ export const useUnifiedAutoSync = () => {
     return inventory
       .filter(item => item.wildberries_sku) // Только товары с Wildberries SKU
       .map(item => ({
-        nm_id: parseInt(item.wildberries_sku!),
+        nm_id: item.wildberries_sku!, // Keep as string
         warehouse_id: 1, // По умолчанию склад 1
         stock: item.currentStock,
         offer_id: item.sku, // Для Ozon

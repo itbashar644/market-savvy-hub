@@ -26,7 +26,7 @@ const StockUpdateControls = () => {
     console.log('Товары с Wildberries SKU:', itemsWithWbSku);
 
     return itemsWithWbSku.map(item => ({
-      nm_id: parseInt(item.wildberries_sku!),
+      nm_id: item.wildberries_sku!, // Keep as string
       warehouse_id: 1,
       stock: item.currentStock,
       offer_id: item.sku,
