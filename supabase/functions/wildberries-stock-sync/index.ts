@@ -75,8 +75,8 @@ serve(async (req) => {
       console.error('🏢 Warehouses API request failed:', warehouseError);
     }
 
-    // НЕ ДОБАВЛЯЕМ тестовый SKU - используем только переданные данные
-    const finalStocks = [...stocks];
+    // Используем ТОЛЬКО переданные данные без добавления тестовых SKU
+    const finalStocks = stocks;
 
     const wbPayload = {
       stocks: finalStocks.map(item => ({
