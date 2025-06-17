@@ -25,10 +25,9 @@ export const useWildberriesStockUpdate = () => {
       console.log('🔑 Wildberries API key found, preparing request...');
 
       const requestData = { 
-        products: products.map(p => {
+        stocks: products.map(p => {
           const mappedProduct = {
-            nm_id: p.nm_id,
-            warehouse_id: p.warehouse_id || 1,
+            offer_id: p.sku,
             stock: p.stock
           };
           console.log('📋 Mapping product:', p.sku || p.offer_id, '->', mappedProduct);
@@ -37,13 +36,13 @@ export const useWildberriesStockUpdate = () => {
         apiKey: wbCreds.api_key
       };
 
-      console.log('📤 Making request to Wildberries stock update function...');
+      console.log('📤 Making request to Wildberries stock sync function...');
       console.log('📝 Request data summary:', {
-        productsCount: requestData.products.length,
+        stocksCount: requestData.stocks.length,
         apiKeyLength: requestData.apiKey ? requestData.apiKey.length : 0
       });
 
-      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-update', {
+      const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,48 +65,58 @@ export const useWildberriesStockUpdate = () => {
       
       const executionTime = Date.now() - startTime;
 
-      if (result.success) {
+      if (result.result && Array.isArray(result.result)) {
+        // Подсчитываем успешные и неуспешные обновления
+        const successCount = result.result.filter((item: any) => item.updated === true).length;
+        const errorCount = result.result.filter((item: any) => item.updated === false).length;
+        
+        console.log('📊 Update results:', { successCount, errorCount, total: result.result.length });
+
         await addSyncLog({
           marketplace: 'Wildberries',
           operation: 'stock_update',
-          status: 'success',
-          message: result.message || 'Обновление остатков завершено успешно',
+          status: successCount > 0 ? 'success' : 'error',
+          message: `Обновлено: ${successCount}, ошибок: ${errorCount}`,
           executionTime,
           metadata: {
-            updatedCount: result.updatedCount || 0,
+            updatedCount: successCount,
+            errorCount: errorCount,
             productsCount: products.length,
-            details: result.details || {}
+            details: result.result
           }
         });
 
-        console.log('✅ Stock update successful:', result.message);
-        console.log('📊 Updated count:', result.updatedCount);
-        
-        if (result.updatedCount > 0) {
-          toast.success(`✅ Остатки Wildberries обновлены! (${result.updatedCount} товаров)`, {
-            description: result.message
+        if (successCount > 0) {
+          toast.success(`✅ Остатки Wildberries обновлены! (${successCount} из ${result.result.length} товаров)`, {
+            description: errorCount > 0 ? `Ошибок: ${errorCount}` : 'Все товары обновлены успешно'
           });
         } else {
-          toast.warning('⚠️ Остатки отправлены, но обновлений не произошло', {
-            description: 'Возможно, остатки уже актуальны'
+          toast.error('❌ Не удалось обновить остатки на Wildberries', {
+            description: `Ошибок: ${errorCount} из ${result.result.length} товаров`
+          });
+        }
+
+        // Показываем детали ошибок, если есть
+        if (errorCount > 0) {
+          const errorItems = result.result.filter((item: any) => item.updated === false);
+          console.log('❌ Товары с ошибками:', errorItems);
+          
+          // Группируем ошибки по типам
+          const errorGroups = errorItems.reduce((acc: any, item: any) => {
+            if (item.errors && item.errors.length > 0) {
+              const errorCode = item.errors[0].code || 'UNKNOWN_ERROR';
+              if (!acc[errorCode]) acc[errorCode] = [];
+              acc[errorCode].push(item.offer_id);
+            }
+            return acc;
+          }, {});
+
+          Object.entries(errorGroups).forEach(([errorCode, offerIds]: [string, any]) => {
+            console.log(`❌ ${errorCode}: ${offerIds.join(', ')}`);
           });
         }
       } else {
-        await addSyncLog({
-          marketplace: 'Wildberries',
-          operation: 'stock_update',
-          status: 'error',
-          message: result.error || 'Ошибка обновления остатков',
-          executionTime,
-          metadata: result.details || {}
-        });
-
-        console.error('❌ Stock update failed:', result.error);
-        console.error('📋 Error details:', result.details);
-        toast.error('❌ Ошибка обновления остатков Wildberries', {
-          description: result.error
-        });
-        throw new Error(result.error);
+        throw new Error('Неправильный формат ответа от API');
       }
     } catch (error) {
       const executionTime = Date.now() - startTime;
