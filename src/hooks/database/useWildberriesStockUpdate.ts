@@ -92,16 +92,24 @@ export const useWildberriesStockUpdate = () => {
         if (response.status === 409) {
           console.error('🚫 Wildberries API rejected the request - товары не найдены в каталоге');
           
-          // Логируем РЕЗУЛЬТАТ для каждого SKU при 409 ошибке
-          allSkuDetails.forEach(sku => {
+          // Создаем детальные результаты для всех SKU при 409 ошибке
+          const skuResults = allSkuDetails.map(sku => {
             console.log(`❌ SKU ${sku.wbSku} (исходный: ${sku.originalSku}): NotFound в каталоге Wildberries - ${sku.productName}`);
+            return {
+              wbSku: sku.wbSku,
+              originalSku: sku.originalSku,
+              productName: sku.productName,
+              stock: sku.stock,
+              status: 'NotFound',
+              error: 'Товар не найден в каталоге Wildberries'
+            };
           });
           
           await addSyncLog({
             marketplace: 'Wildberries',
             operation: 'stock_update',
             status: 'error',
-            message: `Все товары не найдены в каталоге Wildberries`,
+            message: `Все товары не найдены в каталоге Wildberries (${validProducts.length} товаров)`,
             executionTime: Date.now() - startTime,
             metadata: {
               updatedCount: 0,
@@ -109,19 +117,14 @@ export const useWildberriesStockUpdate = () => {
               productsCount: validProducts.length,
               httpStatus: response.status,
               allSkuDetails: allSkuDetails,
-              skuResults: allSkuDetails.map(sku => ({
-                wbSku: sku.wbSku,
-                originalSku: sku.originalSku,
-                productName: sku.productName,
-                status: 'NotFound',
-                error: 'Товар не найден в каталоге Wildberries'
-              })),
-              reason: 'All products not found in Wildberries catalog'
+              skuResults: skuResults,
+              reason: 'All products not found in Wildberries catalog',
+              detailedError: errorText
             }
           });
 
           toast.error('❌ Остатки Wildberries НЕ обновлены', {
-            description: `Все товары (${validProducts.length}) не найдены в каталоге Wildberries.`
+            description: `Все товары (${validProducts.length}) не найдены в каталоге Wildberries. Проверьте правильность SKU.`
           });
           
           throw new Error(`Все товары не найдены в каталоге Wildberries. HTTP статус: ${response.status}`);
@@ -141,7 +144,7 @@ export const useWildberriesStockUpdate = () => {
         
         console.log('📊 Update results:', { successCount, errorCount, total: result.result.length });
 
-        // Логируем РЕЗУЛЬТАТ для каждого SKU с подробной информацией
+        // Создаем детальные результаты для каждого SKU
         const skuResults = result.result.map((item: any) => {
           const skuDetail = allSkuDetails.find(s => s.wbSku === item.offer_id);
           if (item.updated) {
@@ -155,11 +158,11 @@ export const useWildberriesStockUpdate = () => {
               error: null
             };
           } else {
-            const errors = item.errors?.map((e: any) => e.code).join(', ') || 'Unknown error';
+            const errors = item.errors?.map((e: any) => e.code || e.message).join(', ') || 'Unknown error';
             console.log(`❌ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): ошибка - ${errors} - ${skuDetail?.productName}`);
             return {
               wbSku: item.offer_id,
-              originalSku: skuDetail?.originalSku || 'N/A',
+              originalSku: skuDetail?.originalSku || 'N/A', 
               productName: skuDetail?.productName || 'N/A',
               stock: skuDetail?.stock || 0,
               status: 'error',
@@ -193,7 +196,7 @@ export const useWildberriesStockUpdate = () => {
 
         if (isCompleteFailure) {
           toast.error('❌ Остатки Wildberries НЕ обновлены', {
-            description: `НИ ОДИН товар не был найден в каталоге Wildberries (${errorCount} товаров).`
+            description: `НИ ОДИН товар не был найден в каталоге Wildberries (${errorCount} товаров). Проверьте настройки интеграции.`
           });
           
           throw new Error(`Ни один товар не был обновлен в Wildberries. Все ${errorCount} товаров не найдены в каталоге.`);
@@ -217,7 +220,11 @@ export const useWildberriesStockUpdate = () => {
         status: 'error',
         message: errorMessage,
         executionTime,
-        metadata: { error: errorMessage, productsCount: products.length }
+        metadata: { 
+          error: errorMessage, 
+          productsCount: products.length,
+          errorDetails: error instanceof Error ? error.stack : undefined
+        }
       });
 
       if (!errorMessage.includes('не найдены в каталоге')) {
