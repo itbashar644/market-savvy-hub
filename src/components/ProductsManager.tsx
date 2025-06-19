@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,22 +27,22 @@ const ProductsManager = () => {
     category: [],
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'low_stock': return 'bg-yellow-100 text-yellow-800';
-      case 'out_of_stock': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusColor = (inStock: boolean, stockQuantity?: number) => {
+    if (!inStock || (stockQuantity !== undefined && stockQuantity <= 0)) {
+      return 'bg-red-100 text-red-800';
+    } else if (stockQuantity !== undefined && stockQuantity <= 5) {
+      return 'bg-yellow-100 text-yellow-800';
     }
+    return 'bg-green-100 text-green-800';
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Активен';
-      case 'low_stock': return 'Мало на складе';
-      case 'out_of_stock': return 'Нет в наличии';
-      default: return 'Неизвестно';
+  const getStatusText = (inStock: boolean, stockQuantity?: number) => {
+    if (!inStock || (stockQuantity !== undefined && stockQuantity <= 0)) {
+      return 'Нет в наличии';
+    } else if (stockQuantity !== undefined && stockQuantity <= 5) {
+      return 'Мало на складе';
     }
+    return 'В наличии';
   };
 
   // Filter logic
@@ -72,10 +73,16 @@ const ProductsManager = () => {
   const activeFilterCount = filters.status.length + filters.category.length;
 
   const filteredProducts = products.filter(product => {
-    const searchTermMatch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchTermMatch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.articleNumber && product.articleNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const statusMatch = filters.status.length === 0 || filters.status.includes(product.status);
+    const productStatus = getStatusText(product.inStock, product.stockQuantity);
+    const statusMatch = filters.status.length === 0 || filters.status.some(status => {
+      if (status === 'active') return productStatus === 'В наличии';
+      if (status === 'low_stock') return productStatus === 'Мало на складе';
+      if (status === 'out_of_stock') return productStatus === 'Нет в наличии';
+      return false;
+    });
     const categoryMatch = filters.category.length === 0 || filters.category.includes(product.category);
 
     return searchTermMatch && statusMatch && categoryMatch;
@@ -122,7 +129,7 @@ const ProductsManager = () => {
       <div className="p-6">
         <div className="text-center py-12">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-600">Загрузка товаров...</p>
+          <p className="text-gray-600">Загрузка товаров из Supabase...</p>
         </div>
       </div>
     );
@@ -133,7 +140,7 @@ const ProductsManager = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Управление товарами</h1>
-          <p className="text-gray-600 mt-1">Каталог товаров и синхронизация с маркетплейсами</p>
+          <p className="text-gray-600 mt-1">Каталог товаров из Supabase ({products.length} товаров)</p>
         </div>
         <div className="flex space-x-2">
           {selectedProducts.length > 0 && (
@@ -158,7 +165,7 @@ const ProductsManager = () => {
               <DialogHeader>
                 <DialogTitle>Настройка SKU Wildberries</DialogTitle>
                 <DialogDescription>
-                  Импорт соответствий между внутренними артикулами и SKU Wildberries
+                  Импорт соответствий между артикулами и SKU Wildberries
                 </DialogDescription>
               </DialogHeader>
               <WildberriesSkuImport />
@@ -176,7 +183,7 @@ const ProductsManager = () => {
               <DialogHeader>
                 <DialogTitle>Импорт товаров</DialogTitle>
                 <DialogDescription>
-                  Загрузите CSV файл для массового импорта товаров
+                  Загрузите CSV файл для массового импорта товаров в Supabase
                 </DialogDescription>
               </DialogHeader>
               <ProductImport />
@@ -230,7 +237,7 @@ const ProductsManager = () => {
                                     onCheckedChange={() => handleStatusChange(status)}
                                 />
                                 <label htmlFor={`status-${status}`} className="text-sm font-normal cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    {getStatusText(status)}
+                                    {status === 'active' ? 'В наличии' : status === 'low_stock' ? 'Мало на складе' : 'Нет в наличии'}
                                 </label>
                             </div>
                         ))}
@@ -310,7 +317,7 @@ const ProductsManager = () => {
             <div className="text-center py-12">
               <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'Товары не найдены' : 'Нет товаров'}
+                {searchTerm ? 'Товары не найдены' : 'Нет товаров в Supabase'}
               </h3>
               <p className="text-gray-600 mb-6">
                 {searchTerm 
@@ -351,13 +358,13 @@ const ProductsManager = () => {
                     onCheckedChange={() => handleSelectProduct(product.id)}
                   />
                   <img
-                    src={product.image}
-                    alt={product.name}
+                    src={product.imageUrl}
+                    alt={product.title}
                     className="w-12 h-12 rounded-lg object-cover"
                   />
                   <div>
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <CardDescription>Артикул: {product.sku}</CardDescription>
+                    <CardTitle className="text-lg">{product.title}</CardTitle>
+                    <CardDescription>Артикул: {product.articleNumber || 'Не указан'}</CardDescription>
                     {product.wildberriesSku && (
                       <CardDescription className="text-purple-600">
                         WB SKU: {product.wildberriesSku}
@@ -365,8 +372,8 @@ const ProductsManager = () => {
                     )}
                   </div>
                 </div>
-                <Badge className={getStatusColor(product.status)}>
-                  {getStatusText(product.status)}
+                <Badge className={getStatusColor(product.inStock, product.stockQuantity)}>
+                  {getStatusText(product.inStock, product.stockQuantity)}
                 </Badge>
               </div>
             </CardHeader>
@@ -381,8 +388,8 @@ const ProductsManager = () => {
                   <span className="text-sm text-gray-600">Остаток:</span>
                   <ProductStockEditor
                     productId={product.id}
-                    currentStock={product.stock}
-                    minStock={product.minStock}
+                    currentStock={product.stockQuantity || 0}
+                    minStock={5}
                   />
                 </div>
 
@@ -395,11 +402,11 @@ const ProductsManager = () => {
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700">Синхронизация:</p>
                   <div className="flex space-x-2">
-                    <Badge className={product.ozonSynced ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}>
-                      Ozon {product.ozonSynced ? '✓' : '✗'}
+                    <Badge className="bg-blue-100 text-blue-800">
+                      Ozon ❓
                     </Badge>
-                    <Badge className={product.wbSynced ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
-                      WB {product.wbSynced ? '✓' : '✗'}
+                    <Badge className={product.wildberriesSku ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}>
+                      WB {product.wildberriesSku ? '✓' : '✗'}
                       {!product.wildberriesSku && (
                         <span className="ml-1 text-red-500" title="SKU Wildberries не настроен">⚠</span>
                       )}
@@ -427,8 +434,8 @@ const ProductsManager = () => {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Быстрые действия</CardTitle>
-          <CardDescription>Массовые операции с товарами</CardDescription>
+          <CardTitle>Быстрые действия с товарами Supabase</CardTitle>
+          <CardDescription>Массовые операции с товарами из базы данных</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

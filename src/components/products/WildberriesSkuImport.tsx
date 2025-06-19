@@ -195,7 +195,7 @@ air.pods.2	2037849707485`;
 
       console.log('🔍 [SKU IMPORT] Образцы товаров в базе:');
       products.slice(0, 10).forEach((p, i) => {
-        console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber}", SKU: "${p.sku}", Title: "${p.title?.substring(0, 30)}...", WB SKU: "${p.wildberriesSku || 'НЕТ'}"`);
+        console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber || 'НЕТ'}", Title: "${p.title?.substring(0, 30)}...", WB SKU: "${p.wildberriesSku || 'НЕТ'}"`);
       });
 
       lines.forEach((line, index) => {
@@ -210,12 +210,9 @@ air.pods.2	2037849707485`;
         
         console.log(`🔍 [SKU IMPORT] Строка ${index + 1}: "${internalSku}" -> "${cleanWbSku}"`);
         
-        // Ищем товар по разным полям с учетом регистра
+        // Ищем товар по articleNumber (правильное поле из Supabase)
         let product = products.find(p => 
-          p.sku === internalSku || 
           p.articleNumber === internalSku ||
-          p.id === internalSku ||
-          p.sku?.toLowerCase() === internalSku.toLowerCase() ||
           p.articleNumber?.toLowerCase() === internalSku.toLowerCase()
         );
 
@@ -228,7 +225,6 @@ air.pods.2	2037849707485`;
         console.log(`✅ [SKU IMPORT] НАЙДЕН ТОВАР для "${internalSku}":`, {
           id: product.id,
           title: product.title?.substring(0, 30) + '...',
-          sku: product.sku,
           articleNumber: product.articleNumber,
           oldWbSku: product.wildberriesSku || 'НЕТ',
           newWbSku: cleanWbSku
@@ -287,7 +283,7 @@ air.pods.2	2037849707485`;
       if (products.length > 0) {
         console.log('📋 Первые 20 товаров:');
         products.slice(0, 20).forEach((p, i) => {
-          console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber}", SKU: "${p.sku}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
+          console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber || 'НЕТ'}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
         });
       }
     }
@@ -312,7 +308,7 @@ air.pods.2	2037849707485`;
             className="flex items-center space-x-1"
           >
             <Search className="w-4 h-4" />
-            <span>Показать товары в БД</span>
+            <span>Показать товары в БД ({products.length})</span>
           </Button>
           
           <Button 
@@ -328,15 +324,14 @@ air.pods.2	2037849707485`;
           <div className="p-4 bg-blue-50 rounded-lg">
             <h4 className="font-medium text-blue-800 mb-2 flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4" />
-              <span>Товары в базе данных (первые 20):</span>
+              <span>Товары в базе данных Supabase (первые 20 из {products.length}):</span>
             </h4>
             <div className="text-sm text-blue-700 space-y-1 max-h-60 overflow-y-auto">
               {products.slice(0, 20).map((product, index) => (
                 <div key={index} className="font-mono text-xs p-2 bg-white rounded border">
                   <div><strong>#{index + 1}</strong></div>
                   <div><strong>ID:</strong> {product.id}</div>
-                  <div><strong>SKU:</strong> {product.sku || 'НЕТ'}</div>
-                  <div><strong>Article:</strong> {product.articleNumber || 'НЕТ'}</div>
+                  <div><strong>Article Number:</strong> {product.articleNumber || 'НЕТ'}</div>
                   <div><strong>WB SKU:</strong> <span className={product.wildberriesSku ? 'text-green-600' : 'text-red-600'}>{product.wildberriesSku || 'НЕТ'}</span></div>
                   <div><strong>Title:</strong> {product.title?.substring(0, 40)}...</div>
                 </div>
@@ -347,7 +342,7 @@ air.pods.2	2037849707485`;
                 </div>
               )}
               <div className="mt-4 pt-2 border-t border-blue-200 bg-blue-100 p-2 rounded">
-                <strong>Всего товаров в базе: {products.length}</strong>
+                <strong>Всего товаров в базе Supabase: {products.length}</strong>
               </div>
             </div>
           </div>
