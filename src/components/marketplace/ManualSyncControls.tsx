@@ -30,7 +30,7 @@ const ManualSyncControls = () => {
     setSyncing('wildberries-sync');
     try {
       await syncWbProducts();
-      toast.success('✅ Син хронизация Wildberries завершена');
+      toast.success('✅ Синхронизация Wildberries завершена');
     } catch (error) {
       console.error('Wildberries sync error:', error);
       toast.error('❌ Ошибка синхронизации Wildberries: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
@@ -166,7 +166,7 @@ const ManualSyncControls = () => {
               <div className="text-2xl font-bold text-blue-600">{totalWbItems}</div>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
-              <div className="font-medium text-green-800">С остатком > 0</div>
+              <div className="font-medium text-green-800">С остатком &gt; 0</div>
               <div className="text-2xl font-bold text-green-600">{itemsWithStock}</div>
             </div>
             <div className="p-3 bg-orange-50 rounded-lg">
