@@ -1,4 +1,5 @@
 
+import { log } from '../_shared/logger.ts';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -21,25 +22,25 @@ serve(async (req) => {
     }
 
     if (stocks.length === 0) {
-      console.log('🔍 Получен пустой массив товаров для обновления');
+      log('🔍 Получен пустой массив товаров для обновления');
       return new Response(JSON.stringify({ result: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    console.log('🚀 ==> НАЧАЛО ОБНОВЛЕНИЯ ОСТАТКОВ WB <==');
-    console.log('📊 Получено товаров для обновления:', stocks.length);
-    console.log('🔑 API Key (первые 10 символов):', apiKey.substring(0, 10) + '...');
+    log('🚀 ==> НАЧАЛО ОБНОВЛЕНИЯ ОСТАТКОВ WB <==');
+    log('📊 Получено товаров для обновления:', stocks.length);
+    log('🔑 API Key (первые 10 символов):', apiKey.substring(0, 10) + '...');
 
     // Получаем список складов для определения правильного ID
-    console.log('🏢 ==> ЭТАП 1: Получение списка складов');
+    log('🏢 ==> ЭТАП 1: Получение списка складов');
     
     let warehouseId = 7963; // ID по умолчанию
     let validWarehouseId = null;
     
     try {
-      console.log('🏢 Отправляем запрос на получение складов...');
+      log('🏢 Отправляем запрос на получение складов...');
       const warehousesResponse = await fetch(`${WB_API_URL}/api/v3/warehouses`, {
         method: 'GET',
         headers: {
@@ -49,29 +50,29 @@ serve(async (req) => {
         signal: AbortSignal.timeout(15000)
       });
 
-      console.log('🏢 Статус ответа складов:', warehousesResponse.status);
+      log('🏢 Статус ответа складов:', warehousesResponse.status);
 
       if (warehousesResponse.ok) {
         const warehousesData = await warehousesResponse.json();
-        console.log('🏢 ✅ Полученные склады:', JSON.stringify(warehousesData, null, 2));
+        log('🏢 ✅ Полученные склады:', JSON.stringify(warehousesData, null, 2));
         
         if (Array.isArray(warehousesData) && warehousesData.length > 0) {
           validWarehouseId = warehousesData[0].id;
-          console.log(`🏢 ✅ Выбран склад ID: ${validWarehouseId} (название: ${warehousesData[0].name || 'N/A'})`);
+          log(`🏢 ✅ Выбран склад ID: ${validWarehouseId} (название: ${warehousesData[0].name || 'N/A'})`);
         }
       } else {
         const errorText = await warehousesResponse.text();
-        console.log('🏢 ❌ Ошибка получения складов. Код:', warehousesResponse.status, 'Текст:', errorText);
+        log('🏢 ❌ Ошибка получения складов. Код:', warehousesResponse.status, 'Текст:', errorText);
       }
     } catch (warehouseError) {
       console.error('🏢 💥 Исключение при получении складов:', warehouseError);
     }
 
     const finalWarehouseId = validWarehouseId || warehouseId;
-    console.log(`🏢 🎯 Итоговый ID склада: ${finalWarehouseId}`);
+    log(`🏢 🎯 Итоговый ID склада: ${finalWarehouseId}`);
 
     // Валидируем и подготавливаем данные - УПРОЩЕННАЯ ВЕРСИЯ БЕЗ ДЕТАЛЬНОГО ЛОГИРОВАНИЯ
-    console.log('📋 ==> ЭТАП 2: Валидация и подготовка данных');
+    log('📋 ==> ЭТАП 2: Валидация и подготовка данных');
     
     const validStocks = [];
     let invalidCount = 0;
@@ -88,10 +89,10 @@ serve(async (req) => {
       }
     }
 
-    console.log(`📋 📊 Результат валидации: валидных ${validStocks.length}, невалидных ${invalidCount} из ${stocks.length}`);
+    log(`📋 📊 Результат валидации: валидных ${validStocks.length}, невалидных ${invalidCount} из ${stocks.length}`);
 
     if (validStocks.length === 0) {
-      console.log('📋 ❌ НЕТ ВАЛИДНЫХ ТОВАРОВ для обновления');
+      log('📋 ❌ НЕТ ВАЛИДНЫХ ТОВАРОВ для обновления');
       const allErrors = stocks.map(item => ({
         offer_id: item.offer_id,
         updated: false,
@@ -108,7 +109,7 @@ serve(async (req) => {
     }
 
     // Подготавливаем payload для WB API
-    console.log('📤 ==> ЭТАП 3: Подготовка данных для WB API');
+    log('📤 ==> ЭТАП 3: Подготовка данных для WB API');
     
     const wbPayload = {
       stocks: validStocks.map(item => ({
@@ -118,15 +119,15 @@ serve(async (req) => {
       }))
     };
 
-    console.log('📤 🎯 PAYLOAD для WB API (первые 3 товара):');
-    console.log(JSON.stringify({
+    log('📤 🎯 PAYLOAD для WB API (первые 3 товара):');
+    log(JSON.stringify({
       stocks: wbPayload.stocks.slice(0, 3)
     }, null, 2));
-    console.log(`📤 Всего товаров в payload: ${wbPayload.stocks.length}`);
+    log(`📤 Всего товаров в payload: ${wbPayload.stocks.length}`);
 
     // Отправляем запрос в WB API
-    console.log('🌐 ==> ЭТАП 4: Отправка запроса в WB API');
-    console.log(`🌐 URL: ${WB_API_URL}/api/v3/stocks/${finalWarehouseId}`);
+    log('🌐 ==> ЭТАП 4: Отправка запроса в WB API');
+    log(`🌐 URL: ${WB_API_URL}/api/v3/stocks/${finalWarehouseId}`);
 
     let response;
     let responseText = '';
@@ -134,7 +135,7 @@ serve(async (req) => {
     try {
       const startTime = Date.now();
       
-      console.log('🌐 🚀 ОТПРАВЛЯЕМ ЗАПРОС В WB API...');
+      log('🌐 🚀 ОТПРАВЛЯЕМ ЗАПРОС В WB API...');
       
       response = await fetch(`${WB_API_URL}/api/v3/stocks/${finalWarehouseId}`, {
         method: 'PUT',
@@ -148,8 +149,8 @@ serve(async (req) => {
       });
       
       const requestTime = Date.now() - startTime;
-      console.log(`🌐 ⏱️ Время запроса: ${requestTime}ms`);
-      console.log('🌐 📡 Статус ответа WB API:', response.status, response.statusText);
+      log(`🌐 ⏱️ Время запроса: ${requestTime}ms`);
+      log('🌐 📡 Статус ответа WB API:', response.status, response.statusText);
       
       responseText = await response.text();
       console.log('🌐 📄 Тело ответа WB API (длина):', responseText.length);
@@ -174,12 +175,12 @@ serve(async (req) => {
     }
 
     // Анализ ответа WB API
-    console.log('🔍 ==> ЭТАП 5: АНАЛИЗ ОТВЕТА WB API');
-    console.log(`🔍 HTTP Status: ${response.status}`);
+    log('🔍 ==> ЭТАП 5: АНАЛИЗ ОТВЕТА WB API');
+    log(`🔍 HTTP Status: ${response.status}`);
     
     // Обработка успешного ответа (HTTP 204)
     if (response.status === 204) {
-      console.log('🔍 ✅ HTTP 204: Остатки успешно обновлены (No Content)');
+      log('🔍 ✅ HTTP 204: Остатки успешно обновлены (No Content)');
       
       const result = validStocks.map(item => ({
         offer_id: item.offer_id,
@@ -187,8 +188,8 @@ serve(async (req) => {
         errors: []
       }));
       
-      console.log('🔍 🎉 ИТОГОВЫЙ РЕЗУЛЬТАТ: ВСЕ ТОВАРЫ УСПЕШНО ОБНОВЛЕНЫ');
-      console.log('🔍 📊 Количество обновленных товаров:', result.length);
+      log('🔍 🎉 ИТОГОВЫЙ РЕЗУЛЬТАТ: ВСЕ ТОВАРЫ УСПЕШНО ОБНОВЛЕНЫ');
+      log('🔍 📊 Количество обновленных товаров:', result.length);
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -198,13 +199,13 @@ serve(async (req) => {
     
     // Обработка ошибок валидации (HTTP 400)
     else if (response.status === 400) {
-      console.log('🔍 ❌ HTTP 400: Ошибка валидации данных');
+      log('🔍 ❌ HTTP 400: Ошибка валидации данных');
       let errorDetails = 'Неправильный формат данных';
       
       try {
         if (responseText) {
           const parsedResponse = JSON.parse(responseText);
-          console.log('🔍 ❌ Детали ошибки 400:', JSON.stringify(parsedResponse, null, 2));
+          log('🔍 ❌ Детали ошибки 400:', JSON.stringify(parsedResponse, null, 2));
           
           if (parsedResponse.errors && Array.isArray(parsedResponse.errors)) {
             errorDetails = parsedResponse.errors.map((err: any) => 
@@ -215,11 +216,11 @@ serve(async (req) => {
           }
         }
       } catch (parseError) {
-        console.log('🔍 ❌ Не удалось распарсить JSON ошибки:', parseError);
+        log('🔍 ❌ Не удалось распарсить JSON ошибки:', parseError);
         errorDetails = responseText || 'Неизвестная ошибка валидации';
       }
       
-      console.log('🔍 ❌ Итоговое сообщение об ошибке:', errorDetails);
+      log('🔍 ❌ Итоговое сообщение об ошибке:', errorDetails);
       
       const allErrors = validStocks.map(item => ({
         offer_id: item.offer_id,
@@ -238,7 +239,7 @@ serve(async (req) => {
     
     // Обработка конфликтов - SKU не найдены (HTTP 409)
     else if (response.status === 409) {
-      console.log('🔍 ❌ HTTP 409: Конфликт - товары не найдены в каталоге');
+      log('🔍 ❌ HTTP 409: Конфликт - товары не найдены в каталоге');
       
       const result = validStocks.map(item => ({
         offer_id: item.offer_id,
@@ -249,7 +250,7 @@ serve(async (req) => {
         }]
       }));
       
-      console.log('🔍 💡 РЕКОМЕНДАЦИИ: Проверьте в личном кабинете WB корректность и доступность SKU');
+      log('🔍 💡 РЕКОМЕНДАЦИИ: Проверьте в личном кабинете WB корректность и доступность SKU');
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

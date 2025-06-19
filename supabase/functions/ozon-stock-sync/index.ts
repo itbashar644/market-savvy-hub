@@ -1,3 +1,4 @@
+import { log } from '../_shared/logger.ts';
 
 // v1.4 - Enhanced logging and error handling
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -19,7 +20,7 @@ serve(async (req) => {
   try {
     const { stocks, warehouseId, apiKey, clientId } = await req.json();
 
-    console.log('Received request with:', {
+    log('Received request with:', {
       stocksCount: stocks?.length || 0,
       hasWarehouseId: !!warehouseId,
       hasApiKey: !!apiKey,
@@ -38,10 +39,10 @@ serve(async (req) => {
       throw new Error('Ozon API credentials (apiKey, clientId) are required in the request body.');
     }
 
-    console.log('Stocks to sync:', stocks.map(s => ({ offer_id: s.offer_id, stock: s.stock })));
+    log('Stocks to sync:', stocks.map(s => ({ offer_id: s.offer_id, stock: s.stock })));
 
     if (stocks.length === 0) {
-      console.log('No stocks to sync, returning empty result');
+      log('No stocks to sync, returning empty result');
       return new Response(JSON.stringify({ result: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -53,16 +54,16 @@ serve(async (req) => {
       throw new Error('Invalid "warehouseId". It must be a positive number.');
     }
 
-    console.log('Using warehouse ID:', parsedWarehouseId);
+    log('Using warehouse ID:', parsedWarehouseId);
 
     const stockChunks = chunk(stocks, 100); // Ozon API limit is 100 items per request
     let allResults: any[] = [];
 
-    console.log(`Processing ${stockChunks.length} chunks of stocks`);
+    log(`Processing ${stockChunks.length} chunks of stocks`);
 
     for (let i = 0; i < stockChunks.length; i++) {
       const stockChunk = stockChunks[i];
-      console.log(`Processing chunk ${i + 1}/${stockChunks.length} with ${stockChunk.length} items`);
+      log(`Processing chunk ${i + 1}/${stockChunks.length} with ${stockChunk.length} items`);
 
       const ozonPayload = {
         stocks: stockChunk.map(item => ({
@@ -72,7 +73,7 @@ serve(async (req) => {
         }))
       };
 
-      console.log(`Ozon API payload for chunk ${i + 1}:`, JSON.stringify(ozonPayload, null, 2));
+      log(`Ozon API payload for chunk ${i + 1}:`, JSON.stringify(ozonPayload, null, 2));
 
       try {
         const response = await fetch(`${OZON_API_URL}/v2/products/stocks`, {
@@ -85,10 +86,10 @@ serve(async (req) => {
           body: JSON.stringify(ozonPayload),
         });
 
-        console.log(`Ozon API response status for chunk ${i + 1}:`, response.status);
+        log(`Ozon API response status for chunk ${i + 1}:`, response.status);
 
         const responseData = await response.json();
-        console.log(`Ozon API response data for chunk ${i + 1}:`, JSON.stringify(responseData, null, 2));
+        log(`Ozon API response data for chunk ${i + 1}:`, JSON.stringify(responseData, null, 2));
 
         if (!response.ok) {
           console.error(`Ozon API Error for chunk ${i + 1}:`, responseData);
@@ -104,7 +105,7 @@ serve(async (req) => {
           }));
           allResults = [...allResults, ...chunkErrors];
         } else {
-          console.log(`Chunk ${i + 1} processed successfully:`, responseData.result);
+          log(`Chunk ${i + 1} processed successfully:`, responseData.result);
           allResults = [...allResults, ...responseData.result];
         }
       } catch (e) {
@@ -123,7 +124,7 @@ serve(async (req) => {
       }
     }
 
-    console.log('Final results summary:', {
+    log('Final results summary:', {
       totalItems: allResults.length,
       successCount: allResults.filter(r => r.updated).length,
       errorCount: allResults.filter(r => !r.updated).length

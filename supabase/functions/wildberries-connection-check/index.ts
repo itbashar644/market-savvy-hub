@@ -1,3 +1,4 @@
+import { log } from '../_shared/logger.ts';
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 
@@ -7,29 +8,29 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  console.log('=== WILDBERRIES CONNECTION CHECK STARTED ===');
-  console.log('Request method:', req.method);
-  console.log('Request URL:', req.url);
-  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+  log('=== WILDBERRIES CONNECTION CHECK STARTED ===');
+  log('Request method:', req.method);
+  log('Request URL:', req.url);
+  log('Request headers:', Object.fromEntries(req.headers.entries()));
 
   if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
+    log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('Processing POST request...');
+    log('Processing POST request...');
     
     const requestBody = await req.json();
-    console.log('Request body received:', JSON.stringify(requestBody, null, 2));
+    log('Request body received:', JSON.stringify(requestBody, null, 2));
 
     const { marketplace, apiKey } = requestBody;
-    console.log('Extracted values:');
-    console.log('- Marketplace:', marketplace);
-    console.log('- API key provided:', apiKey ? 'YES (length: ' + apiKey.length + ')' : 'NO');
+    log('Extracted values:');
+    log('- Marketplace:', marketplace);
+    log('- API key provided:', apiKey ? 'YES (length: ' + apiKey.length + ')' : 'NO');
 
     if (!apiKey) {
-      console.log('ERROR: API ключ не предоставлен');
+      log('ERROR: API ключ не предоставлен');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -42,12 +43,12 @@ serve(async (req) => {
       );
     }
 
-    console.log('Attempting to connect to Wildberries API...');
-    console.log('API key being used:', apiKey.substring(0, 20) + '...');
+    log('Attempting to connect to Wildberries API...');
+    log('API key being used:', apiKey.substring(0, 20) + '...');
     
     let response;
     try {
-      console.log('Making API request to Wildberries warehouses endpoint...');
+      log('Making API request to Wildberries warehouses endpoint...');
       
       // Пробуем получить информацию о складах через API v3
       response = await fetch(`https://marketplace-api.wildberries.ru/api/v3/warehouses`, {
@@ -60,8 +61,8 @@ serve(async (req) => {
         signal: AbortSignal.timeout(30000)
       });
 
-      console.log('Wildberries API Response status:', response.status);
-      console.log('Wildberries API Response headers:', Object.fromEntries(response.headers.entries()));
+      log('Wildberries API Response status:', response.status);
+      log('Wildberries API Response headers:', Object.fromEntries(response.headers.entries()));
       
     } catch (fetchError) {
       console.error('Network error during fetch:', fetchError);
@@ -80,14 +81,14 @@ serve(async (req) => {
     }
 
     const responseText = await response.text();
-    console.log('Raw response text length:', responseText.length);
-    console.log('Raw response preview:', responseText.substring(0, 500));
+    log('Raw response text length:', responseText.length);
+    log('Raw response preview:', responseText.substring(0, 500));
 
     if (response.status === 200) {
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('Parsed response data:', JSON.stringify(data, null, 2));
+        log('Parsed response data:', JSON.stringify(data, null, 2));
       } catch (parseError) {
         console.error('Failed to parse response as JSON:', parseError);
         console.error('Response text that failed to parse:', responseText);
@@ -103,7 +104,7 @@ serve(async (req) => {
         );
       }
 
-      console.log('Wildberries connection successful!');
+      log('Wildberries connection successful!');
 
       return new Response(
         JSON.stringify({ 
