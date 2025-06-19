@@ -152,6 +152,8 @@ serve(async (req) => {
     try {
       const startTime = Date.now();
       
+      console.log('🌐 🚀 ОТПРАВЛЯЕМ ЗАПРОС ПРЯМО СЕЙЧАС...');
+      
       response = await fetch(`${WB_API_URL}/api/v3/stocks/${finalWarehouseId}`, {
         method: 'PUT',
         headers: {
@@ -171,10 +173,13 @@ serve(async (req) => {
       
       responseText = await response.text();
       console.log('🌐 📄 Полное тело ответа:');
-      console.log(responseText);
+      console.log('🌐 📄 Response Text Length:', responseText.length);
+      console.log('🌐 📄 Response Text:', responseText);
+      
+      console.log('🌐 ✅ ЗАПРОС ВЫПОЛНЕН УСПЕШНО, ПЕРЕХОДИМ К АНАЛИЗУ ОТВЕТА');
       
     } catch (fetchError) {
-      console.error('🌐 💥 КРИТИЧЕСКАЯ ОШИБКА СЕТИ:', fetchError);
+      console.error('🌐 💥 КРИТИЧЕСКАЯ ОШИБКА ЗАПРОСА К WB API:', fetchError);
       console.error('🌐 💥 Тип ошибки:', fetchError.name);
       console.error('🌐 💥 Сообщение:', fetchError.message);
       console.error('🌐 💥 Stack:', fetchError.stack);
@@ -195,16 +200,18 @@ serve(async (req) => {
     }
 
     // Подробный анализ ответа
-    console.log('🔍 ==> ЭТАП 5: Анализ ответа WB API');
+    console.log('🔍 ==> ЭТАП 5: ДЕТАЛЬНЫЙ АНАЛИЗ ОТВЕТА WB API');
     console.log(`🔍 HTTP Status: ${response.status} (${response.statusText})`);
+    console.log(`🔍 Response имеет тело: ${responseText ? 'ДА' : 'НЕТ'}`);
+    console.log(`🔍 Длина ответа: ${responseText.length} символов`);
     
-    // Обработка ответов
+    // Обработка успешного ответа (HTTP 204)
     if (response.status === 204) {
       console.log('🔍 ✅ HTTP 204: Остатки успешно обновлены (No Content)');
-      console.log('🔍 ✅ Это означает, что WB API принял и обработал запрос');
+      console.log('🔍 ✅ Это стандартный успешный ответ WB API');
       
       const result = validStocks.map((item, index) => {
-        console.log(`🔍 ✅ Товар ${index + 1}: SKU ${item.offer_id} - ОБНОВЛЕН`);
+        console.log(`🔍 ✅ Товар ${index + 1}: SKU ${item.offer_id} - ОБНОВЛЕН УСПЕШНО`);
         return {
           offer_id: item.offer_id,
           updated: true,
@@ -212,8 +219,8 @@ serve(async (req) => {
         };
       });
       
-      console.log('🔍 🎉 РЕЗУЛЬТАТ: ВСЕ ТОВАРЫ УСПЕШНО ОБНОВЛЕНЫ');
-      console.log('🔍 📊 Обновлено товаров:', result.length);
+      console.log('🔍 🎉 ИТОГОВЫЙ РЕЗУЛЬТАТ: ВСЕ ТОВАРЫ УСПЕШНО ОБНОВЛЕНЫ');
+      console.log('🔍 📊 Количество обновленных товаров:', result.length);
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -221,8 +228,9 @@ serve(async (req) => {
       });
     } 
     
+    // Обработка ошибок валидации (HTTP 400)
     else if (response.status === 400) {
-      console.log('🔍 ❌ HTTP 400: Ошибка валидации запроса');
+      console.log('🔍 ❌ HTTP 400: Ошибка валидации данных');
       let errorDetails = 'Неправильный формат данных';
       let parsedResponse = null;
       
@@ -233,7 +241,7 @@ serve(async (req) => {
           
           if (parsedResponse.errors && Array.isArray(parsedResponse.errors)) {
             errorDetails = parsedResponse.errors.map((err: any) => {
-              console.log('🔍 ❌ Ошибка:', err);
+              console.log('🔍 ❌ Конкретная ошибка:', err);
               return err.message || err.description || JSON.stringify(err);
             }).join('; ');
           } else if (parsedResponse.message) {
@@ -262,9 +270,10 @@ serve(async (req) => {
       });
     }
     
+    // Обработка конфликтов - SKU не найдены (HTTP 409)
     else if (response.status === 409) {
       console.log('🔍 ❌ HTTP 409: Конфликт - товары не найдены в каталоге');
-      console.log('🔍 ❌ Это означает, что SKU не существуют в каталоге WB');
+      console.log('🔍 ❌ Это означает, что SKU не существуют в каталоге WB или недоступны для обновления остатков');
       
       let conflictDetails = '';
       try {
@@ -278,18 +287,18 @@ serve(async (req) => {
       }
       
       const result = validStocks.map((item, index) => {
-        console.log(`🔍 ❌ Товар ${index + 1}: SKU ${item.offer_id} - НЕ НАЙДЕН в каталоге WB`);
+        console.log(`🔍 ❌ Товар ${index + 1}: SKU ${item.offer_id} - НЕ НАЙДЕН в каталоге WB или недоступен`);
         return {
           offer_id: item.offer_id,
           updated: false,
           errors: [{
             code: 'SKU_NOT_FOUND',
-            message: `SKU ${item.offer_id} не найден в каталоге Wildberries. Убедитесь, что товар добавлен в личный кабинет и прошел модерацию.`
+            message: `SKU ${item.offer_id} не найден в каталоге Wildberries или недоступен для обновления остатков. Проверьте: 1) Товар добавлен в каталог, 2) Товар прошел модерацию, 3) SKU корректен`
           }]
         };
       });
       
-      console.log('🔍 💡 РЕШЕНИЕ: Проверьте в личном кабинете WB наличие товаров с указанными SKU');
+      console.log('🔍 💡 РЕКОМЕНДАЦИИ: Проверьте в личном кабинете WB корректность и доступность SKU');
       
       return new Response(JSON.stringify({ result }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -297,9 +306,10 @@ serve(async (req) => {
       });
     }
     
+    // Обработка ошибок авторизации (HTTP 401, 403)
     else if (response.status === 401 || response.status === 403) {
-      console.error(`🔍 🔐 HTTP ${response.status}: Ошибка авторизации`);
-      console.error('🔍 🔐 Проверьте правильность API ключа и его права доступа');
+      console.error(`🔍 🔐 HTTP ${response.status}: Ошибка авторизации/прав доступа`);
+      console.error('🔍 🔐 Проверьте: 1) Правильность API ключа, 2) Права доступа для обновления остатков');
       console.error('🔍 🔐 API Key (первые 10 символов):', apiKey.substring(0, 10) + '...');
       
       const allErrors = validStocks.map(item => ({
@@ -307,7 +317,7 @@ serve(async (req) => {
         updated: false,
         errors: [{
           code: `AUTH_ERROR_${response.status}`,
-          message: 'Неверный API ключ или недостаточно прав доступа.'
+          message: `Ошибка авторизации (${response.status}): Неверный API ключ или недостаточно прав для обновления остатков`
         }]
       }));
       
@@ -317,19 +327,31 @@ serve(async (req) => {
       });
     }
     
+    // Обработка других ошибок
     else {
-      // Неожиданная ошибка
-      console.error(`🔍 🚫 HTTP ${response.status}: Неожиданный статус ответа`);
+      console.error(`🔍 🚫 HTTP ${response.status}: Неожиданный статус ответа от WB API`);
       console.error('🔍 🚫 Status Text:', response.statusText);
       console.error('🔍 🚫 Response Body:', responseText);
       console.error('🔍 🚫 Response Headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Попробуем распарсить JSON ответ для дополнительной информации
+      let additionalErrorInfo = '';
+      try {
+        if (responseText) {
+          const parsedError = JSON.parse(responseText);
+          additionalErrorInfo = JSON.stringify(parsedError, null, 2);
+          console.error('🔍 🚫 Распарсенная ошибка:', additionalErrorInfo);
+        }
+      } catch (e) {
+        console.error('🔍 🚫 Не удалось распарсить ошибку как JSON');
+      }
       
       const allErrors = validStocks.map(item => ({
         offer_id: item.offer_id,
         updated: false,
         errors: [{
           code: `HTTP_${response.status}`,
-          message: `Неожиданная ошибка API (${response.status}): ${responseText.substring(0, 200)}`
+          message: `Неожиданная ошибка API (${response.status}): ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`
         }]
       }));
       
