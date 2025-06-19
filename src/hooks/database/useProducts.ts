@@ -8,6 +8,7 @@ export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const subscriptionRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
 
   const fetchProducts = async () => {
     try {
@@ -24,7 +25,7 @@ export const useProducts = () => {
 
       console.log('✅ [useProducts] Загружено товаров из Supabase:', data?.length || 0);
       
-      // Маппим данные из Supabase в формат Product
+      // Маппим данные из Supabase в формат Product с правильной обработкой типов
       const mappedProducts: Product[] = (data || []).map(item => ({
         id: item.id,
         title: item.title,
@@ -40,18 +41,18 @@ export const useProducts = () => {
         inStock: item.in_stock,
         colors: Array.isArray(item.colors) ? item.colors : [],
         sizes: Array.isArray(item.sizes) ? item.sizes : [],
-        specifications: item.specifications || {},
+        specifications: typeof item.specifications === 'object' && item.specifications !== null ? item.specifications : {},
         isNew: item.is_new,
         isBestseller: item.is_bestseller,
-        stockQuantity: item.stock_quantity,
-        stock: item.stock_quantity, // Для обратной совместимости
+        stockQuantity: item.stock_quantity || 0,
+        stock: item.stock_quantity || 0, // Для обратной совместимости
         createdAt: item.created_at,
         updatedAt: item.updated_at,
         archived: item.archived,
         articleNumber: item.article_number,
         sku: item.article_number, // Используем article_number как SKU
         barcode: item.barcode,
-        countryOfOrigin: item.country_of_origin,
+        countryOfOrigin: item.country_of_origin || 'Не указано',
         material: item.material,
         modelName: item.model_name,
         wildberriesUrl: item.wildberries_url,
@@ -60,7 +61,7 @@ export const useProducts = () => {
         videoUrl: item.video_url,
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
-        colorVariants: item.color_variants || {},
+        colorVariants: typeof item.color_variants === 'object' && item.color_variants !== null ? item.color_variants : {},
         status: item.in_stock ? 'active' : 'out_of_stock',
         minStock: 0,
         maxStock: 100,
@@ -70,14 +71,16 @@ export const useProducts = () => {
         wbSynced: !!item.wildberries_sku
       }));
 
-      setProducts(mappedProducts);
-      console.log('🔍 [useProducts] Первые 5 товаров:', mappedProducts.slice(0, 5).map(p => ({
-        id: p.id,
-        title: p.title?.substring(0, 30) + '...',
-        sku: p.sku,
-        articleNumber: p.articleNumber,
-        wildberriesSku: p.wildberriesSku
-      })));
+      if (isMountedRef.current) {
+        setProducts(mappedProducts);
+        console.log('🔍 [useProducts] Первые 5 товаров:', mappedProducts.slice(0, 5).map(p => ({
+          id: p.id,
+          title: p.title?.substring(0, 30) + '...',
+          sku: p.sku,
+          articleNumber: p.articleNumber,
+          wildberriesSku: p.wildberriesSku
+        })));
+      }
       
       return mappedProducts;
     } catch (error) {
@@ -85,7 +88,9 @@ export const useProducts = () => {
       toast.error('Ошибка загрузки товаров');
       return [];
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -161,7 +166,7 @@ export const useProducts = () => {
 
     // Асинхронно обновляем в Supabase
     updateProductInSupabase(id, updates);
-    return true; // Возвращаем true для совместимости
+    return true;
   };
 
   const updateProductInSupabase = async (id: string, updates: Partial<Product>) => {
@@ -191,7 +196,6 @@ export const useProducts = () => {
       console.log(`✅ [useProducts] Товар ${id} успешно обновлен в Supabase`);
     } catch (error) {
       console.error(`❌ [useProducts] Ошибка обновления товара ${id} в Supabase:`, error);
-      // Не показываем toast для автоматических обновлений SKU
     }
   };
 
@@ -205,7 +209,7 @@ export const useProducts = () => {
 
       if (error) throw error;
 
-      await fetchProducts(); // Перезагружаем список
+      await fetchProducts();
       toast.success('Товар удален');
       return true;
     } catch (error) {
@@ -225,7 +229,7 @@ export const useProducts = () => {
 
       if (error) throw error;
 
-      await fetchProducts(); // Перезагружаем список
+      await fetchProducts();
       toast.success(`Удалено товаров: ${ids.length}`);
       return true;
     } catch (error) {
@@ -236,40 +240,48 @@ export const useProducts = () => {
   };
 
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
     
-    const loadProducts = async () => {
-      if (isMounted) {
-        await fetchProducts();
-      }
+    const initializeProducts = async () => {
+      await fetchProducts();
     };
     
-    loadProducts();
+    initializeProducts();
     
-    // Подписываемся на изменения в реальном времени только один раз
-    if (!subscriptionRef.current) {
+    return () => {
+      isMountedRef.current = false;
+      if (subscriptionRef.current) {
+        console.log('🔄 [useProducts] Отписываемся от канала:', subscriptionRef.current);
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, []);
+
+  // Отдельный useEffect для подписки на изменения
+  useEffect(() => {
+    if (products.length > 0 && !subscriptionRef.current) {
+      const channelName = `products-realtime-${Math.random().toString(36).substr(2, 9)}`;
+      console.log('🔄 [useProducts] Создаем подписку на канал:', channelName);
+      
       subscriptionRef.current = supabase
-        .channel(`products-changes-${Date.now()}`) // Уникальное имя канала
+        .channel(channelName)
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'products' },
           (payload) => {
             console.log('🔄 [useProducts] Изменение в products:', payload);
-            if (isMounted) {
+            if (isMountedRef.current) {
               fetchProducts();
             }
           }
         )
         .subscribe();
     }
-
+    
     return () => {
-      isMounted = false;
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
+      // Cleanup будет выполнен в основном useEffect
     };
-  }, []);
+  }, [products.length]);
 
   return {
     products,
