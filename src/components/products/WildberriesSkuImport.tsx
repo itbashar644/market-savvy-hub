@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/hooks/database/useProducts';
-import { Upload, Check, X } from 'lucide-react';
+import { Upload, Check, X, Search } from 'lucide-react';
 
 const WildberriesSkuImport = () => {
   const [skuData, setSkuData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mappingResults, setMappingResults] = useState<{ success: string[]; failed: string[] } | null>(null);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   const { updateProduct, products } = useProducts();
   const { toast } = useToast();
 
@@ -169,7 +170,15 @@ air.pods.2	2037849707485`;
       const success: string[] = [];
       const failed: string[] = [];
 
-      lines.forEach(line => {
+      console.log('🔍 ОТЛАДКА: Всего товаров в базе:', products.length);
+      console.log('🔍 ОТЛАДКА: SKU товаров в базе:', products.map(p => ({
+        id: p.id,
+        sku: p.sku,
+        articleNumber: p.articleNumber,
+        title: p.title?.substring(0, 30) + '...'
+      })));
+
+      lines.forEach((line, index) => {
         const parts = line.trim().split('\t');
         if (parts.length !== 2) {
           failed.push(`Неверный формат: ${line}`);
@@ -181,12 +190,31 @@ air.pods.2	2037849707485`;
         // Handle multiple SKUs separated by semicolon - take the first one
         const cleanWbSku = wbSku.split(';')[0].trim();
         
-        const product = products.find(p => p.sku === internalSku);
+        // Пробуем найти товар по разным полям
+        let product = products.find(p => p.sku === internalSku);
+        
+        if (!product) {
+          product = products.find(p => p.articleNumber === internalSku);
+        }
+        
+        if (!product) {
+          product = products.find(p => p.id === internalSku);
+        }
 
         if (!product) {
+          console.log(`🔍 ОТЛАДКА: Товар не найден для SKU "${internalSku}". Строка ${index + 1}`);
           failed.push(`Товар не найден: ${internalSku}`);
           return;
         }
+
+        console.log(`🔍 ОТЛАДКА: Найден товар для "${internalSku}":`, {
+          id: product.id,
+          title: product.title,
+          sku: product.sku,
+          articleNumber: product.articleNumber,
+          oldWbSku: product.wildberriesSku,
+          newWbSku: cleanWbSku
+        });
 
         const updated = updateProduct(product.id, { wildberriesSku: cleanWbSku });
         if (updated) {
@@ -217,6 +245,20 @@ air.pods.2	2037849707485`;
     }
   };
 
+  const toggleDebugInfo = () => {
+    setShowDebugInfo(!showDebugInfo);
+    if (!showDebugInfo) {
+      console.log('🔍 ОТЛАДОЧНАЯ ИНФОРМАЦИЯ:');
+      console.log('Товары в базе данных:', products.map(p => ({
+        id: p.id,
+        title: p.title,
+        sku: p.sku,
+        articleNumber: p.articleNumber,
+        wildberriesSku: p.wildberriesSku
+      })));
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -229,20 +271,50 @@ air.pods.2	2037849707485`;
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline"
+            onClick={toggleDebugInfo}
+            className="flex items-center space-x-1"
+          >
+            <Search className="w-4 h-4" />
+            <span>Показать товары в БД</span>
+          </Button>
+          
+          <Button 
+            onClick={processSkuMapping}
+            disabled={isProcessing || !skuData.trim()}
+            className="flex-1"
+          >
+            {isProcessing ? 'Обновление...' : 'Обновить на НОВЫЕ SKU Wildberries'}
+          </Button>
+        </div>
+
+        {showDebugInfo && (
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h4 className="font-medium text-blue-800 mb-2">Товары в базе данных (первые 10):</h4>
+            <div className="text-sm text-blue-700 space-y-1 max-h-40 overflow-y-auto">
+              {products.slice(0, 10).map((product, index) => (
+                <div key={index} className="font-mono text-xs">
+                  ID: {product.id} | SKU: {product.sku || 'нет'} | Article: {product.articleNumber || 'нет'} | Title: {product.title?.substring(0, 30)}...
+                </div>
+              ))}
+              {products.length > 10 && (
+                <div className="text-blue-600">... и ещё {products.length - 10} товаров</div>
+              )}
+              <div className="mt-2 pt-2 border-t border-blue-200">
+                <strong>Всего товаров в базе: {products.length}</strong>
+              </div>
+            </div>
+          </div>
+        )}
+
         <Textarea
           value={skuData}
           onChange={(e) => setSkuData(e.target.value)}
           placeholder="внутренний_sku [TAB] новый_wb_sku&#10;..."
           className="min-h-[200px] font-mono text-sm"
         />
-
-        <Button 
-          onClick={processSkuMapping}
-          disabled={isProcessing || !skuData.trim()}
-          className="w-full"
-        >
-          {isProcessing ? 'Обновление...' : 'Обновить на НОВЫЕ SKU Wildberries'}
-        </Button>
 
         {mappingResults && (
           <div className="space-y-4 mt-4">
