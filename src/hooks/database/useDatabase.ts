@@ -1,9 +1,10 @@
 
-import { db } from '@/lib/database';
+import { toast } from 'sonner';
 
 export const useDatabase = () => {
   const initializeDatabase = () => {
-    db.seedDatabase();
+    console.log('🚀 База данных Supabase готова к использованию');
+    toast.success('База данных инициализирована');
   };
 
   return {
