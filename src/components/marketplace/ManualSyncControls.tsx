@@ -44,31 +44,54 @@ const ManualSyncControls = () => {
     }
   };
 
-  const getStockUpdatesFromInventory = () => {
-    console.log('Проверяем товары в инвентаре:', inventory);
+  const getWildberriesStockUpdates = () => {
+    console.log('Подготовка данных для обновления остатков Wildberries:', inventory);
     
     const itemsWithWbSku = inventory.filter(item => {
       const hasWbSku = item.wildberries_sku && item.wildberries_sku.trim() !== '';
-      console.log(`Товар ${item.sku}: WB SKU = ${item.wildberries_sku}, есть ли WB SKU: ${hasWbSku}`);
+      console.log(`Товар ${item.sku}: WB SKU = ${item.wildberries_sku}, остаток: ${item.currentStock}`);
       return hasWbSku;
     });
 
-    console.log('Товары с Wildberries SKU:', itemsWithWbSku);
+    console.log('Товары с Wildberries SKU:', itemsWithWbSku.length);
 
-    return itemsWithWbSku.map(item => ({
-      nm_id: parseInt(item.wildberries_sku!),
-      warehouse_id: 1,
-      stock: item.currentStock,
-      offer_id: item.sku,
-      sku: item.sku
-    }));
+    return itemsWithWbSku.map(item => {
+      const wbSku = parseInt(item.wildberries_sku!);
+      if (isNaN(wbSku)) {
+        console.warn(`Неверный формат WB SKU для товара ${item.sku}: ${item.wildberries_sku}`);
+        return null;
+      }
+      
+      return {
+        offer_id: wbSku.toString(), // Строковое представление для API
+        stock: item.currentStock,
+        sku: item.sku,
+        name: item.name
+      };
+    }).filter(Boolean); // Убираем null значения
+  };
+
+  const getOzonStockUpdates = () => {
+    return inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '')
+      .map(item => ({
+        offer_id: item.sku, // Для Ozon используем внутренний SKU
+        stock: item.currentStock,
+        sku: item.sku,
+        name: item.name
+      }));
   };
 
   const handleStockUpdate = async (marketplace: 'wildberries' | 'ozon') => {
     setSyncing(`${marketplace}-stock`);
     try {
       console.log('Начинаем обновление остатков для:', marketplace);
-      const stockUpdates = getStockUpdatesFromInventory();
+      
+      let stockUpdates;
+      if (marketplace === 'wildberries') {
+        stockUpdates = getWildberriesStockUpdates();
+      } else {
+        stockUpdates = getOzonStockUpdates();
+      }
       
       console.log('Подготовленные данные для обновления:', stockUpdates);
 
@@ -76,8 +99,8 @@ const ManualSyncControls = () => {
         const totalItems = inventory.length;
         const itemsWithoutWbSku = inventory.filter(item => !item.wildberries_sku || item.wildberries_sku.trim() === '');
         
-        toast.warning('⚠️ Нет товаров с Wildberries SKU для обновления остатков', {
-          description: `Всего товаров: ${totalItems}, без WB SKU: ${itemsWithoutWbSku.length}. Сначала добавьте Wildberries SKU в разделе "Товары".`
+        toast.warning(`⚠️ Нет товаров с ${marketplace === 'wildberries' ? 'Wildberries' : 'Ozon'} SKU для обновления остатков`, {
+          description: `Всего товаров: ${totalItems}, без SKU: ${itemsWithoutWbSku.length}. Сначала добавьте SKU в разделе "Товары".`
         });
         return;
       }
