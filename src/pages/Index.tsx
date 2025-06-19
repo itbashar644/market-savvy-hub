@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -43,7 +44,7 @@ const Index = () => {
         return <ReportsManager />;
       case "analytics":
         return <AnalyticsManager />;
-      case "marketplace":
+      case "marketplaces":
         return <MarketplaceIntegration />;
       case "settings":
         return <SettingsManager />;
@@ -68,8 +69,8 @@ const Index = () => {
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-background">
           <AppSidebar 
-            activeView={activeView} 
-            onViewChange={setActiveView} 
+            activeTab={activeView} 
+            onTabChange={setActiveView} 
           />
           <SidebarInset className="flex-1">
             <div className="flex-1 p-6 overflow-auto">
