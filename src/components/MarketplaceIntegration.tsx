@@ -7,7 +7,6 @@ import { AlertCircle } from 'lucide-react';
 import MarketplaceSettings from './marketplace/MarketplaceSettings';
 import SyncLogs from './marketplace/SyncLogs';
 import ManualSyncControls from './marketplace/ManualSyncControls';
-import AutoSyncSettings from './marketplace/AutoSyncSettings';
 import { MarketplaceConnectionChecker } from './marketplace/MarketplaceConnectionChecker';
 import { useSyncLogs } from '@/hooks/useDatabase';
 
@@ -29,7 +28,7 @@ const MarketplaceIntegration = () => {
       <div className="flex flex-col space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Интеграция с маркетплейсами</h1>
         <p className="text-muted-foreground">
-          Управление подключениями к маркетплейсам и автосинхронизация данных
+          Управление подключениями к маркетплейсам и синхронизация данных
         </p>
       </div>
 
@@ -37,15 +36,13 @@ const MarketplaceIntegration = () => {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           Для корректной работы интеграции убедитесь, что все API ключи актуальны и имеют необходимые права доступа.
-          Система поддерживает автоматическую синхронизацию товаров и остатков с приоритизацией.
         </AlertDescription>
       </Alert>
 
       <Tabs defaultValue="settings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="settings">Настройки</TabsTrigger>
           <TabsTrigger value="sync">Ручная синхронизация</TabsTrigger>
-          <TabsTrigger value="auto-sync">Автосинхронизация</TabsTrigger>
           <TabsTrigger value="logs">Логи и мониторинг</TabsTrigger>
         </TabsList>
 
@@ -58,10 +55,6 @@ const MarketplaceIntegration = () => {
 
         <TabsContent value="sync" className="space-y-6">
           <ManualSyncControls />
-        </TabsContent>
-
-        <TabsContent value="auto-sync" className="space-y-6">
-          <AutoSyncSettings />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-6">
