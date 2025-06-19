@@ -10,70 +10,85 @@ export const useWildberriesStockUpdate = () => {
   const updateStock = async (products: any[]) => {
     const startTime = Date.now();
     
-    console.log('🚀 Starting Wildberries stock update with products:', products.length);
-    console.log('📦 Products data sample:', products.slice(0, 3));
+    console.log('🚀 [FRONTEND] ===== НАЧАЛО ОБНОВЛЕНИЯ ОСТАТКОВ WB =====');
+    console.log('🚀 [FRONTEND] Получено товаров для обновления:', products.length);
+    console.log('🚀 [FRONTEND] Пример товаров:', products.slice(0, 3));
     
     try {
       const wbCreds = credentials['Wildberries'];
       
       if (!wbCreds?.api_key) {
         const errorMsg = 'Wildberries API key not found. Проверьте настройки подключения.';
-        console.error('❌', errorMsg);
+        console.error('❌ [FRONTEND]', errorMsg);
         throw new Error(errorMsg);
       }
 
-      console.log('🔑 Wildberries API key found, preparing request...');
+      console.log('🔑 [FRONTEND] Wildberries API key найден');
+      console.log('🔑 [FRONTEND] API key (первые 10 символов):', wbCreds.api_key.substring(0, 10) + '...');
 
       // Фильтруем и правильно маппим товары с Wildberries SKU
-      const validProducts = products.filter(p => {
-        const hasWbSku = p.wildberries_sku || p.nm_id;
+      console.log('📋 [FRONTEND] Начинаем фильтрацию товаров...');
+      
+      const validProducts = [];
+      const invalidProducts = [];
+      
+      for (let i = 0; i < products.length; i++) {
+        const p = products[i];
+        console.log(`📋 [FRONTEND] Товар ${i + 1}/${products.length}:`, {
+          sku: p.sku,
+          offer_id: p.offer_id,  
+          wildberries_sku: p.wildberries_sku,
+          nm_id: p.nm_id,
+          stock: p.stock,
+          currentStock: p.currentStock,
+          name: p.name
+        });
+        
+        const hasWbSku = p.wildberries_sku || p.nm_id || p.offer_id;
         if (!hasWbSku) {
-          console.log(`⚠️ Пропускаем товар ${p.sku || p.offer_id} - нет Wildberries SKU`);
+          console.log(`⚠️ [FRONTEND] Пропускаем товар ${p.sku} - нет Wildberries SKU`);
+          invalidProducts.push(p);
+        } else {
+          console.log(`✅ [FRONTEND] Товар ${p.sku} валиден, WB SKU: ${hasWbSku}`);
+          validProducts.push(p);
         }
-        return hasWbSku;
-      });
+      }
+
+      console.log(`📊 [FRONTEND] Результат фильтрации: валидных ${validProducts.length}, невалидных ${invalidProducts.length}`);
 
       if (validProducts.length === 0) {
-        console.log('❌ Нет товаров с Wildberries SKU для обновления');
+        console.log('❌ [FRONTEND] Нет товаров с Wildberries SKU для обновления');
         toast.error('❌ Нет товаров с Wildberries SKU для обновления остатков');
         return;
       }
 
-      console.log(`📋 Товары для обновления: ${validProducts.length} из ${products.length}`);
-
-      // Логируем КАЖДЫЙ SKU отдельно с подробными данными
-      const allSkuDetails = validProducts.map(p => {
-        const wbSku = p.wildberries_sku || p.nm_id;
-        const stock = p.stock || p.currentStock || 0;
-        const originalSku = p.sku || p.offer_id;
-        console.log(`📋 WB SKU: ${wbSku}, исходный SKU: ${originalSku}, остаток: ${stock}, название: ${p.name || 'N/A'}`);
-        return { 
-          wbSku, 
-          originalSku, 
-          stock, 
-          productName: p.name || 'N/A',
-          category: p.category || 'N/A'
-        };
-      });
-
-      console.log(`📤 Отправляем ${allSkuDetails.length} SKU в Wildberries API:`);
-      allSkuDetails.forEach((item, index) => {
-        console.log(`  ${index + 1}. SKU ${item.wbSku} (${item.originalSku}) - остаток: ${item.stock} - ${item.productName}`);
-      });
-
+      // Подготавливаем данные для отправки
+      console.log('📤 [FRONTEND] Подготавливаем данные для Edge Function...');
+      
       const requestData = { 
-        stocks: validProducts.map(p => {
-          const wbSku = p.wildberries_sku || p.nm_id;
-          return {
+        stocks: validProducts.map((p, index) => {
+          const wbSku = p.wildberries_sku || p.nm_id || p.offer_id;
+          const stock = p.stock || p.currentStock || 0;
+          
+          const stockItem = {
             offer_id: String(wbSku),
-            stock: p.stock || p.currentStock || 0
+            stock: stock
           };
+          
+          console.log(`📤 [FRONTEND] Товар ${index + 1}: offer_id=${stockItem.offer_id}, stock=${stockItem.stock}`);
+          return stockItem;
         }),
         apiKey: wbCreds.api_key
       };
 
-      console.log('📤 Making request to Wildberries stock sync function...');
+      console.log('📤 [FRONTEND] Итоговые данные для отправки:');
+      console.log(JSON.stringify(requestData, null, 2));
 
+      console.log('🌐 [FRONTEND] Отправляем запрос в Edge Function...');
+      console.log('🌐 [FRONTEND] URL: https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-sync');
+
+      const fetchStartTime = Date.now();
+      
       const response = await fetch('https://lpwvhyawvxibtuxfhitx.supabase.co/functions/v1/wildberries-stock-sync', {
         method: 'POST',
         headers: {
@@ -83,91 +98,54 @@ export const useWildberriesStockUpdate = () => {
         body: JSON.stringify(requestData),
       });
 
-      console.log('📡 Response status:', response.status);
+      const fetchTime = Date.now() - fetchStartTime;
+      console.log(`🌐 [FRONTEND] Время запроса: ${fetchTime}ms`);
+      console.log('🌐 [FRONTEND] Статус ответа:', response.status, response.statusText);
+      console.log('🌐 [FRONTEND] Headers ответа:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ HTTP error response:', errorText);
+        console.error('❌ [FRONTEND] HTTP ошибка:', response.status, response.statusText);
+        console.error('❌ [FRONTEND] Тело ошибки:', errorText);
         
-        if (response.status === 409) {
-          console.error('🚫 Wildberries API rejected the request - товары не найдены в каталоге');
-          
-          // Создаем детальные результаты для всех SKU при 409 ошибке
-          const skuResults = allSkuDetails.map(sku => {
-            console.log(`❌ SKU ${sku.wbSku} (исходный: ${sku.originalSku}): NotFound в каталоге Wildberries - ${sku.productName}`);
-            return {
-              wbSku: sku.wbSku,
-              originalSku: sku.originalSku,
-              productName: sku.productName,
-              stock: sku.stock,
-              status: 'NotFound',
-              error: 'Товар не найден в каталоге Wildberries'
-            };
-          });
-          
-          await addSyncLog({
-            marketplace: 'Wildberries',
-            operation: 'stock_update',
-            status: 'error',
-            message: `Все товары не найдены в каталоге Wildberries (${validProducts.length} товаров)`,
-            executionTime: Date.now() - startTime,
-            metadata: {
-              updatedCount: 0,
-              errorCount: validProducts.length,
-              productsCount: validProducts.length,
-              httpStatus: response.status,
-              allSkuDetails: allSkuDetails,
-              skuResults: skuResults,
-              reason: 'All products not found in Wildberries catalog',
-              detailedError: errorText
-            }
-          });
-
-          toast.error('❌ Остатки Wildberries НЕ обновлены', {
-            description: `Все товары (${validProducts.length}) не найдены в каталоге Wildberries. Проверьте правильность SKU.`
-          });
-          
-          throw new Error(`Все товары не найдены в каталоге Wildberries. HTTP статус: ${response.status}`);
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error) {
+            errorMessage = errorJson.error;
+          }
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
         }
         
-        throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
-      console.log('📨 Response result:', result);
+      console.log('📨 [FRONTEND] Получен ответ от Edge Function:');
+      console.log(JSON.stringify(result, null, 2));
       
       const executionTime = Date.now() - startTime;
+      console.log(`⏱️ [FRONTEND] Общее время выполнения: ${executionTime}ms`);
 
       if (result.result && Array.isArray(result.result)) {
         const successCount = result.result.filter((item: any) => item.updated === true).length;
         const errorCount = result.result.filter((item: any) => item.updated === false).length;
         
-        console.log('📊 Update results:', { successCount, errorCount, total: result.result.length });
+        console.log('📊 [FRONTEND] Статистика обновления:', { 
+          total: result.result.length,
+          successCount, 
+          errorCount 
+        });
 
-        // Создаем детальные результаты для каждого SKU
-        const skuResults = result.result.map((item: any) => {
-          const skuDetail = allSkuDetails.find(s => s.wbSku === item.offer_id);
+        // Детальный анализ каждого результата
+        result.result.forEach((item: any, index: number) => {
           if (item.updated) {
-            console.log(`✅ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): успешно обновлен, остаток ${skuDetail?.stock} - ${skuDetail?.productName}`);
-            return {
-              wbSku: item.offer_id,
-              originalSku: skuDetail?.originalSku || 'N/A',
-              productName: skuDetail?.productName || 'N/A',
-              stock: skuDetail?.stock || 0,
-              status: 'updated',
-              error: null
-            };
+            console.log(`✅ [FRONTEND] Товар ${index + 1}: SKU ${item.offer_id} успешно обновлен`);
           } else {
-            const errors = item.errors?.map((e: any) => e.code || e.message).join(', ') || 'Unknown error';
-            console.log(`❌ SKU ${item.offer_id} (исходный: ${skuDetail?.originalSku}): ошибка - ${errors} - ${skuDetail?.productName}`);
-            return {
-              wbSku: item.offer_id,
-              originalSku: skuDetail?.originalSku || 'N/A', 
-              productName: skuDetail?.productName || 'N/A',
-              stock: skuDetail?.stock || 0,
-              status: 'error',
-              error: errors
-            };
+            const errors = item.errors?.map((e: any) => e.message || e.code).join(', ') || 'Неизвестная ошибка';
+            console.log(`❌ [FRONTEND] Товар ${index + 1}: SKU ${item.offer_id} НЕ обновлен. Ошибки: ${errors}`);
           }
         });
 
@@ -179,40 +157,64 @@ export const useWildberriesStockUpdate = () => {
           operation: 'stock_update',
           status: status,
           message: isCompleteFailure 
-            ? `НИ ОДИН товар не был обновлен в Wildberries (${errorCount} ошибок)`
-            : `Обновлено: ${successCount}, ошибок: ${errorCount}`,
+            ? `❌ НИ ОДИН товар не был обновлен (${errorCount} ошибок)`
+            : `✅ Обновлено: ${successCount}, ошибок: ${errorCount}`,
           executionTime,
           metadata: {
             updatedCount: successCount,
             errorCount: errorCount,
             productsCount: validProducts.length,
             filteredOutCount: products.length - validProducts.length,
-            allSkuDetails: allSkuDetails,
-            skuResults: skuResults,
             detailedResults: result.result,
-            details: result.result
+            requestData: requestData
           }
         });
 
         if (isCompleteFailure) {
-          toast.error('❌ Остатки Wildberries НЕ обновлены', {
-            description: `НИ ОДИН товар не был найден в каталоге Wildberries (${errorCount} товаров). Проверьте настройки интеграции.`
+          console.error('💥 [FRONTEND] КРИТИЧЕСКАЯ ОШИБКА: НИ ОДИН товар не обновлен!');
+          
+          // Показываем детальную информацию об ошибках
+          const errorSummary = result.result.reduce((acc: any, item: any) => {
+            if (!item.updated && item.errors) {
+              item.errors.forEach((error: any) => {
+                const code = error.code || 'UNKNOWN';
+                acc[code] = (acc[code] || 0) + 1;
+              });
+            }
+            return acc;
+          }, {});
+          
+          console.error('💥 [FRONTEND] Типы ошибок:', errorSummary);
+          
+          toast.error('❌ Остатки Wildberries НЕ обновлены!', {
+            description: `НИ ОДИН товар не найден в каталоге (${errorCount} товаров). Проверьте правильность SKU в личном кабинете WB.`
           });
           
-          throw new Error(`Ни один товар не был обновлен в Wildberries. Все ${errorCount} товаров не найдены в каталоге.`);
+          throw new Error(`Ни один товар не был обновлен. Все ${errorCount} товаров содержат ошибки.`);
         } else {
-          toast.success(`✅ Остатки Wildberries обновлены! (${successCount} из ${result.result.length} товаров)`, {
-            description: errorCount > 0 ? `Ошибок: ${errorCount}` : 'Все товары обновлены успешно'
+          console.log('🎉 [FRONTEND] УСПЕХ! Часть товаров обновлена успешно');
+          
+          toast.success(`✅ Остатки Wildberries частично обновлены!`, {
+            description: `Обновлено: ${successCount} из ${result.result.length} товаров${errorCount > 0 ? `, ошибок: ${errorCount}` : ''}`
           });
         }
+      } else if (result.error) {
+        console.error('💥 [FRONTEND] Edge Function вернул ошибку:', result.error);
+        throw new Error(result.error);
       } else {
+        console.error('💥 [FRONTEND] Неправильный формат ответа:', result);
         throw new Error('Неправильный формат ответа от API');
       }
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
       
-      console.error('💥 Wildberries stock update error:', error);
+      console.error('💥 [FRONTEND] ===== КРИТИЧЕСКАЯ ОШИБКА =====');
+      console.error('💥 [FRONTEND] Тип:', typeof error);
+      console.error('💥 [FRONTEND] Название:', error instanceof Error ? error.name : 'Unknown');
+      console.error('💥 [FRONTEND] Сообщение:', errorMessage);
+      console.error('💥 [FRONTEND] Stack:', error instanceof Error ? error.stack : 'No stack');
+      console.error('💥 [FRONTEND] Полный объект:', error);
       
       await addSyncLog({
         marketplace: 'Wildberries',
@@ -223,12 +225,13 @@ export const useWildberriesStockUpdate = () => {
         metadata: { 
           error: errorMessage, 
           productsCount: products.length,
-          errorDetails: error instanceof Error ? error.stack : undefined
+          errorDetails: error instanceof Error ? error.stack : undefined,
+          errorType: error instanceof Error ? error.name : 'Unknown'
         }
       });
 
-      if (!errorMessage.includes('не найдены в каталоге')) {
-        toast.error('❌ Ошибка обновления остатков Wildberries', {
+      if (!errorMessage.includes('не найдены в каталоге') && !errorMessage.includes('не был обновлен')) {
+        toast.error('❌ Критическая ошибка обновления остатков Wildberries', {
           description: errorMessage
         });
       }
