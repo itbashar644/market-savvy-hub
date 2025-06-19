@@ -112,10 +112,20 @@ export const useWildberriesStock = () => {
       
       for (const mapping of skuMappings) {
         try {
+          // Ищем остаток в inventory по internal_sku (article_number)
+          const { data: inventoryItem } = await supabase
+            .from('inventory')
+            .select('current_stock')
+            .eq('sku', mapping.internal_sku)
+            .single();
+
+          const currentStock = inventoryItem?.current_stock || 0;
+          console.log(`📋 [useWildberriesStock] Найден остаток для ${mapping.internal_sku}: ${currentStock}`);
+
           await addOrUpdateStockItem({
             internal_sku: mapping.internal_sku,
             wildberries_sku: mapping.wildberries_sku,
-            stock_quantity: 0 // По умолчанию 0, можно будет изменить потом
+            stock_quantity: currentStock
           });
           results.success++;
         } catch (error) {

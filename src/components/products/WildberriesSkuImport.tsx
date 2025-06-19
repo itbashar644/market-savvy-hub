@@ -204,9 +204,9 @@ air.pods.2	2037849707485`;
         success.push(`${internalSku} → ${cleanWbSku}`);
       });
 
-      // Массовое обновление через хук
+      // Массовое обновление через хук - теперь с подтягиванием остатков
       if (skuMappings.length > 0) {
-        console.log('📦 [SKU IMPORT] Отправляем массовое обновление:', skuMappings.length);
+        console.log('📦 [SKU IMPORT] Отправляем массовое обновление с подтягиванием остатков:', skuMappings.length);
         await bulkUpdateFromSkuMapping(skuMappings);
       }
 
@@ -220,8 +220,8 @@ air.pods.2	2037849707485`;
 
       if (success.length > 0) {
         toast({
-          title: "✅ SKU Wildberries обновлены!",
-          description: `Успешно обновлено ${success.length} SKU${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
+          title: "✅ SKU Wildberries обновлены с остатками!",
+          description: `Успешно обновлено ${success.length} SKU с подтягиванием остатков из inventory${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
         });
       } else {
         toast({
@@ -267,7 +267,7 @@ air.pods.2	2037849707485`;
           <span>Импорт SKU Wildberries</span>
         </CardTitle>
         <CardDescription>
-          Импортируйте SKU Wildberries в специальную таблицу для управления остатками.
+          Импортируйте SKU Wildberries с автоматическим подтягиванием остатков из inventory.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -286,7 +286,7 @@ air.pods.2	2037849707485`;
             disabled={isProcessing || !skuData.trim() || loading}
             className="flex-1"
           >
-            {isProcessing ? 'Импорт...' : loading ? 'Загрузка...' : 'Импортировать SKU Wildberries'}
+            {isProcessing ? 'Импорт с остатками...' : loading ? 'Загрузка...' : 'Импортировать SKU + Остатки WB'}
           </Button>
         </div>
 
@@ -331,7 +331,7 @@ air.pods.2	2037849707485`;
               <div className="p-4 bg-green-50 rounded-lg">
                 <h4 className="font-medium text-green-800 flex items-center space-x-1 mb-2">
                   <Check className="w-4 h-4" />
-                  <span>Успешно импортировано ({mappingResults.success.length})</span>
+                  <span>Успешно импортировано с остатками ({mappingResults.success.length})</span>
                 </h4>
                 <div className="text-sm text-green-700 space-y-1 max-h-40 overflow-y-auto">
                   {mappingResults.success.slice(0, 15).map((item, index) => (
