@@ -14,3 +14,4 @@ export { useOzonSync } from './database/useOzonSync';
 export { useWildberriesStockUpdate } from './database/useWildberriesStockUpdate';
 export { useOzonStockUpdate } from './database/useOzonStockUpdate';
 export { useSyncLogs, type SyncLog, type DetailedSyncLog } from './database/useSyncLogs';
+export { useWildberriesStock, type WildberriesStockItem } from './database/useWildberriesStock';

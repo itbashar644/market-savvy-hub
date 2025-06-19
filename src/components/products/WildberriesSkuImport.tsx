@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useProducts } from '@/hooks/database/useProducts';
+import { useWildberriesStock } from '@/hooks/database/useWildberriesStock';
 import { Upload, Check, X, Search, AlertTriangle } from 'lucide-react';
 
 const WildberriesSkuImport = () => {
@@ -12,7 +12,7 @@ const WildberriesSkuImport = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [mappingResults, setMappingResults] = useState<{ success: string[]; failed: string[] } | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
-  const { updateProduct, products, loading } = useProducts();
+  const { stockItems, bulkUpdateFromSkuMapping, loading } = useWildberriesStock();
   const { toast } = useToast();
 
   const newSkuData = `Y92.blue	2037853921662
@@ -161,11 +161,11 @@ air.pods.2	2037849707485`;
     setSkuData(newSkuData);
   }, []);
 
-  const processSkuMapping = () => {
+  const processSkuMapping = async () => {
     if (loading) {
       toast({
         title: "⏳ Подождите",
-        description: "Товары еще загружаются из базы данных...",
+        description: "Остатки WB еще загружаются из базы данных...",
         variant: "default",
       });
       return;
@@ -179,24 +179,10 @@ air.pods.2	2037849707485`;
       const success: string[] = [];
       const failed: string[] = [];
 
-      console.log('🔍 [SKU IMPORT] НАЧАЛО ИМПОРТА SKU');
-      console.log('🔍 [SKU IMPORT] Всего товаров в Supabase:', products.length);
+      console.log('🔍 [SKU IMPORT] НАЧАЛО ИМПОРТА SKU В WILDBERRIES_STOCK');
       console.log('🔍 [SKU IMPORT] Строк для обработки:', lines.length);
       
-      if (products.length === 0) {
-        console.log('❌ [SKU IMPORT] В БАЗЕ ДАННЫХ НЕТ ТОВАРОВ!');
-        toast({
-          title: "❌ В базе данных нет товаров!",
-          description: "Сначала добавьте товары в каталог через раздел 'Товары'.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('🔍 [SKU IMPORT] Образцы товаров в базе:');
-      products.slice(0, 10).forEach((p, i) => {
-        console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber || 'НЕТ'}", Title: "${p.title?.substring(0, 30)}...", WB SKU: "${p.wildberriesSku || 'НЕТ'}"`);
-      });
+      const skuMappings: Array<{ internal_sku: string; wildberries_sku: string }> = [];
 
       lines.forEach((line, index) => {
         const parts = line.trim().split('\t');
@@ -210,35 +196,19 @@ air.pods.2	2037849707485`;
         
         console.log(`🔍 [SKU IMPORT] Строка ${index + 1}: "${internalSku}" -> "${cleanWbSku}"`);
         
-        // Ищем товар по articleNumber (правильное поле из Supabase)
-        let product = products.find(p => 
-          p.articleNumber === internalSku ||
-          p.articleNumber?.toLowerCase() === internalSku.toLowerCase()
-        );
-
-        if (!product) {
-          console.log(`❌ [SKU IMPORT] ТОВАР НЕ НАЙДЕН для "${internalSku}". Строка ${index + 1}`);
-          failed.push(`Строка ${index + 1}: Товар не найден: ${internalSku}`);
-          return;
-        }
-
-        console.log(`✅ [SKU IMPORT] НАЙДЕН ТОВАР для "${internalSku}":`, {
-          id: product.id,
-          title: product.title?.substring(0, 30) + '...',
-          articleNumber: product.articleNumber,
-          oldWbSku: product.wildberriesSku || 'НЕТ',
-          newWbSku: cleanWbSku
+        skuMappings.push({
+          internal_sku: internalSku,
+          wildberries_sku: cleanWbSku
         });
-
-        const updated = updateProduct(product.id, { wildberriesSku: cleanWbSku });
-        if (updated) {
-          success.push(`${internalSku} → ${cleanWbSku} (ID: ${product.id})`);
-          console.log(`✅ [SKU IMPORT] УСПЕШНО ОБНОВЛЕН: ${internalSku} -> ${cleanWbSku}`);
-        } else {
-          failed.push(`Строка ${index + 1}: Ошибка обновления: ${internalSku}`);
-          console.log(`❌ [SKU IMPORT] ОШИБКА ОБНОВЛЕНИЯ: ${internalSku}`);
-        }
+        
+        success.push(`${internalSku} → ${cleanWbSku}`);
       });
+
+      // Массовое обновление через хук
+      if (skuMappings.length > 0) {
+        console.log('📦 [SKU IMPORT] Отправляем массовое обновление:', skuMappings.length);
+        await bulkUpdateFromSkuMapping(skuMappings);
+      }
 
       setMappingResults({ success, failed });
 
@@ -251,12 +221,12 @@ air.pods.2	2037849707485`;
       if (success.length > 0) {
         toast({
           title: "✅ SKU Wildberries обновлены!",
-          description: `Успешно обновлено ${success.length} товаров${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
+          description: `Успешно обновлено ${success.length} SKU${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
         });
       } else {
         toast({
           title: "⚠️ Не удалось обновить SKU",
-          description: `Все ${failed.length} попыток завершились ошибкой. Проверьте соответствие SKU.`,
+          description: `Все ${failed.length} попыток завершились ошибкой. Проверьте формат данных.`,
           variant: "destructive",
         });
       }
@@ -276,14 +246,14 @@ air.pods.2	2037849707485`;
   const toggleDebugInfo = () => {
     setShowDebugInfo(!showDebugInfo);
     if (!showDebugInfo) {
-      console.log('🔍 [DEBUG] ОТЛАДОЧНАЯ ИНФОРМАЦИЯ О ТОВАРАХ:');
-      console.log('📋 Всего товаров в Supabase:', products.length);
+      console.log('🔍 [DEBUG] ОТЛАДОЧНАЯ ИНФОРМАЦИЯ О WILDBERRIES ОСТАТКАХ:');
+      console.log('📋 Всего остатков WB:', stockItems.length);
       console.log('⏳ Загрузка:', loading);
       
-      if (products.length > 0) {
-        console.log('📋 Первые 20 товаров:');
-        products.slice(0, 20).forEach((p, i) => {
-          console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber || 'НЕТ'}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
+      if (stockItems.length > 0) {
+        console.log('📋 Первые 20 остатков WB:');
+        stockItems.slice(0, 20).forEach((item, i) => {
+          console.log(`  ${i + 1}. Internal SKU: "${item.internal_sku}", WB SKU: "${item.wildberries_sku}", Остаток: ${item.stock_quantity}`);
         });
       }
     }
@@ -294,10 +264,10 @@ air.pods.2	2037849707485`;
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Upload className="w-5 h-5" />
-          <span>Обновление SKU Wildberries (НОВЫЕ)</span>
+          <span>Импорт SKU Wildberries</span>
         </CardTitle>
         <CardDescription>
-          Обновите SKU Wildberries новыми значениями. Автоматически загружены актуальные SKU.
+          Импортируйте SKU Wildberries в специальную таблицу для управления остатками.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -308,7 +278,7 @@ air.pods.2	2037849707485`;
             className="flex items-center space-x-1"
           >
             <Search className="w-4 h-4" />
-            <span>Показать товары в БД ({products.length})</span>
+            <span>Показать остатки WB ({stockItems.length})</span>
           </Button>
           
           <Button 
@@ -316,7 +286,7 @@ air.pods.2	2037849707485`;
             disabled={isProcessing || !skuData.trim() || loading}
             className="flex-1"
           >
-            {isProcessing ? 'Обновление...' : loading ? 'Загрузка товаров...' : 'Обновить на НОВЫЕ SKU Wildberries'}
+            {isProcessing ? 'Импорт...' : loading ? 'Загрузка...' : 'Импортировать SKU Wildberries'}
           </Button>
         </div>
 
@@ -324,25 +294,25 @@ air.pods.2	2037849707485`;
           <div className="p-4 bg-blue-50 rounded-lg">
             <h4 className="font-medium text-blue-800 mb-2 flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4" />
-              <span>Товары в базе данных Supabase (первые 20 из {products.length}):</span>
+              <span>Остатки WB в базе данных (первые 20 из {stockItems.length}):</span>
             </h4>
             <div className="text-sm text-blue-700 space-y-1 max-h-60 overflow-y-auto">
-              {products.slice(0, 20).map((product, index) => (
+              {stockItems.slice(0, 20).map((item, index) => (
                 <div key={index} className="font-mono text-xs p-2 bg-white rounded border">
                   <div><strong>#{index + 1}</strong></div>
-                  <div><strong>ID:</strong> {product.id}</div>
-                  <div><strong>Article Number:</strong> {product.articleNumber || 'НЕТ'}</div>
-                  <div><strong>WB SKU:</strong> <span className={product.wildberriesSku ? 'text-green-600' : 'text-red-600'}>{product.wildberriesSku || 'НЕТ'}</span></div>
-                  <div><strong>Title:</strong> {product.title?.substring(0, 40)}...</div>
+                  <div><strong>Internal SKU:</strong> {item.internal_sku}</div>
+                  <div><strong>WB SKU:</strong> <span className="text-green-600">{item.wildberries_sku}</span></div>
+                  <div><strong>Остаток:</strong> <span className={item.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'}>{item.stock_quantity}</span></div>
+                  <div><strong>Обновлен:</strong> {new Date(item.last_updated).toLocaleString('ru-RU')}</div>
                 </div>
               ))}
-              {products.length > 20 && (
+              {stockItems.length > 20 && (
                 <div className="text-blue-600 text-center pt-2">
-                  <strong>... и ещё {products.length - 20} товаров</strong>
+                  <strong>... и ещё {stockItems.length - 20} остатков</strong>
                 </div>
               )}
               <div className="mt-4 pt-2 border-t border-blue-200 bg-blue-100 p-2 rounded">
-                <strong>Всего товаров в базе Supabase: {products.length}</strong>
+                <strong>Всего остатков WB: {stockItems.length}</strong>
               </div>
             </div>
           </div>
@@ -351,7 +321,7 @@ air.pods.2	2037849707485`;
         <Textarea
           value={skuData}
           onChange={(e) => setSkuData(e.target.value)}
-          placeholder="внутренний_sku [TAB] новый_wb_sku&#10;..."
+          placeholder="внутренний_sku [TAB] wb_sku&#10;..."
           className="min-h-[200px] font-mono text-sm"
         />
 
@@ -361,7 +331,7 @@ air.pods.2	2037849707485`;
               <div className="p-4 bg-green-50 rounded-lg">
                 <h4 className="font-medium text-green-800 flex items-center space-x-1 mb-2">
                   <Check className="w-4 h-4" />
-                  <span>Успешно обновлено ({mappingResults.success.length})</span>
+                  <span>Успешно импортировано ({mappingResults.success.length})</span>
                 </h4>
                 <div className="text-sm text-green-700 space-y-1 max-h-40 overflow-y-auto">
                   {mappingResults.success.slice(0, 15).map((item, index) => (

@@ -8,7 +8,7 @@ import { useWildberriesSync } from '@/hooks/database/useWildberriesSync';
 import { useOzonSync } from '@/hooks/database/useOzonSync';
 import { useWildberriesStockUpdate } from '@/hooks/database/useWildberriesStockUpdate';
 import { useOzonStockUpdate } from '@/hooks/database/useOzonStockUpdate';
-import { useProducts } from '@/hooks/database/useProducts';
+import { useWildberriesStock } from '@/hooks/database/useWildberriesStock';
 
 const ManualSyncControls = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -16,22 +16,21 @@ const ManualSyncControls = () => {
   const { syncProducts: syncOzonProducts } = useOzonSync();
   const { updateStock: updateWbStock } = useWildberriesStockUpdate();
   const { updateStock: updateOzonStock } = useOzonStockUpdate();
-  const { products, loading: productsLoading } = useProducts();
+  const { stockItems, loading: stockLoading } = useWildberriesStock();
 
-  console.log('🔍 [ManualSyncControls] Товары из Supabase:', products.length);
-  console.log('🔍 [ManualSyncControls] Загрузка:', productsLoading);
-  console.log('🔍 [ManualSyncControls] Первые 5 товаров:', products.slice(0, 5).map(p => ({
-    id: p.id,
-    title: p.title?.substring(0, 30) + '...',
-    sku: p.sku || p.articleNumber,
-    wbSku: p.wildberriesSku
+  console.log('🔍 [ManualSyncControls] Остатки WB из новой таблицы:', stockItems.length);
+  console.log('🔍 [ManualSyncControls] Загрузка остатков WB:', stockLoading);
+  console.log('🔍 [ManualSyncControls] Первые 5 остатков WB:', stockItems.slice(0, 5).map(item => ({
+    internal_sku: item.internal_sku,
+    wildberries_sku: item.wildberries_sku,
+    stock_quantity: item.stock_quantity
   })));
 
   const handleWildberriesSync = async () => {
     setSyncing('wildberries-sync');
     try {
       await syncWbProducts();
-      toast.success('✅ Синхронизация Wildberries завершена');
+      toast.success('✅ Син хронизация Wildberries завершена');
     } catch (error) {
       console.error('Wildberries sync error:', error);
       toast.error('❌ Ошибка синхронизации Wildberries: ' + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
@@ -54,39 +53,30 @@ const ManualSyncControls = () => {
   };
 
   const getWildberriesStockUpdates = () => {
-    console.log('🔍 [STOCK UPDATE] ПОДГОТОВКА ДАННЫХ ДЛЯ ОБНОВЛЕНИЯ ОСТАТКОВ WB');
-    console.log('📦 [STOCK UPDATE] Товары из Supabase:', products.length);
+    console.log('🔍 [STOCK UPDATE] ПОДГОТОВКА ДАННЫХ ИЗ НОВОЙ ТАБЛИЦЫ WB');
+    console.log('📦 [STOCK UPDATE] Остатков WB в таблице:', stockItems.length);
     
-    if (products.length === 0) {
-      console.log('❌ [STOCK UPDATE] НЕТ ТОВАРОВ В БАЗЕ SUPABASE!');
+    if (stockItems.length === 0) {
+      console.log('❌ [STOCK UPDATE] НЕТ ОСТАТКОВ WB В ТАБЛИЦЕ!');
       return [];
     }
     
-    const itemsWithWbSku = products.filter(product => {
-      const hasWbSku = product.wildberriesSku && product.wildberriesSku.trim() !== '';
-      console.log(`📦 [STOCK UPDATE] Товар "${product.title?.substring(0, 30)}...": WB SKU = "${product.wildberriesSku || 'НЕТ'}", остаток: ${product.stock || product.stockQuantity || 0}`);
-      return hasWbSku;
-    });
-
-    console.log(`✅ [STOCK UPDATE] Товары с Wildberries SKU: ${itemsWithWbSku.length} из ${products.length}`);
-
-    const stockUpdates = itemsWithWbSku.map(product => {
-      const wbSku = product.wildberriesSku!;
-      const numericWbSku = parseInt(wbSku);
+    const stockUpdates = stockItems.map((item, index) => {
+      const numericWbSku = parseInt(item.wildberries_sku);
       
       if (isNaN(numericWbSku)) {
-        console.warn(`⚠️ [STOCK UPDATE] Неверный формат WB SKU для товара ${product.sku || product.articleNumber}: ${wbSku}`);
+        console.warn(`⚠️ [STOCK UPDATE] Неверный формат WB SKU: ${item.wildberries_sku}`);
         return null;
       }
       
       const stockData = {
         offer_id: numericWbSku.toString(),
-        stock: product.stock || product.stockQuantity || 0,
-        sku: product.sku || product.articleNumber || product.id,
-        name: product.name || product.title || 'Без названия'
+        stock: item.stock_quantity,
+        sku: item.internal_sku,
+        name: `Товар ${item.internal_sku}`
       };
       
-      console.log(`📤 [STOCK UPDATE] Подготовлен: "${product.title?.substring(0, 30)}..." -> WB SKU: ${stockData.offer_id}, остаток: ${stockData.stock}`);
+      console.log(`📤 [STOCK UPDATE] Подготовлен: "${item.internal_sku}" -> WB SKU: ${stockData.offer_id}, остаток: ${stockData.stock}`);
       
       return stockData;
     }).filter(Boolean);
@@ -95,25 +85,15 @@ const ManualSyncControls = () => {
     return stockUpdates;
   };
 
-  const getOzonStockUpdates = () => {
-    return products.filter(product => product.wildberriesSku && product.wildberriesSku.trim() !== '')
-      .map(product => ({
-        offer_id: product.sku || product.articleNumber || product.id,
-        stock: product.stock || product.stockQuantity || 0,
-        sku: product.sku || product.articleNumber || product.id,
-        name: product.name || product.title || 'Без названия'
-      }));
-  };
-
   const handleStockUpdate = async (marketplace: 'wildberries' | 'ozon') => {
     setSyncing(`${marketplace}-stock`);
     try {
       console.log(`🚀 [STOCK UPDATE] Начинаем обновление остатков для: ${marketplace}`);
-      console.log(`📊 [STOCK UPDATE] Всего товаров в Supabase: ${products.length}`);
+      console.log(`📊 [STOCK UPDATE] Всего остатков WB в таблице: ${stockItems.length}`);
       
-      if (products.length === 0) {
-        toast.error('❌ В базе данных нет товаров!', {
-          description: 'Сначала добавьте товары в каталог через раздел "Товары".'
+      if (stockItems.length === 0) {
+        toast.error('❌ В таблице остатков WB нет данных!', {
+          description: 'Сначала импортируйте SKU через раздел "Товары" → "Импорт SKU WB".'
         });
         return;
       }
@@ -122,17 +102,15 @@ const ManualSyncControls = () => {
       if (marketplace === 'wildberries') {
         stockUpdates = getWildberriesStockUpdates();
       } else {
-        stockUpdates = getOzonStockUpdates();
+        // Для Ozon пока используем пустой массив
+        stockUpdates = [];
       }
       
       console.log(`📊 [STOCK UPDATE] Подготовленные данные для ${marketplace}:`, stockUpdates.slice(0, 3));
 
       if (stockUpdates.length === 0) {
-        const totalItems = products.length;
-        const itemsWithoutSku = products.filter(p => !p.wildberriesSku || p.wildberriesSku.trim() === '');
-        
-        toast.warning(`⚠️ Нет товаров с ${marketplace === 'wildberries' ? 'Wildberries' : 'Ozon'} SKU для обновления остатков`, {
-          description: `Всего товаров: ${totalItems}, без SKU: ${itemsWithoutSku.length}. Сначала добавьте SKU в разделе "Товары".`
+        toast.warning(`⚠️ Нет данных для обновления остатков ${marketplace === 'wildberries' ? 'Wildberries' : 'Ozon'}`, {
+          description: `Всего остатков WB: ${stockItems.length}. Проверьте корректность данных в таблице.`
         });
         return;
       }
@@ -154,22 +132,22 @@ const ManualSyncControls = () => {
     }
   };
 
-  // Показываем загрузку, если товары еще загружаются
-  if (productsLoading) {
+  // Показываем загрузку, если остатки WB еще загружаются
+  if (stockLoading) {
     return (
       <div className="space-y-6">
         <Card>
           <CardContent className="p-8 text-center">
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
-            <p>Загрузка товаров из базы данных...</p>
+            <p>Загрузка остатков Wildberries из базы данных...</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const totalItems = products.length;
-  const itemsWithWbSku = products.filter(p => p.wildberriesSku && p.wildberriesSku.trim() !== '').length;
+  const totalWbItems = stockItems.length;
+  const itemsWithStock = stockItems.filter(item => item.stock_quantity > 0).length;
 
   return (
     <div className="space-y-6">
@@ -178,36 +156,28 @@ const ManualSyncControls = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
-            Статистика товаров (Supabase)
+            Статистика остатков Wildberries
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="font-medium text-blue-800">Всего товаров</div>
-              <div className="text-2xl font-bold text-blue-600">{totalItems}</div>
+              <div className="font-medium text-blue-800">Всего SKU WB</div>
+              <div className="text-2xl font-bold text-blue-600">{totalWbItems}</div>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">
-              <div className="font-medium text-green-800">С Wildberries SKU</div>
-              <div className="text-2xl font-bold text-green-600">{itemsWithWbSku}</div>
+              <div className="font-medium text-green-800">С остатком > 0</div>
+              <div className="text-2xl font-bold text-green-600">{itemsWithStock}</div>
             </div>
             <div className="p-3 bg-orange-50 rounded-lg">
-              <div className="font-medium text-orange-800">Без SKU</div>
-              <div className="text-2xl font-bold text-orange-600">{totalItems - itemsWithWbSku}</div>
+              <div className="font-medium text-orange-800">Без остатка</div>
+              <div className="text-2xl font-bold text-orange-600">{totalWbItems - itemsWithStock}</div>
             </div>
           </div>
-          {totalItems === 0 && (
+          {totalWbItems === 0 && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-800 text-sm">
-                <strong>В базе данных нет товаров!</strong> Сначала добавьте товары через раздел "Товары" → "Импорт товаров".
-              </p>
-            </div>
-          )}
-          {totalItems > 0 && itemsWithWbSku === 0 && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 text-sm">
-                Для обновления остатков необходимо добавить Wildberries SKU к товарам. 
-                Перейдите в раздел "Товары" → вкладка "Импорт SKU WB" и воспользуйтесь функцией импорта SKU.
+                <strong>В таблице остатков WB нет данных!</strong> Импортируйте SKU через раздел "Товары" → "Импорт SKU WB".
               </p>
             </div>
           )}
@@ -257,29 +227,29 @@ const ManualSyncControls = () => {
               Обновление остатков
             </CardTitle>
             <CardDescription>
-              Обновите остатки товаров на маркетплейсах ({itemsWithWbSku} товаров готово)
+              Обновите остатки на маркетплейсах ({totalWbItems} SKU WB готово)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <Button 
                 onClick={() => handleStockUpdate('wildberries')}
-                disabled={syncing !== null || totalItems === 0}
+                disabled={syncing !== null || totalWbItems === 0}
                 className="w-full"
                 variant="outline"
               >
                 <Upload className={`w-4 h-4 mr-2 ${syncing === 'wildberries-stock' ? 'animate-spin' : ''}`} />
-                {syncing === 'wildberries-stock' ? 'Обновление...' : `Обновить остатки Wildberries (${itemsWithWbSku})`}
+                {syncing === 'wildberries-stock' ? 'Обновление...' : `Обновить остатки Wildberries (${totalWbItems})`}
               </Button>
               
               <Button 
                 onClick={() => handleStockUpdate('ozon')}
-                disabled={syncing !== null || totalItems === 0}
+                disabled={syncing !== null || totalWbItems === 0}
                 className="w-full"
                 variant="outline"
               >
                 <Upload className={`w-4 h-4 mr-2 ${syncing === 'ozon-stock' ? 'animate-spin' : ''}`} />
-                {syncing === 'ozon-stock' ? 'Обновление...' : `Обновить остатки Ozon (${itemsWithWbSku})`}
+                {syncing === 'ozon-stock' ? 'Обновление...' : `Обновить остатки Ozon (0)`}
               </Button>
             </div>
           </CardContent>

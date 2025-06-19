@@ -578,6 +578,47 @@ export type Database = {
         }
         Relationships: []
       }
+      wildberries_stock: {
+        Row: {
+          created_at: string
+          id: string
+          internal_sku: string
+          last_updated: string
+          product_id: string | null
+          stock_quantity: number
+          updated_at: string
+          wildberries_sku: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          internal_sku: string
+          last_updated?: string
+          product_id?: string | null
+          stock_quantity?: number
+          updated_at?: string
+          wildberries_sku: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          internal_sku?: string
+          last_updated?: string
+          product_id?: string | null
+          stock_quantity?: number
+          updated_at?: string
+          wildberries_sku?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wildberries_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
