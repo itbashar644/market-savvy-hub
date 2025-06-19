@@ -14,150 +14,150 @@ const WildberriesSkuImport = () => {
   const { updateProduct, products } = useProducts();
   const { toast } = useToast();
 
-  const defaultSkuData = `Y92.blue	161522133
-y92.pink	178639222
-x9.pro	166912392
-x9.pro.pink	166912394
-x9.pro.gray	166912395
-x9.pro.gold	166912396
-x8.se.gold	142211641
-x8.se.black	142756863
-x8.se.gray	166115887
-x8.se.pink	142802370
-x8.pro	105705227
-x8.pro.gold	137203398
-x8.pro.gray	159312631
-x8.pro.pink	142811153
-x8.mini	159256032
-x8.mini.gold	159256327
-x8.mini.gray	159256524
-x8.mini.pink	159256261
-proj.z2	212761255
-proj.z1	212426976
-proj.x9.white	212278917
-proj.x9.black	287282205
-proj.x8.white	171434312
-proj.x8.pro.white	239389834
-proj.x8.pro	208962983
-proj.x8	171434339
-proj.t8.white	198076575
-proj.t8	198076576
-proj.t6.white	198077506
-proj.t6	198077505
-proj.t10.white	250904065
-proj.t10	250904064
-proj.m20	212424940
-proj.hy350.white	294817847
-proj.hy350	293532494
-proj.hy300.pro	293531831
-proj.hy300	178859844
-proj.f20	293528176
-proj.f18	293529291
-proj.06.white	279642002
-proj.03.white	279641566
-pad.wo9	204554459
-pad.wo9.blue	204554460
-pad.wo9.pink	204554461
-pad.wo12	246266564
-pad.wo12.blue	246266566
-pad.wo12.green	246266565
-pad.wo10	245355586
-pad.wo10.white	245355587
-pad.wo.pro	269489538
-pad.wo.pro.silver	269489540
-pad.wo.max	270410759
-pad.wo.max.silver	270410760
-pad.w&o.8	196155501
-pad.w&o.8.blue	196155502
-pad.w&o.8.gold	196155503
-pad.s9.blue	244322489
-pad.s9.gold	244322490
-pad.s9.gray	244322491
-pad.s25	270405643
-pad.s25.blue	270405644
-pad.s25.gold	270405645
-pad.ozct.s25	315683212
-pad.ozct.s25.blue	315683214
-pad.ozct.s25.pink	315683213
-pad.l8.oragne	214687683
-pad.l8.green	214687684
-pad.l23.gray	214693181
-pad.l23.gold	214693179
-pad.l23.blue	214693180
-pad.l16.gray	249533667
-pad.l16.blue	249533668
-pad.iplay60	327543686
-pad.iplay50	315682134
-pad.a96.purple	196689264
-pad.a96.blue	196689266
-pad.a96.gold	196689267
-pad.a96.gray	196689268
-pad.a28.wathet	200620742
-pad.a28.grey	200620740
-pad.a28.blue	200620741
-pad.a20.gold	302474627
+  const newSkuData = `Y92.blue	2037853921662
+y92.pink	2038677640067
+x9.pro	2038095662931
+x9.pro.pink	2038095669701
+x9.pro.gray	2038095675313
+x9.pro.gold	2038095684933
+x8.se.gold	98324948
+x8.se.black	98789712938
+x8.se.gray	2038065362403
+x8.se.pink	2037365517797
+x8.pro	3475179825125
+x8.pro.gold	865467754
+x8.pro.gray	2037770731351
+x8.pro.pink	2037365625225
+x8.mini	2037768580237
+x8.mini.gold	2037768587014
+x8.mini.gray	2037768590298
+x8.mini.pink	2037768583689
+proj.z2	2039558300155
+proj.z1	2039558286923
+proj.x9.white	2039554707477
+proj.x9.black	2041925362307
+proj.x8.white	2038263544670
+proj.x8.pro.white	2040484577924
+proj.x8.pro	2039480037860
+proj.x8	2038263535838
+proj.t8.white	2039237565875
+proj.t8	2039237577519
+proj.t6.white	2039237609364
+proj.t6	2039237578813
+proj.t10.white	2040886937265
+proj.t10	2040886941156
+proj.m20	2039558279062
+proj.hy350.white	2042102771264
+proj.hy350	2042074471162
+proj.hy300.pro	2042074441509
+proj.hy300	2038683793290
+proj.f20	2042074348204
+proj.f18	2042074412271
+proj.06.white	2041714255773
+proj.03.white	2041714232781
+pad.wo9	2039403437654
+pad.wo9.blue	2039403447523
+pad.wo9.pink	2039403454644
+pad.wo12	2040744306646
+pad.wo12.blue	2040744309616
+pad.wo12.green	2040744308992
+pad.wo10	2040707642736
+pad.wo10.white	2040707645393
+pad.wo.pro	2041437993990
+pad.wo.pro.silver	2041438001663
+pad.wo.max	2041456400189
+pad.wo.max.silver	2041456409007
+pad.w&o.8	2039164531134
+pad.w&o.8.blue	2039164571017
+pad.w&o.8.gold	2039164583836
+pad.s9.blue	2040677672030
+pad.s9.gold	2040677700139
+pad.s9.gray	2040677703543
+pad.s25	2041456250784
+pad.s25.blue	2041456282334
+pad.s25.gold	2041456316312
+pad.ozct.s25	2042560078448
+pad.ozct.s25.blue	2042560085002
+pad.ozct.s25.pink	2042560083145
+pad.l8.oragne	2039605612187
+pad.l8.green	2039605612101
+pad.l23.gray	2039605679746
+pad.l23.gold	2039605632079
+pad.l23.blue	2039605691267
+pad.l16.gray	2040834730481
+pad.l16.blue	2040834733932
+pad.iplay60	2042560072958
+pad.iplay50	2042560066827
+pad.a96.purple	2039184641370
+pad.a96.blue	2039184651881
+pad.a96.gold	2039184667103
+pad.a96.gray	2039184681826
+pad.a28.wathet	2039318828523
+pad.a28.grey	2039318812294
+pad.a28.blue	2039318824600
+pad.a20.gold	2042251214872
 pad.a20	279639284
-pad.a15	279638505
-pad.a15.blue	279638506
-pad.a15.gold	279638507
-pad.16.silver	189514825
-pad.16.gray	189514826
-pad.16.blue	189514827
-pad.16.gold	189514828
-pad.11.purple	214682528
-pad.11.green	214682527
-pad.11.gray	214682526
-mob.x200.white	201792006
-LK8.se.gray	159232245
-LK8.se.gold	159219678
-LK8.SE	159232079
-LK8.Pro.Pink	161205472
-LK8.Pro.Gray	161205473
-LK8.Pro.Gold	161205474
-LK8.Pro	159231673
-LK8.mini.gray	159233134
-LK8.mini.gold	159233624
-LK8.mini	159232439
-kids.pad.wo38.pink	274767413
-kids.pad.wo38.grey	274767414
-kids.pad.wo38.green	274767411
-kids.pad.wo38.blue	274767412
-kids.pad.wo32.pink	274696648
-kids.pad.wo32.green	274696649
-kids.pad.wo32.blue	274696647
-kids.pad.wo.32.yellow	274696646
-hk9.pro.red	172966231
-hk9.pro.green	172966241
-hk9.pro.gray	172966227
-hk9.pro	172966226
-hk4.silver	174297755
-hk4.gold	176659131
-hk4	174297754
-gt4.max.silver	166911402
-gt4.max	166910965
-gamebox.tv	161516944
-fiesta.4g	168974556
-dt.ultra.mate.silver	160989787
-dt.ultra.mate.blue	164135988
-dt.ultra.mate	160989675
-dt.8.red	148307246
-dt.8.mini.pink	180177481
-dt.8.mini.gray	160375824
-dt.8.mini	160375221
-dt.8.gray	150614374
-dt.8.gold	147005968
-dt.8	144650958
-dt.3.gray	155337253
-Dt.3.gold	152092938
-dt.3	155336937
-cam.q5.pink	272528906
-cam.q5.blue	272528907
-cam.ny	275172889
-air.pro	161318945
-air.pods.2	161379719`;
+pad.a15.gold	2041714208670
+pad.a15.blue	2041714207239
+pad.a15	2041714204665
+pad.16.silver	2038978575556
+pad.16.gray	2038978601293
+pad.16.blue	2038978606335
+pad.16.gold	2038978612626
+pad.11.purple	2039605508374
+pad.11.green	2039605506974
+pad.11.gray	2039605478936
+mob.x200.white	2039339734759
+LK8.se.gray	2037767875167
+LK8.se.gold	2037767490247
+LK8.SE	2037767869616
+LK8.Pro.Pink	2037846311791
+LK8.Pro.Gray	2037846271262
+LK8.Pro.Gold	2037846276014
+LK8.Pro	2037767862013
+LK8.mini.gray	2037767885074
+LK8.mini.gold	2037767890061
+LK8.mini	2037767877772
+kids.pad.wo38.pink	2041569703160
+kids.pad.wo38.grey	2041569707434
+kids.pad.wo38.green	2041569688313
+kids.pad.wo38.blue	2041569697599
+kids.pad.wo32.pink	2041569621204
+kids.pad.wo32.green	2041569680478
+kids.pad.wo32.blue	2041569614404
+kids.pad.wo.32.yellow	2041569608762
+hk9.pro.red	2038350885280
+hk9.pro.green	2038350877179
+hk9.pro.gray	2038350892172
+hk9.pro	2038350895173
+hk4.silver	2038473296505
+hk4.gold	2038605093552
+hk4	2038473293719
+gt4.max.silver	2038095640649
+gt4.max	2038095623499
+gamebox.tv	2037853834108
+fiesta.4g	2038157549644
+dt.ultra.mate.silver	2037836004443
+dt.ultra.mate.blue	2037962927777
+dt.ultra.mate	2037835999306
+dt.8.red	2037516096584
+dt.8.mini.pink	2038726602275
+dt.8.mini.gray	2037811890719
+dt.8.mini	2037811861863
+dt.8.gray	2037579458657
+dt.8.gold	2037480225911
+dt.8	2037415082145
+dt.3.gray	2037684325660
+Dt.3.gold	2037610909896
+dt.3	2037684313797
+cam.q5.pink	2041508074788
+cam.q5.blue	2041508149271
+cam.ny	2041589280948
+air.pro	2037849078165
+air.pods.2	2037849707485`;
 
   React.useEffect(() => {
-    setSkuData(defaultSkuData);
+    setSkuData(newSkuData);
   }, []);
 
   const processSkuMapping = () => {
@@ -177,6 +177,10 @@ air.pods.2	161379719`;
         }
 
         const [internalSku, wbSku] = parts;
+        
+        // Handle multiple SKUs separated by semicolon - take the first one
+        const cleanWbSku = wbSku.split(';')[0].trim();
+        
         const product = products.find(p => p.sku === internalSku);
 
         if (!product) {
@@ -184,9 +188,9 @@ air.pods.2	161379719`;
           return;
         }
 
-        const updated = updateProduct(product.id, { wildberriesSku: wbSku });
+        const updated = updateProduct(product.id, { wildberriesSku: cleanWbSku });
         if (updated) {
-          success.push(`${internalSku} → ${wbSku}`);
+          success.push(`${internalSku} → ${cleanWbSku}`);
         } else {
           failed.push(`Ошибка обновления: ${internalSku}`);
         }
@@ -196,7 +200,7 @@ air.pods.2	161379719`;
 
       if (success.length > 0) {
         toast({
-          title: "SKU Wildberries обновлены",
+          title: "SKU Wildberries обновлены новыми значениями",
           description: `Успешно обновлено ${success.length} товаров${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
         });
       }
@@ -218,17 +222,17 @@ air.pods.2	161379719`;
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Upload className="w-5 h-5" />
-          <span>Импорт SKU Wildberries</span>
+          <span>Обновление SKU Wildberries (НОВЫЕ)</span>
         </CardTitle>
         <CardDescription>
-          Вставьте соответствие между внутренними артикулами и SKU Wildberries в формате: внутренний_sku [TAB] wb_sku
+          Обновите SKU Wildberries новыми значениями. Автоматически загружены актуальные SKU.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Textarea
           value={skuData}
           onChange={(e) => setSkuData(e.target.value)}
-          placeholder="x8.se.gray	166115887&#10;x8.mini	159256032&#10;..."
+          placeholder="внутренний_sku [TAB] новый_wb_sku&#10;..."
           className="min-h-[200px] font-mono text-sm"
         />
 
@@ -237,7 +241,7 @@ air.pods.2	161379719`;
           disabled={isProcessing || !skuData.trim()}
           className="w-full"
         >
-          {isProcessing ? 'Обработка...' : 'Обновить SKU Wildberries'}
+          {isProcessing ? 'Обновление...' : 'Обновить на НОВЫЕ SKU Wildberries'}
         </Button>
 
         {mappingResults && (
