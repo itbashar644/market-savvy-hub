@@ -9,6 +9,7 @@ import { useOzonSync } from '@/hooks/database/useOzonSync';
 import { useWildberriesStockUpdate } from '@/hooks/database/useWildberriesStockUpdate';
 import { useOzonStockUpdate } from '@/hooks/database/useOzonStockUpdate';
 import { useInventory } from '@/hooks/database/useInventory';
+import { useProducts } from '@/hooks/database/useProducts';
 
 const ManualSyncControls = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -17,6 +18,7 @@ const ManualSyncControls = () => {
   const { updateStock: updateWbStock } = useWildberriesStockUpdate();
   const { updateStock: updateOzonStock } = useOzonStockUpdate();
   const { inventory } = useInventory();
+  const { products } = useProducts();
 
   const handleWildberriesSync = async () => {
     setSyncing('wildberries-sync');
@@ -45,46 +47,58 @@ const ManualSyncControls = () => {
   };
 
   const getWildberriesStockUpdates = () => {
-    console.log('Подготовка данных для обновления остатков Wildberries:', inventory);
+    console.log('🔍 ПОДГОТОВКА ДАННЫХ ДЛЯ ОБНОВЛЕНИЯ ОСТАТКОВ WB');
+    console.log('📦 Общее количество товаров в products:', products.length);
+    console.log('📦 Общее количество товаров в inventory:', inventory.length);
     
-    const itemsWithWbSku = inventory.filter(item => {
-      const hasWbSku = item.wildberries_sku && item.wildberries_sku.trim() !== '';
-      console.log(`Товар ${item.sku}: WB SKU = ${item.wildberries_sku}, остаток: ${item.currentStock}`);
+    // Используем данные из products напрямую, они более актуальные
+    const itemsWithWbSku = products.filter(product => {
+      const hasWbSku = product.wildberriesSku && product.wildberriesSku.trim() !== '';
+      console.log(`📦 Товар ${product.sku || product.id}: WB SKU = "${product.wildberriesSku || 'НЕТ'}", остаток: ${product.stock || 0}`);
       return hasWbSku;
     });
 
-    console.log('Товары с Wildberries SKU:', itemsWithWbSku.length);
+    console.log(`✅ Товары с актуальными Wildberries SKU: ${itemsWithWbSku.length} из ${products.length}`);
 
-    return itemsWithWbSku.map(item => {
-      const wbSku = parseInt(item.wildberries_sku!);
-      if (isNaN(wbSku)) {
-        console.warn(`Неверный формат WB SKU для товара ${item.sku}: ${item.wildberries_sku}`);
+    const stockUpdates = itemsWithWbSku.map(product => {
+      const wbSku = product.wildberriesSku!;
+      const numericWbSku = parseInt(wbSku);
+      
+      if (isNaN(numericWbSku)) {
+        console.warn(`⚠️ Неверный формат WB SKU для товара ${product.sku}: ${wbSku}`);
         return null;
       }
       
-      return {
-        offer_id: wbSku.toString(), // Строковое представление для API
-        stock: item.currentStock,
-        sku: item.sku,
-        name: item.name
+      const stockData = {
+        offer_id: numericWbSku.toString(),
+        stock: product.stock || 0,
+        sku: product.sku || product.id,
+        name: product.name || product.title || 'Без названия'
       };
-    }).filter(Boolean); // Убираем null значения
+      
+      console.log(`📤 Подготовлен для отправки: ${product.sku} -> WB SKU: ${stockData.offer_id}, остаток: ${stockData.stock}`);
+      
+      return stockData;
+    }).filter(Boolean);
+
+    console.log(`🎯 ИТОГО подготовлено для WB API: ${stockUpdates.length} товаров`);
+    return stockUpdates;
   };
 
   const getOzonStockUpdates = () => {
-    return inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '')
-      .map(item => ({
-        offer_id: item.sku, // Для Ozon используем внутренний SKU
-        stock: item.currentStock,
-        sku: item.sku,
-        name: item.name
+    return products.filter(product => product.wildberriesSku && product.wildberriesSku.trim() !== '')
+      .map(product => ({
+        offer_id: product.sku || product.id,
+        stock: product.stock || 0,
+        sku: product.sku || product.id,
+        name: product.name || product.title || 'Без названия'
       }));
   };
 
   const handleStockUpdate = async (marketplace: 'wildberries' | 'ozon') => {
     setSyncing(`${marketplace}-stock`);
     try {
-      console.log('Начинаем обновление остатков для:', marketplace);
+      console.log(`🚀 Начинаем обновление остатков для: ${marketplace}`);
       
       let stockUpdates;
       if (marketplace === 'wildberries') {
@@ -93,37 +107,37 @@ const ManualSyncControls = () => {
         stockUpdates = getOzonStockUpdates();
       }
       
-      console.log('Подготовленные данные для обновления:', stockUpdates);
+      console.log(`📊 Подготовленные данные для ${marketplace}:`, stockUpdates);
 
       if (stockUpdates.length === 0) {
-        const totalItems = inventory.length;
-        const itemsWithoutWbSku = inventory.filter(item => !item.wildberries_sku || item.wildberries_sku.trim() === '');
+        const totalItems = products.length;
+        const itemsWithoutWbSku = products.filter(p => !p.wildberriesSku || p.wildberriesSku.trim() === '');
         
         toast.warning(`⚠️ Нет товаров с ${marketplace === 'wildberries' ? 'Wildberries' : 'Ozon'} SKU для обновления остатков`, {
-          description: `Всего товаров: ${totalItems}, без SKU: ${itemsWithoutWbSku.length}. Сначала добавьте SKU в разделе "Товары".`
+          description: `Всего товаров: ${totalItems}, без SKU: ${itemsWithoutWbSku.length}. Сначала обновите SKU в разделе "Товары".`
         });
         return;
       }
 
       if (marketplace === 'wildberries') {
-        console.log('Отправляем обновление остатков на Wildberries:', stockUpdates);
+        console.log(`📤 Отправляем ${stockUpdates.length} товаров на обновление остатков в Wildberries...`);
         await updateWbStock(stockUpdates);
         toast.success('✅ Остатки Wildberries обновлены');
       } else {
-        console.log('Отправляем обновление остатков на Ozon:', stockUpdates);
+        console.log(`📤 Отправляем ${stockUpdates.length} товаров на обновление остатков в Ozon...`);
         await updateOzonStock(stockUpdates);
         toast.success('✅ Остатки Ozon обновлены');
       }
     } catch (error) {
-      console.error(`${marketplace} stock update error:`, error);
+      console.error(`💥 ${marketplace} stock update error:`, error);
       toast.error(`❌ Ошибка обновления остатков ${marketplace}: ` + (error instanceof Error ? error.message : 'Неизвестная ошибка'));
     } finally {
       setSyncing(null);
     }
   };
 
-  const totalItems = inventory.length;
-  const itemsWithWbSku = inventory.filter(item => item.wildberries_sku && item.wildberries_sku.trim() !== '').length;
+  const totalItems = products.length;
+  const itemsWithWbSku = products.filter(p => p.wildberriesSku && p.wildberriesSku.trim() !== '').length;
 
   return (
     <div className="space-y-6">
@@ -154,7 +168,7 @@ const ManualSyncControls = () => {
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-800 text-sm">
                 Для обновления остатков необходимо добавить Wildberries SKU к товарам. 
-                Перейдите в раздел "Товары" и воспользуйтесь функцией импорта SKU.
+                Перейдите в раздел "Товары" → вкладка "Импорт SKU WB" и воспользуйтесь функцией импорта SKU.
               </p>
             </div>
           )}

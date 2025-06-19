@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/hooks/database/useProducts';
-import { Upload, Check, X, Search } from 'lucide-react';
+import { Upload, Check, X, Search, AlertTriangle } from 'lucide-react';
 
 const WildberriesSkuImport = () => {
   const [skuData, setSkuData] = useState('');
@@ -170,18 +170,16 @@ air.pods.2	2037849707485`;
       const success: string[] = [];
       const failed: string[] = [];
 
-      console.log('🔍 ОТЛАДКА: Всего товаров в базе:', products.length);
-      console.log('🔍 ОТЛАДКА: SKU товаров в базе:', products.map(p => ({
-        id: p.id,
-        sku: p.sku,
-        articleNumber: p.articleNumber,
-        title: p.title?.substring(0, 30) + '...'
-      })));
+      console.log('🔍 ОТЛАДКА ОБНОВЛЕНИЯ SKU: Всего товаров в базе:', products.length);
+      console.log('🔍 ОТЛАДКА: Образцы товаров в базе:');
+      products.slice(0, 5).forEach((p, i) => {
+        console.log(`  ${i + 1}. ID: ${p.id}, SKU: ${p.sku}, Article: ${p.articleNumber}, Title: ${p.title?.substring(0, 30)}..., WB SKU: ${p.wildberriesSku || 'НЕТ'}`);
+      });
 
       lines.forEach((line, index) => {
         const parts = line.trim().split('\t');
         if (parts.length !== 2) {
-          failed.push(`Неверный формат: ${line}`);
+          failed.push(`Строка ${index + 1}: Неверный формат: ${line}`);
           return;
         }
 
@@ -189,6 +187,8 @@ air.pods.2	2037849707485`;
         
         // Handle multiple SKUs separated by semicolon - take the first one
         const cleanWbSku = wbSku.split(';')[0].trim();
+        
+        console.log(`🔍 ОБРАБОТКА СТРОКИ ${index + 1}: "${internalSku}" -> "${cleanWbSku}"`);
         
         // Пробуем найти товар по разным полям
         let product = products.find(p => p.sku === internalSku);
@@ -202,39 +202,54 @@ air.pods.2	2037849707485`;
         }
 
         if (!product) {
-          console.log(`🔍 ОТЛАДКА: Товар не найден для SKU "${internalSku}". Строка ${index + 1}`);
-          failed.push(`Товар не найден: ${internalSku}`);
+          console.log(`❌ ТОВАР НЕ НАЙДЕН для SKU "${internalSku}". Строка ${index + 1}`);
+          console.log(`   Проверил: sku, articleNumber, id`);
+          failed.push(`Строка ${index + 1}: Товар не найден: ${internalSku}`);
           return;
         }
 
-        console.log(`🔍 ОТЛАДКА: Найден товар для "${internalSku}":`, {
+        console.log(`✅ НАЙДЕН ТОВАР для "${internalSku}":`, {
           id: product.id,
-          title: product.title,
+          title: product.title?.substring(0, 30) + '...',
           sku: product.sku,
           articleNumber: product.articleNumber,
-          oldWbSku: product.wildberriesSku,
+          oldWbSku: product.wildberriesSku || 'НЕТ',
           newWbSku: cleanWbSku
         });
 
         const updated = updateProduct(product.id, { wildberriesSku: cleanWbSku });
         if (updated) {
-          success.push(`${internalSku} → ${cleanWbSku}`);
+          success.push(`${internalSku} → ${cleanWbSku} (ID: ${product.id})`);
+          console.log(`✅ УСПЕШНО ОБНОВЛЕН: ${internalSku} -> ${cleanWbSku}`);
         } else {
-          failed.push(`Ошибка обновления: ${internalSku}`);
+          failed.push(`Строка ${index + 1}: Ошибка обновления: ${internalSku}`);
+          console.log(`❌ ОШИБКА ОБНОВЛЕНИЯ: ${internalSku}`);
         }
       });
 
       setMappingResults({ success, failed });
 
+      console.log('📊 ИТОГИ ОБНОВЛЕНИЯ SKU:', { 
+        успешно: success.length, 
+        ошибок: failed.length,
+        общий_процент: Math.round((success.length / (success.length + failed.length)) * 100) + '%'
+      });
+
       if (success.length > 0) {
         toast({
-          title: "SKU Wildberries обновлены новыми значениями",
+          title: "✅ SKU Wildberries обновлены!",
           description: `Успешно обновлено ${success.length} товаров${failed.length > 0 ? `, ${failed.length} ошибок` : ''}`,
+        });
+      } else {
+        toast({
+          title: "⚠️ Не удалось обновить SKU",
+          description: `Все ${failed.length} попыток завершились ошибкой. Проверьте соответствие SKU.`,
+          variant: "destructive",
         });
       }
 
     } catch (error) {
-      console.error('Error processing SKU mapping:', error);
+      console.error('💥 КРИТИЧЕСКАЯ ОШИБКА при обработке SKU mapping:', error);
       toast({
         title: "Ошибка обработки",
         description: "Произошла ошибка при обработке данных SKU",
@@ -248,14 +263,14 @@ air.pods.2	2037849707485`;
   const toggleDebugInfo = () => {
     setShowDebugInfo(!showDebugInfo);
     if (!showDebugInfo) {
-      console.log('🔍 ОТЛАДОЧНАЯ ИНФОРМАЦИЯ:');
-      console.log('Товары в базе данных:', products.map(p => ({
-        id: p.id,
-        title: p.title,
-        sku: p.sku,
-        articleNumber: p.articleNumber,
-        wildberriesSku: p.wildberriesSku
-      })));
+      console.log('🔍 ОТЛАДОЧНАЯ ИНФОРМАЦИЯ О ТОВАРАХ В БД:');
+      console.log('📋 Всего товаров:', products.length);
+      
+      const sampledProducts = products.slice(0, 20);
+      console.log('📋 Первые 20 товаров:');
+      sampledProducts.forEach((p, i) => {
+        console.log(`  ${i + 1}. ID: "${p.id}", SKU: "${p.sku}", Article: "${p.articleNumber}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
+      });
     }
   };
 
@@ -292,17 +307,27 @@ air.pods.2	2037849707485`;
 
         {showDebugInfo && (
           <div className="p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-800 mb-2">Товары в базе данных (первые 10):</h4>
-            <div className="text-sm text-blue-700 space-y-1 max-h-40 overflow-y-auto">
-              {products.slice(0, 10).map((product, index) => (
-                <div key={index} className="font-mono text-xs">
-                  ID: {product.id} | SKU: {product.sku || 'нет'} | Article: {product.articleNumber || 'нет'} | Title: {product.title?.substring(0, 30)}...
+            <h4 className="font-medium text-blue-800 mb-2 flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Товары в базе данных (первые 20):</span>
+            </h4>
+            <div className="text-sm text-blue-700 space-y-1 max-h-60 overflow-y-auto">
+              {products.slice(0, 20).map((product, index) => (
+                <div key={index} className="font-mono text-xs p-2 bg-white rounded border">
+                  <div><strong>#{index + 1}</strong></div>
+                  <div><strong>ID:</strong> {product.id}</div>
+                  <div><strong>SKU:</strong> {product.sku || 'НЕТ'}</div>
+                  <div><strong>Article:</strong> {product.articleNumber || 'НЕТ'}</div>
+                  <div><strong>WB SKU:</strong> <span className={product.wildberriesSku ? 'text-green-600' : 'text-red-600'}>{product.wildberriesSku || 'НЕТ'}</span></div>
+                  <div><strong>Title:</strong> {product.title?.substring(0, 40)}...</div>
                 </div>
               ))}
-              {products.length > 10 && (
-                <div className="text-blue-600">... и ещё {products.length - 10} товаров</div>
+              {products.length > 20 && (
+                <div className="text-blue-600 text-center pt-2">
+                  <strong>... и ещё {products.length - 20} товаров</strong>
+                </div>
               )}
-              <div className="mt-2 pt-2 border-t border-blue-200">
+              <div className="mt-4 pt-2 border-t border-blue-200 bg-blue-100 p-2 rounded">
                 <strong>Всего товаров в базе: {products.length}</strong>
               </div>
             </div>
@@ -324,12 +349,12 @@ air.pods.2	2037849707485`;
                   <Check className="w-4 h-4" />
                   <span>Успешно обновлено ({mappingResults.success.length})</span>
                 </h4>
-                <div className="text-sm text-green-700 space-y-1">
-                  {mappingResults.success.slice(0, 10).map((item, index) => (
-                    <div key={index} className="font-mono">{item}</div>
+                <div className="text-sm text-green-700 space-y-1 max-h-40 overflow-y-auto">
+                  {mappingResults.success.slice(0, 15).map((item, index) => (
+                    <div key={index} className="font-mono text-xs">{item}</div>
                   ))}
-                  {mappingResults.success.length > 10 && (
-                    <div className="text-green-600">... и ещё {mappingResults.success.length - 10}</div>
+                  {mappingResults.success.length > 15 && (
+                    <div className="text-green-600">... и ещё {mappingResults.success.length - 15}</div>
                   )}
                 </div>
               </div>
@@ -341,12 +366,12 @@ air.pods.2	2037849707485`;
                   <X className="w-4 h-4" />
                   <span>Ошибки ({mappingResults.failed.length})</span>
                 </h4>
-                <div className="text-sm text-red-700 space-y-1">
-                  {mappingResults.failed.slice(0, 10).map((item, index) => (
-                    <div key={index}>{item}</div>
+                <div className="text-sm text-red-700 space-y-1 max-h-40 overflow-y-auto">
+                  {mappingResults.failed.slice(0, 15).map((item, index) => (
+                    <div key={index} className="text-xs">{item}</div>
                   ))}
-                  {mappingResults.failed.length > 10 && (
-                    <div className="text-red-600">... и ещё {mappingResults.failed.length - 10}</div>
+                  {mappingResults.failed.length > 15 && (
+                    <div className="text-red-600">... и ещё {mappingResults.failed.length - 15}</div>
                   )}
                 </div>
               </div>
