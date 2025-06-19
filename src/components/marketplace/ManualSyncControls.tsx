@@ -64,15 +64,15 @@ const ManualSyncControls = () => {
     }
     
     const stockUpdates = stockItems.map((item, index) => {
-      const numericWbSku = parseInt(item.wildberries_sku);
-      
-      if (isNaN(numericWbSku)) {
+            const wbSku = String(item.wildberries_sku).trim();
+
+      if (!/^\d+$/.test(wbSku)) {
         console.warn(`⚠️ [STOCK UPDATE] Неверный формат WB SKU: ${item.wildberries_sku}`);
         return null;
       }
       
       const stockData = {
-        offer_id: numericWbSku.toString(),
+        offer_id: wbSku,
         stock: item.stock_quantity,
         sku: item.internal_sku,
         name: `Товар ${item.internal_sku}`

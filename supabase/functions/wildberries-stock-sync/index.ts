@@ -77,13 +77,13 @@ serve(async (req) => {
     let invalidCount = 0;
     
     for (const item of stocks) {
-      const skuNumber = parseInt(item.offer_id);
-      if (isNaN(skuNumber)) {
+      const skuStr = String(item.offer_id).trim();
+      if (!/^\d+$/.test(skuStr)) {
         invalidCount++;
       } else {
         validStocks.push({
           ...item,
-          offer_id: skuNumber.toString()
+          offer_id: skuStr
         });
       }
     }
