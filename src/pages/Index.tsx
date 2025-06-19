@@ -1,62 +1,80 @@
-
-import React, { useState } from 'react';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
-import Dashboard from '@/components/Dashboard';
-import ProductsManager from '@/components/ProductsManager';
-import MarketplaceIntegration from '@/components/MarketplaceIntegration';
-import ChatWidget from '@/components/ChatWidget';
-import OrdersManager from '@/components/OrdersManager';
-import CustomersManager from '@/components/CustomersManager';
-import InventoryManager from '@/components/InventoryManager';
-import ReportsManager from '@/components/ReportsManager';
-import AnalyticsManager from '@/components/AnalyticsManager';
-import SettingsManager from '@/components/SettingsManager';
-import { MarketplaceCredentialsProvider } from '@/hooks/useDatabase';
-import { useDataSync } from '@/hooks/useDataSync';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import Dashboard from "@/components/Dashboard";
+import ProductsManager from "@/components/ProductsManager";
+import InventoryManager from "@/components/InventoryManager";
+import OrdersManager from "@/components/OrdersManager";
+import CustomersManager from "@/components/CustomersManager";
+import ReportsManager from "@/components/ReportsManager";
+import AnalyticsManager from "@/components/AnalyticsManager";
+import MarketplaceIntegration from "@/components/MarketplaceIntegration";
+import SettingsManager from "@/components/SettingsManager";
+import { MarketplaceCredentialsProvider } from "@/hooks/useDatabase";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const { isOnline, lastSync } = useDataSync();
-  const isMobile = useIsMobile();
+  const { user } = useAuth();
+  const [activeView, setActiveView] = useState("dashboard");
+
+  useEffect(() => {
+    document.title = "Dashboard | CRM";
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    console.log("Index component mounted for user:", user.id);
+  }, [user]);
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
+    switch (activeView) {
+      case "dashboard":
         return <Dashboard />;
-      case 'products':
+      case "products":
         return <ProductsManager />;
-      case 'orders':
-        return <OrdersManager />;
-      case 'customers':
-        return <CustomersManager />;
-      case 'inventory':
+      case "inventory":
         return <InventoryManager />;
-      case 'marketplaces':
-        return <MarketplaceIntegration />;
-      case 'chat':
-        return <ChatWidget />;
-      case 'reports':
+      case "orders":
+        return <OrdersManager />;
+      case "customers":
+        return <CustomersManager />;
+      case "reports":
         return <ReportsManager />;
-      case 'analytics':
+      case "analytics":
         return <AnalyticsManager />;
-      case 'settings':
+      case "marketplace":
+        return <MarketplaceIntegration />;
+      case "settings":
         return <SettingsManager />;
       default:
         return <Dashboard />;
     }
   };
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Загрузка...</h2>
+          <p className="text-gray-600">Подождите, идет загрузка приложения</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <MarketplaceCredentialsProvider>
-      <SidebarProvider defaultOpen={!isMobile}>
-        <div className="min-h-screen flex w-full">
-          <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full bg-background">
+          <AppSidebar 
+            activeView={activeView} 
+            onViewChange={setActiveView} 
+          />
           <SidebarInset className="flex-1">
-            <main className={`flex-1 overflow-auto ${isMobile ? 'pt-16 px-2 pb-4' : 'p-6'}`}>
+            <div className="flex-1 p-6 overflow-auto">
               {renderContent()}
-            </main>
+            </div>
           </SidebarInset>
         </div>
       </SidebarProvider>
