@@ -41,7 +41,12 @@ export const useProducts = () => {
         inStock: item.in_stock,
         colors: Array.isArray(item.colors) ? item.colors : [],
         sizes: Array.isArray(item.sizes) ? item.sizes : [],
-        specifications: typeof item.specifications === 'object' && item.specifications !== null ? item.specifications : {},
+        // Правильная обработка specifications - всегда конвертируем в массив
+        specifications: Array.isArray(item.specifications) 
+          ? item.specifications 
+          : item.specifications && typeof item.specifications === 'object'
+            ? Object.entries(item.specifications).map(([key, value]) => ({ [key]: value }))
+            : [],
         isNew: item.is_new,
         isBestseller: item.is_bestseller,
         stockQuantity: item.stock_quantity || 0,
@@ -61,7 +66,7 @@ export const useProducts = () => {
         videoUrl: item.video_url,
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
-        colorVariants: typeof item.color_variants === 'object' && item.color_variants !== null ? item.color_variants : {},
+        colorVariants: Array.isArray(item.color_variants) ? item.color_variants : [],
         status: item.in_stock ? 'active' : 'out_of_stock',
         minStock: 0,
         maxStock: 100,
