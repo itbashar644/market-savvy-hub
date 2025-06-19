@@ -12,7 +12,7 @@ const WildberriesSkuImport = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [mappingResults, setMappingResults] = useState<{ success: string[]; failed: string[] } | null>(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
-  const { updateProduct, products } = useProducts();
+  const { updateProduct, products, loading } = useProducts();
   const { toast } = useToast();
 
   const newSkuData = `Y92.blue	2037853921662
@@ -162,6 +162,15 @@ air.pods.2	2037849707485`;
   }, []);
 
   const processSkuMapping = () => {
+    if (loading) {
+      toast({
+        title: "⏳ Подождите",
+        description: "Товары еще загружаются из базы данных...",
+        variant: "default",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setMappingResults(null);
 
@@ -170,10 +179,23 @@ air.pods.2	2037849707485`;
       const success: string[] = [];
       const failed: string[] = [];
 
-      console.log('🔍 ОТЛАДКА ОБНОВЛЕНИЯ SKU: Всего товаров в базе:', products.length);
-      console.log('🔍 ОТЛАДКА: Образцы товаров в базе:');
-      products.slice(0, 5).forEach((p, i) => {
-        console.log(`  ${i + 1}. ID: ${p.id}, SKU: ${p.sku}, Article: ${p.articleNumber}, Title: ${p.title?.substring(0, 30)}..., WB SKU: ${p.wildberriesSku || 'НЕТ'}`);
+      console.log('🔍 [SKU IMPORT] НАЧАЛО ИМПОРТА SKU');
+      console.log('🔍 [SKU IMPORT] Всего товаров в Supabase:', products.length);
+      console.log('🔍 [SKU IMPORT] Строк для обработки:', lines.length);
+      
+      if (products.length === 0) {
+        console.log('❌ [SKU IMPORT] В БАЗЕ ДАННЫХ НЕТ ТОВАРОВ!');
+        toast({
+          title: "❌ В базе данных нет товаров!",
+          description: "Сначала добавьте товары в каталог через раздел 'Товары'.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('🔍 [SKU IMPORT] Образцы товаров в базе:');
+      products.slice(0, 10).forEach((p, i) => {
+        console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber}", SKU: "${p.sku}", Title: "${p.title?.substring(0, 30)}...", WB SKU: "${p.wildberriesSku || 'НЕТ'}"`);
       });
 
       lines.forEach((line, index) => {
@@ -184,31 +206,26 @@ air.pods.2	2037849707485`;
         }
 
         const [internalSku, wbSku] = parts;
-        
-        // Handle multiple SKUs separated by semicolon - take the first one
         const cleanWbSku = wbSku.split(';')[0].trim();
         
-        console.log(`🔍 ОБРАБОТКА СТРОКИ ${index + 1}: "${internalSku}" -> "${cleanWbSku}"`);
+        console.log(`🔍 [SKU IMPORT] Строка ${index + 1}: "${internalSku}" -> "${cleanWbSku}"`);
         
-        // Пробуем найти товар по разным полям
-        let product = products.find(p => p.sku === internalSku);
-        
-        if (!product) {
-          product = products.find(p => p.articleNumber === internalSku);
-        }
-        
-        if (!product) {
-          product = products.find(p => p.id === internalSku);
-        }
+        // Ищем товар по разным полям с учетом регистра
+        let product = products.find(p => 
+          p.sku === internalSku || 
+          p.articleNumber === internalSku ||
+          p.id === internalSku ||
+          p.sku?.toLowerCase() === internalSku.toLowerCase() ||
+          p.articleNumber?.toLowerCase() === internalSku.toLowerCase()
+        );
 
         if (!product) {
-          console.log(`❌ ТОВАР НЕ НАЙДЕН для SKU "${internalSku}". Строка ${index + 1}`);
-          console.log(`   Проверил: sku, articleNumber, id`);
+          console.log(`❌ [SKU IMPORT] ТОВАР НЕ НАЙДЕН для "${internalSku}". Строка ${index + 1}`);
           failed.push(`Строка ${index + 1}: Товар не найден: ${internalSku}`);
           return;
         }
 
-        console.log(`✅ НАЙДЕН ТОВАР для "${internalSku}":`, {
+        console.log(`✅ [SKU IMPORT] НАЙДЕН ТОВАР для "${internalSku}":`, {
           id: product.id,
           title: product.title?.substring(0, 30) + '...',
           sku: product.sku,
@@ -220,16 +237,16 @@ air.pods.2	2037849707485`;
         const updated = updateProduct(product.id, { wildberriesSku: cleanWbSku });
         if (updated) {
           success.push(`${internalSku} → ${cleanWbSku} (ID: ${product.id})`);
-          console.log(`✅ УСПЕШНО ОБНОВЛЕН: ${internalSku} -> ${cleanWbSku}`);
+          console.log(`✅ [SKU IMPORT] УСПЕШНО ОБНОВЛЕН: ${internalSku} -> ${cleanWbSku}`);
         } else {
           failed.push(`Строка ${index + 1}: Ошибка обновления: ${internalSku}`);
-          console.log(`❌ ОШИБКА ОБНОВЛЕНИЯ: ${internalSku}`);
+          console.log(`❌ [SKU IMPORT] ОШИБКА ОБНОВЛЕНИЯ: ${internalSku}`);
         }
       });
 
       setMappingResults({ success, failed });
 
-      console.log('📊 ИТОГИ ОБНОВЛЕНИЯ SKU:', { 
+      console.log('📊 [SKU IMPORT] ИТОГИ:', { 
         успешно: success.length, 
         ошибок: failed.length,
         общий_процент: Math.round((success.length / (success.length + failed.length)) * 100) + '%'
@@ -249,7 +266,7 @@ air.pods.2	2037849707485`;
       }
 
     } catch (error) {
-      console.error('💥 КРИТИЧЕСКАЯ ОШИБКА при обработке SKU mapping:', error);
+      console.error('💥 [SKU IMPORT] КРИТИЧЕСКАЯ ОШИБКА:', error);
       toast({
         title: "Ошибка обработки",
         description: "Произошла ошибка при обработке данных SKU",
@@ -263,14 +280,16 @@ air.pods.2	2037849707485`;
   const toggleDebugInfo = () => {
     setShowDebugInfo(!showDebugInfo);
     if (!showDebugInfo) {
-      console.log('🔍 ОТЛАДОЧНАЯ ИНФОРМАЦИЯ О ТОВАРАХ В БД:');
-      console.log('📋 Всего товаров:', products.length);
+      console.log('🔍 [DEBUG] ОТЛАДОЧНАЯ ИНФОРМАЦИЯ О ТОВАРАХ:');
+      console.log('📋 Всего товаров в Supabase:', products.length);
+      console.log('⏳ Загрузка:', loading);
       
-      const sampledProducts = products.slice(0, 20);
-      console.log('📋 Первые 20 товаров:');
-      sampledProducts.forEach((p, i) => {
-        console.log(`  ${i + 1}. ID: "${p.id}", SKU: "${p.sku}", Article: "${p.articleNumber}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
-      });
+      if (products.length > 0) {
+        console.log('📋 Первые 20 товаров:');
+        products.slice(0, 20).forEach((p, i) => {
+          console.log(`  ${i + 1}. ID: "${p.id}", Article: "${p.articleNumber}", SKU: "${p.sku}", WB SKU: "${p.wildberriesSku || 'НЕТ'}", Title: "${p.title?.substring(0, 25)}..."`);
+        });
+      }
     }
   };
 
@@ -298,10 +317,10 @@ air.pods.2	2037849707485`;
           
           <Button 
             onClick={processSkuMapping}
-            disabled={isProcessing || !skuData.trim()}
+            disabled={isProcessing || !skuData.trim() || loading}
             className="flex-1"
           >
-            {isProcessing ? 'Обновление...' : 'Обновить на НОВЫЕ SKU Wildberries'}
+            {isProcessing ? 'Обновление...' : loading ? 'Загрузка товаров...' : 'Обновить на НОВЫЕ SKU Wildberries'}
           </Button>
         </div>
 

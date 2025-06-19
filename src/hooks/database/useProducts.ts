@@ -1,54 +1,54 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
+import { toast } from 'sonner';
 
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const channelRef = useRef<any>(null);
 
-  const refreshProducts = useCallback(async () => {
+  const fetchProducts = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      const { data, error: supabaseError } = await supabase
+      console.log('🔍 [useProducts] Загружаем товары из Supabase...');
+      const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (supabaseError) {
-        console.error('Error fetching products:', supabaseError);
-        setError('Ошибка загрузки товаров');
-        return;
+      if (error) {
+        console.error('❌ [useProducts] Ошибка загрузки товаров:', error);
+        throw error;
       }
 
-      const transformedData: Product[] = (data || []).map(item => ({
+      console.log('✅ [useProducts] Загружено товаров из Supabase:', data?.length || 0);
+      
+      // Маппим данные из Supabase в формат Product
+      const mappedProducts: Product[] = (data || []).map(item => ({
         id: item.id,
         title: item.title,
-        name: item.title,
+        name: item.title, // Для обратной совместимости
         description: item.description,
         price: Number(item.price),
         discountPrice: item.discount_price ? Number(item.discount_price) : undefined,
         category: item.category,
         imageUrl: item.image_url,
-        image: item.image_url,
-        additionalImages: Array.isArray(item.additional_images) ? item.additional_images : [],
+        image: item.image_url, // Для обратной совместимости
+        additionalImages: item.additional_images,
         rating: Number(item.rating),
         inStock: item.in_stock,
-        colors: Array.isArray(item.colors) ? item.colors : [],
-        sizes: Array.isArray(item.sizes) ? item.sizes : [],
-        specifications: Array.isArray(item.specifications) ? item.specifications : [],
-        isNew: item.is_new || false,
-        isBestseller: item.is_bestseller || false,
-        stockQuantity: item.stock_quantity || 0,
-        stock: item.stock_quantity || 0,
+        colors: item.colors,
+        sizes: item.sizes,
+        specifications: item.specifications,
+        isNew: item.is_new,
+        isBestseller: item.is_bestseller,
+        stockQuantity: item.stock_quantity,
+        stock: item.stock_quantity, // Для обратной совместимости
         createdAt: item.created_at,
         updatedAt: item.updated_at,
-        archived: item.archived || false,
+        archived: item.archived,
         articleNumber: item.article_number,
-        sku: item.article_number || item.id,
+        sku: item.article_number, // Используем article_number как SKU
         barcode: item.barcode,
         countryOfOrigin: item.country_of_origin,
         material: item.material,
@@ -59,226 +59,195 @@ export const useProducts = () => {
         videoUrl: item.video_url,
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
-        colorVariants: Array.isArray(item.color_variants) ? item.color_variants : [],
-        status: item.stock_quantity <= 0 ? 'out_of_stock' : 
-                item.stock_quantity <= 5 ? 'low_stock' : 'active',
-        minStock: 5,
+        colorVariants: item.color_variants,
+        status: item.in_stock ? 'active' : 'out_of_stock',
+        minStock: 0,
         maxStock: 100,
-        supplier: 'Default',
-        ozonSynced: false,
-        wbSynced: !!item.wildberries_sku,
+        supplier: 'Default'
       }));
 
-      setProducts(transformedData);
+      setProducts(mappedProducts);
+      console.log('🔍 [useProducts] Первые 5 товаров:', mappedProducts.slice(0, 5).map(p => ({
+        id: p.id,
+        title: p.title?.substring(0, 30) + '...',
+        sku: p.sku,
+        articleNumber: p.articleNumber,
+        wildberriesSku: p.wildberriesSku
+      })));
+      
+      return mappedProducts;
     } catch (error) {
-      console.error('Error in refreshProducts:', error);
-      setError('Ошибка подключения к серверу');
+      console.error('💥 [useProducts] Критическая ошибка:', error);
+      toast.error('Ошибка загрузки товаров');
+      return [];
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    let mounted = true;
-
-    const setupSubscription = async () => {
-      await refreshProducts();
-      
-      if (!mounted) return;
-
-      try {
-        if (channelRef.current) {
-          await supabase.removeChannel(channelRef.current);
-          channelRef.current = null;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        channelRef.current = supabase
-          .channel(`products_updates_${Date.now()}`)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'products'
-            },
-            () => {
-              if (mounted) {
-                console.log('Products updated, refreshing...');
-                refreshProducts();
-              }
-            }
-          );
-
-        await channelRef.current.subscribe();
-        console.log('Products subscription established');
-      } catch (error) {
-        console.error('Error setting up products subscription:', error);
-      }
-    };
-
-    setupSubscription();
-
-    return () => {
-      mounted = false;
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-        console.log('Products subscription cleaned up');
-      }
-    };
-  }, [refreshProducts]);
-
-  const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      console.log('➕ [useProducts] Добавляем товар в Supabase...');
       const { data, error } = await supabase
         .from('products')
         .insert({
-          title: product.title,
-          description: product.description,
-          price: product.price,
-          discount_price: product.discountPrice,
-          category: product.category,
-          image_url: product.imageUrl,
-          additional_images: product.additionalImages,
-          rating: product.rating,
-          in_stock: product.inStock,
-          colors: product.colors,
-          sizes: product.sizes,
-          specifications: product.specifications,
-          is_new: product.isNew,
-          is_bestseller: product.isBestseller,
-          stock_quantity: product.stockQuantity,
-          archived: product.archived,
-          article_number: product.articleNumber,
-          barcode: product.barcode,
-          country_of_origin: product.countryOfOrigin,
-          material: product.material,
-          model_name: product.modelName,
-          wildberries_url: product.wildberriesUrl,
-          ozon_url: product.ozonUrl,
-          avito_url: product.avitoUrl,
-          video_url: product.videoUrl,
-          video_type: product.videoType,
-          wildberries_sku: product.wildberriesSku,
-          color_variants: product.colorVariants,
+          title: productData.title,
+          description: productData.description,
+          price: productData.price,
+          discount_price: productData.discountPrice,
+          category: productData.category,
+          image_url: productData.imageUrl || '/placeholder.svg',
+          additional_images: productData.additionalImages,
+          rating: productData.rating || 4.8,
+          in_stock: productData.inStock !== false,
+          colors: productData.colors,
+          sizes: productData.sizes,
+          specifications: productData.specifications,
+          is_new: productData.isNew,
+          is_bestseller: productData.isBestseller,
+          stock_quantity: productData.stockQuantity || productData.stock || 0,
+          archived: productData.archived,
+          article_number: productData.sku || productData.articleNumber,
+          barcode: productData.barcode,
+          country_of_origin: productData.countryOfOrigin || 'Не указано',
+          material: productData.material,
+          model_name: productData.modelName,
+          wildberries_url: productData.wildberriesUrl,
+          ozon_url: productData.ozonUrl,
+          avito_url: productData.avitoUrl,
+          video_url: productData.videoUrl,
+          video_type: productData.videoType,
+          wildberries_sku: productData.wildberriesSku,
+          color_variants: productData.colorVariants
         })
         .select()
         .single();
 
-      if (error) {
-        console.error('Error adding product:', error);
-        return null;
-      }
+      if (error) throw error;
 
+      console.log('✅ [useProducts] Товар добавлен:', data.id);
+      await fetchProducts(); // Перезагружаем список
+      toast.success('Товар добавлен успешно');
       return data;
     } catch (error) {
-      console.error('Error in addProduct:', error);
-      return null;
+      console.error('❌ [useProducts] Ошибка добавления товара:', error);
+      toast.error('Ошибка добавления товара');
+      throw error;
     }
   };
 
-  const updateProduct = async (id: string, updates: Partial<Product>) => {
+  const updateProduct = (id: string, updates: Partial<Product>) => {
+    console.log(`🔄 [useProducts] Обновляем товар ${id} локально:`, updates);
+    
+    setProducts(prevProducts => {
+      const updatedProducts = prevProducts.map(product => {
+        if (product.id === id) {
+          const updatedProduct = { ...product, ...updates };
+          console.log(`✅ [useProducts] Товар ${id} обновлен локально:`, {
+            id: updatedProduct.id,
+            title: updatedProduct.title?.substring(0, 30) + '...',
+            wildberriesSku: updatedProduct.wildberriesSku
+          });
+          return updatedProduct;
+        }
+        return product;
+      });
+      return updatedProducts;
+    });
+
+    // Асинхронно обновляем в Supabase
+    updateProductInSupabase(id, updates);
+    return true; // Возвращаем true для совместимости
+  };
+
+  const updateProductInSupabase = async (id: string, updates: Partial<Product>) => {
     try {
+      console.log(`🔄 [useProducts] Обновляем товар ${id} в Supabase:`, updates);
+      
       const updateData: any = {};
       
-      if (updates.title !== undefined) updateData.title = updates.title;
-      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.title) updateData.title = updates.title;
+      if (updates.description) updateData.description = updates.description;
       if (updates.price !== undefined) updateData.price = updates.price;
       if (updates.discountPrice !== undefined) updateData.discount_price = updates.discountPrice;
-      if (updates.category !== undefined) updateData.category = updates.category;
-      if (updates.imageUrl !== undefined) updateData.image_url = updates.imageUrl;
-      if (updates.additionalImages !== undefined) updateData.additional_images = updates.additionalImages;
-      if (updates.rating !== undefined) updateData.rating = updates.rating;
-      if (updates.inStock !== undefined) updateData.in_stock = updates.inStock;
-      if (updates.colors !== undefined) updateData.colors = updates.colors;
-      if (updates.sizes !== undefined) updateData.sizes = updates.sizes;
-      if (updates.specifications !== undefined) updateData.specifications = updates.specifications;
-      if (updates.isNew !== undefined) updateData.is_new = updates.isNew;
-      if (updates.isBestseller !== undefined) updateData.is_bestseller = updates.isBestseller;
-      if (updates.stockQuantity !== undefined) updateData.stock_quantity = updates.stockQuantity;
-      if (updates.archived !== undefined) updateData.archived = updates.archived;
-      if (updates.articleNumber !== undefined) updateData.article_number = updates.articleNumber;
-      if (updates.barcode !== undefined) updateData.barcode = updates.barcode;
-      if (updates.countryOfOrigin !== undefined) updateData.country_of_origin = updates.countryOfOrigin;
-      if (updates.material !== undefined) updateData.material = updates.material;
-      if (updates.modelName !== undefined) updateData.model_name = updates.modelName;
-      if (updates.wildberriesUrl !== undefined) updateData.wildberries_url = updates.wildberriesUrl;
-      if (updates.ozonUrl !== undefined) updateData.ozon_url = updates.ozonUrl;
-      if (updates.avitoUrl !== undefined) updateData.avito_url = updates.avitoUrl;
-      if (updates.videoUrl !== undefined) updateData.video_url = updates.videoUrl;
-      if (updates.videoType !== undefined) updateData.video_type = updates.videoType;
+      if (updates.category) updateData.category = updates.category;
+      if (updates.imageUrl) updateData.image_url = updates.imageUrl;
       if (updates.wildberriesSku !== undefined) updateData.wildberries_sku = updates.wildberriesSku;
-      if (updates.colorVariants !== undefined) updateData.color_variants = updates.colorVariants;
-      
+      if (updates.stockQuantity !== undefined) updateData.stock_quantity = updates.stockQuantity;
       if (updates.stock !== undefined) updateData.stock_quantity = updates.stock;
-
-      const { data, error } = await supabase
+      if (updates.inStock !== undefined) updateData.in_stock = updates.inStock;
+      
+      const { error } = await supabase
         .from('products')
         .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
 
-      if (error) {
-        console.error('Error updating product:', error);
-        return null;
-      }
-
-      return data;
+      if (error) throw error;
+      
+      console.log(`✅ [useProducts] Товар ${id} успешно обновлен в Supabase`);
     } catch (error) {
-      console.error('Error in updateProduct:', error);
-      return null;
+      console.error(`❌ [useProducts] Ошибка обновления товара ${id} в Supabase:`, error);
+      // Не показываем toast для автоматических обновлений SKU
     }
   };
 
   const deleteProduct = async (id: string) => {
     try {
+      console.log(`🗑️ [useProducts] Удаляем товар ${id}...`);
       const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        console.error('Error deleting product:', error);
-        return false;
-      }
+      if (error) throw error;
 
+      await fetchProducts(); // Перезагружаем список
+      toast.success('Товар удален');
       return true;
     } catch (error) {
-      console.error('Error in deleteProduct:', error);
+      console.error('❌ [useProducts] Ошибка удаления товара:', error);
+      toast.error('Ошибка удаления товара');
       return false;
     }
   };
 
-  const deleteProducts = async (ids: string[]) => {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .in('id', ids);
-
-      if (error) {
-        console.error('Error deleting products:', error);
-        return false;
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadProducts = async () => {
+      if (isMounted) {
+        await fetchProducts();
       }
+    };
+    
+    loadProducts();
+    
+    // Подписываемся на изменения в реальном времени
+    const subscription = supabase
+      .channel('products-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('🔄 [useProducts] Изменение в products:', payload);
+          if (isMounted) {
+            fetchProducts();
+          }
+        }
+      )
+      .subscribe();
 
-      return true;
-    } catch (error) {
-      console.error('Error in deleteProducts:', error);
-      return false;
-    }
-  };
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return {
     products,
     loading,
-    error,
     addProduct,
     updateProduct,
     deleteProduct,
-    deleteProducts,
-    refreshProducts,
+    refreshProducts: fetchProducts
   };
 };
