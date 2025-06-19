@@ -1,4 +1,3 @@
-
 import { toast } from 'sonner';
 import { useSyncLogs } from './useSyncLogs';
 import { useMarketplaceCredentials } from './useMarketplaceCredentials';
@@ -26,8 +25,8 @@ export const useWildberriesStockUpdate = () => {
       console.log('🔑 [FRONTEND] Wildberries API key найден');
       console.log('🔑 [FRONTEND] API key (первые 10 символов):', wbCreds.api_key.substring(0, 10) + '...');
 
-      // Фильтруем и правильно маппим товары с Wildberries SKU
-      console.log('📋 [FRONTEND] Начинаем фильтрацию товаров...');
+      // ИСПРАВЛЕНО: Используем данные из новой таблицы wildberries_stock
+      console.log('📋 [FRONTEND] Начинаем фильтрацию товаров из новой таблицы wildberries_stock...');
       
       const validProducts = [];
       const invalidProducts = [];
@@ -36,20 +35,17 @@ export const useWildberriesStockUpdate = () => {
         const p = products[i];
         console.log(`📋 [FRONTEND] Товар ${i + 1}/${products.length}:`, {
           sku: p.sku,
-          offer_id: p.offer_id,  
-          wildberries_sku: p.wildberries_sku,
-          nm_id: p.nm_id,
+          offer_id: p.offer_id,
           stock: p.stock,
-          currentStock: p.currentStock,
           name: p.name
         });
         
-        const hasWbSku = p.wildberries_sku || p.nm_id || p.offer_id;
-        if (!hasWbSku) {
-          console.log(`⚠️ [FRONTEND] Пропускаем товар ${p.sku} - нет Wildberries SKU`);
+        // ИСПРАВЛЕНО: Проверяем наличие offer_id из новой таблицы
+        if (!p.offer_id) {
+          console.log(`⚠️ [FRONTEND] Пропускаем товар ${p.sku} - нет offer_id`);
           invalidProducts.push(p);
         } else {
-          console.log(`✅ [FRONTEND] Товар ${p.sku} валиден, WB SKU: ${hasWbSku}`);
+          console.log(`✅ [FRONTEND] Товар ${p.sku} валиден, offer_id: ${p.offer_id}`);
           validProducts.push(p);
         }
       }
@@ -57,22 +53,19 @@ export const useWildberriesStockUpdate = () => {
       console.log(`📊 [FRONTEND] Результат фильтрации: валидных ${validProducts.length}, невалидных ${invalidProducts.length}`);
 
       if (validProducts.length === 0) {
-        console.log('❌ [FRONTEND] Нет товаров с Wildberries SKU для обновления');
-        toast.error('❌ Нет товаров с Wildberries SKU для обновления остатков');
+        console.log('❌ [FRONTEND] Нет товаров с offer_id для обновления');
+        toast.error('❌ Нет товаров с корректными SKU для обновления остатков');
         return;
       }
 
-      // Подготавливаем данные для отправки
+      // ИСПРАВЛЕНО: Подготавливаем данные используя только offer_id и stock из новой таблицы
       console.log('📤 [FRONTEND] Подготавливаем данные для Edge Function...');
       
       const requestData = { 
         stocks: validProducts.map((p, index) => {
-          const wbSku = p.wildberries_sku || p.nm_id || p.offer_id;
-          const stock = p.stock || p.currentStock || 0;
-          
           const stockItem = {
-            offer_id: String(wbSku),
-            stock: stock
+            offer_id: String(p.offer_id),
+            stock: p.stock || 0
           };
           
           console.log(`📤 [FRONTEND] Товар ${index + 1}: offer_id=${stockItem.offer_id}, stock=${stockItem.stock}`);

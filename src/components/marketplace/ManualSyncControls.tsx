@@ -1,14 +1,16 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, Upload, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWildberriesSync } from '@/hooks/database/useWildberriesSync';
 import { useOzonSync } from '@/hooks/database/useOzonSync';
 import { useWildberriesStockUpdate } from '@/hooks/database/useWildberriesStockUpdate';
 import { useOzonStockUpdate } from '@/hooks/database/useOzonStockUpdate';
 import { useWildberriesStock } from '@/hooks/database/useWildberriesStock';
+import { WildberriesStockStatistics } from './components/WildberriesStockStatistics';
+import { ManualSyncButtons } from './components/ManualSyncButtons';
+import { StockUpdateButtons } from './components/StockUpdateButtons';
 
 const ManualSyncControls = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -151,109 +153,23 @@ const ManualSyncControls = () => {
 
   return (
     <div className="space-y-6">
-      {/* Statistics panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            Статистика остатков Wildberries
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="font-medium text-blue-800">Всего SKU WB</div>
-              <div className="text-2xl font-bold text-blue-600">{totalWbItems}</div>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <div className="font-medium text-green-800">С остатком &gt; 0</div>
-              <div className="text-2xl font-bold text-green-600">{itemsWithStock}</div>
-            </div>
-            <div className="p-3 bg-orange-50 rounded-lg">
-              <div className="font-medium text-orange-800">Без остатка</div>
-              <div className="text-2xl font-bold text-orange-600">{totalWbItems - itemsWithStock}</div>
-            </div>
-          </div>
-          {totalWbItems === 0 && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">
-                <strong>В таблице остатков WB нет данных!</strong> Импортируйте SKU через раздел "Товары" → "Импорт SKU WB".
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <WildberriesStockStatistics 
+        totalWbItems={totalWbItems}
+        itemsWithStock={itemsWithStock}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5" />
-              Ручная синхронизация
-            </CardTitle>
-            <CardDescription>
-              Запустите синхронизацию товаров с маркетплейсами вручную
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Button 
-                onClick={handleWildberriesSync}
-                disabled={syncing !== null}
-                className="w-full"
-                variant="outline"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing === 'wildberries-sync' ? 'animate-spin' : ''}`} />
-                {syncing === 'wildberries-sync' ? 'Синхронизация...' : 'Синхронизировать Wildberries'}
-              </Button>
-              
-              <Button 
-                onClick={handleOzonSync}
-                disabled={syncing !== null}
-                className="w-full"
-                variant="outline"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing === 'ozon-sync' ? 'animate-spin' : ''}`} />
-                {syncing === 'ozon-sync' ? 'Синхронизация...' : 'Синхронизировать Ozon'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ManualSyncButtons
+          syncing={syncing}
+          onWildberriesSync={handleWildberriesSync}
+          onOzonSync={handleOzonSync}
+        />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="w-5 h-5" />
-              Обновление остатков
-            </CardTitle>
-            <CardDescription>
-              Обновите остатки на маркетплейсах ({totalWbItems} SKU WB готово)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Button 
-                onClick={() => handleStockUpdate('wildberries')}
-                disabled={syncing !== null || totalWbItems === 0}
-                className="w-full"
-                variant="outline"
-              >
-                <Upload className={`w-4 h-4 mr-2 ${syncing === 'wildberries-stock' ? 'animate-spin' : ''}`} />
-                {syncing === 'wildberries-stock' ? 'Обновление...' : `Обновить остатки Wildberries (${totalWbItems})`}
-              </Button>
-              
-              <Button 
-                onClick={() => handleStockUpdate('ozon')}
-                disabled={syncing !== null || totalWbItems === 0}
-                className="w-full"
-                variant="outline"
-              >
-                <Upload className={`w-4 h-4 mr-2 ${syncing === 'ozon-stock' ? 'animate-spin' : ''}`} />
-                {syncing === 'ozon-stock' ? 'Обновление...' : `Обновить остатки Ozon (0)`}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <StockUpdateButtons
+          syncing={syncing}
+          totalWbItems={totalWbItems}
+          onStockUpdate={handleStockUpdate}
+        />
       </div>
     </div>
   );

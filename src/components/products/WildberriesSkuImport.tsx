@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useWildberriesStock } from '@/hooks/database/useWildberriesStock';
-import { Upload, Check, X, Search, AlertTriangle } from 'lucide-react';
+import { Upload } from 'lucide-react';
+import { WildberriesImportForm } from './wildberries-import/WildberriesImportForm';
+import { WildberriesDebugInfo } from './wildberries-import/WildberriesDebugInfo';
+import { WildberriesImportResults } from './wildberries-import/WildberriesImportResults';
 
 const WildberriesSkuImport = () => {
   const [skuData, setSkuData] = useState('');
@@ -271,97 +272,20 @@ air.pods.2	2037849707485`;
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline"
-            onClick={toggleDebugInfo}
-            className="flex items-center space-x-1"
-          >
-            <Search className="w-4 h-4" />
-            <span>Показать остатки WB ({stockItems.length})</span>
-          </Button>
-          
-          <Button 
-            onClick={processSkuMapping}
-            disabled={isProcessing || !skuData.trim() || loading}
-            className="flex-1"
-          >
-            {isProcessing ? 'Импорт с остатками...' : loading ? 'Загрузка...' : 'Импортировать SKU + Остатки WB'}
-          </Button>
-        </div>
-
-        {showDebugInfo && (
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-800 mb-2 flex items-center space-x-2">
-              <AlertTriangle className="w-4 h-4" />
-              <span>Остатки WB в базе данных (первые 20 из {stockItems.length}):</span>
-            </h4>
-            <div className="text-sm text-blue-700 space-y-1 max-h-60 overflow-y-auto">
-              {stockItems.slice(0, 20).map((item, index) => (
-                <div key={index} className="font-mono text-xs p-2 bg-white rounded border">
-                  <div><strong>#{index + 1}</strong></div>
-                  <div><strong>Internal SKU:</strong> {item.internal_sku}</div>
-                  <div><strong>WB SKU:</strong> <span className="text-green-600">{item.wildberries_sku}</span></div>
-                  <div><strong>Остаток:</strong> <span className={item.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'}>{item.stock_quantity}</span></div>
-                  <div><strong>Обновлен:</strong> {new Date(item.last_updated).toLocaleString('ru-RU')}</div>
-                </div>
-              ))}
-              {stockItems.length > 20 && (
-                <div className="text-blue-600 text-center pt-2">
-                  <strong>... и ещё {stockItems.length - 20} остатков</strong>
-                </div>
-              )}
-              <div className="mt-4 pt-2 border-t border-blue-200 bg-blue-100 p-2 rounded">
-                <strong>Всего остатков WB: {stockItems.length}</strong>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <Textarea
-          value={skuData}
-          onChange={(e) => setSkuData(e.target.value)}
-          placeholder="внутренний_sku [TAB] wb_sku&#10;..."
-          className="min-h-[200px] font-mono text-sm"
+        <WildberriesImportForm
+          skuData={skuData}
+          setSkuData={setSkuData}
+          isProcessing={isProcessing}
+          loading={loading}
+          stockItemsCount={stockItems.length}
+          showDebugInfo={showDebugInfo}
+          onToggleDebugInfo={toggleDebugInfo}
+          onProcessSkuMapping={processSkuMapping}
         />
 
-        {mappingResults && (
-          <div className="space-y-4 mt-4">
-            {mappingResults.success.length > 0 && (
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-800 flex items-center space-x-1 mb-2">
-                  <Check className="w-4 h-4" />
-                  <span>Успешно импортировано с остатками ({mappingResults.success.length})</span>
-                </h4>
-                <div className="text-sm text-green-700 space-y-1 max-h-40 overflow-y-auto">
-                  {mappingResults.success.slice(0, 15).map((item, index) => (
-                    <div key={index} className="font-mono text-xs">{item}</div>
-                  ))}
-                  {mappingResults.success.length > 15 && (
-                    <div className="text-green-600">... и ещё {mappingResults.success.length - 15}</div>
-                  )}
-                </div>
-              </div>
-            )}
+        {showDebugInfo && <WildberriesDebugInfo stockItems={stockItems} />}
 
-            {mappingResults.failed.length > 0 && (
-              <div className="p-4 bg-red-50 rounded-lg">
-                <h4 className="font-medium text-red-800 flex items-center space-x-1 mb-2">
-                  <X className="w-4 h-4" />
-                  <span>Ошибки ({mappingResults.failed.length})</span>
-                </h4>
-                <div className="text-sm text-red-700 space-y-1 max-h-40 overflow-y-auto">
-                  {mappingResults.failed.slice(0, 15).map((item, index) => (
-                    <div key={index} className="text-xs">{item}</div>
-                  ))}
-                  {mappingResults.failed.length > 15 && (
-                    <div className="text-red-600">... и ещё {mappingResults.failed.length - 15}</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <WildberriesImportResults mappingResults={mappingResults} />
       </CardContent>
     </Card>
   );
