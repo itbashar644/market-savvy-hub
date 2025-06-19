@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Product } from '@/types/database';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 export const useProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const subscriptionRef = useRef<any>(null);
 
   const fetchProducts = async () => {
     try {
@@ -34,12 +35,12 @@ export const useProducts = () => {
         category: item.category,
         imageUrl: item.image_url,
         image: item.image_url, // Для обратной совместимости
-        additionalImages: item.additional_images,
+        additionalImages: Array.isArray(item.additional_images) ? item.additional_images : [],
         rating: Number(item.rating),
         inStock: item.in_stock,
-        colors: item.colors,
-        sizes: item.sizes,
-        specifications: item.specifications,
+        colors: Array.isArray(item.colors) ? item.colors : [],
+        sizes: Array.isArray(item.sizes) ? item.sizes : [],
+        specifications: item.specifications || {},
         isNew: item.is_new,
         isBestseller: item.is_bestseller,
         stockQuantity: item.stock_quantity,
@@ -59,11 +60,14 @@ export const useProducts = () => {
         videoUrl: item.video_url,
         videoType: item.video_type,
         wildberriesSku: item.wildberries_sku,
-        colorVariants: item.color_variants,
+        colorVariants: item.color_variants || {},
         status: item.in_stock ? 'active' : 'out_of_stock',
         minStock: 0,
         maxStock: 100,
-        supplier: 'Default'
+        supplier: 'Default',
+        // Добавляем поля для совместимости с marketplace
+        ozonSynced: false,
+        wbSynced: !!item.wildberries_sku
       }));
 
       setProducts(mappedProducts);
@@ -211,6 +215,26 @@ export const useProducts = () => {
     }
   };
 
+  const deleteProducts = async (ids: string[]) => {
+    try {
+      console.log(`🗑️ [useProducts] Удаляем товары:`, ids);
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+
+      await fetchProducts(); // Перезагружаем список
+      toast.success(`Удалено товаров: ${ids.length}`);
+      return true;
+    } catch (error) {
+      console.error('❌ [useProducts] Ошибка удаления товаров:', error);
+      toast.error('Ошибка удаления товаров');
+      return false;
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     
@@ -222,23 +246,28 @@ export const useProducts = () => {
     
     loadProducts();
     
-    // Подписываемся на изменения в реальном времени
-    const subscription = supabase
-      .channel('products-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          console.log('🔄 [useProducts] Изменение в products:', payload);
-          if (isMounted) {
-            fetchProducts();
+    // Подписываемся на изменения в реальном времени только один раз
+    if (!subscriptionRef.current) {
+      subscriptionRef.current = supabase
+        .channel(`products-changes-${Date.now()}`) // Уникальное имя канала
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'products' },
+          (payload) => {
+            console.log('🔄 [useProducts] Изменение в products:', payload);
+            if (isMounted) {
+              fetchProducts();
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    }
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     };
   }, []);
 
@@ -248,6 +277,7 @@ export const useProducts = () => {
     addProduct,
     updateProduct,
     deleteProduct,
+    deleteProducts,
     refreshProducts: fetchProducts
   };
 };
